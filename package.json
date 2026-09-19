@@ -12,6 +12,7 @@
     "seed": "npm run seed -w server",
     "create-admin": "npm run create-admin -w server --",
     "backup": "npm run backup -w server",
+    "demo-attendance": "npm run demo-attendance -w server --",
     "normalize-rolls": "npm run normalize-rolls -w server",
     "test": "npm test -w server",
     "start": "npm start -w server"

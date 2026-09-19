@@ -62,6 +62,7 @@ These items remain deliberately unimplemented until the V1.1 safety work is comp
 
 - **Backup:** ADMIN → **Backup & restore** → **Create backup**, or run `npm run backup`. Managed files are stored in `server/backups` and excluded from Git.
 - **Restore:** upload a SQLite backup, enter the signed-in ADMIN password, and type `RESTORE ATTENDX`. AttendX validates the file, creates a pre-restore safety backup, restores it, and stops the API. Run `npm run dev` again afterward.
+- **Temporary attendance data:** after creating a backup, run `npm run demo-attendance -- 12` to generate 12 closed sessions for the existing active students. It never creates students or users and refuses to create a second demo set until the clean backup is restored.
 - **Reviewed import:** ADMIN → **Students** → **Import CSV**. AttendX understands quoted fields, normalizes numeric rolls, and displays additions, name changes, unchanged rows, duplicates, invalid rows, and missing students before applying anything. Choose whether missing students stay active or are deactivated.
 - **Session conflicts:** starting an identical open session is blocked. An overlapping/open-session warning requires a second explicit action and records the override as an extra or replacement class.
 - **Reopen:** only ADMIN can reopen a closed session, and a reason is mandatory. Reopening and re-closing are audited.
@@ -162,6 +163,7 @@ Run PostgreSQL restoration only during a maintenance window and take a provider 
 ```powershell
 npm run dev       # frontend + backend
 npm run backup    # safe timestamped SQLite backup
+npm run demo-attendance -- 12 # temporary sessions/records for analytics testing
 npm run create-admin    # create a clean permanent ADMIN account
 npm run normalize-rolls # repair numeric rolls imported by an older build
 npm test          # backend business-rule tests

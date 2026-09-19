@@ -8,6 +8,7 @@
     "seed": "node src/db/seed.js",
     "create-admin": "node src/cli/createAdmin.js",
     "backup": "node src/cli/backup.js",
+    "demo-attendance": "node src/cli/generateDemoAttendance.js",
     "normalize-rolls": "node src/cli/normalizeRolls.js",
     "test": "cross-env NODE_ENV=test node --test --test-concurrency=1"
   },
