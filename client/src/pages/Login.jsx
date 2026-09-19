@@ -38,7 +38,7 @@ export function Login() {
         <img className="ethics-mark" src="/brand/ekcle.png" />
       </div>
       <div className="login-area">
-        <form className="login-card" onSubmit={submit}>
+        <form className="login-card" onSubmit={submit} autoComplete="off">
           <div className="login-heading">
             <span className="app-monogram">AX</span>
             <div>
@@ -54,7 +54,7 @@ export function Login() {
               <input
                 name="email"
                 type="email"
-                defaultValue="cr@attendx.local"
+                autoComplete="off"
                 required
                 autoFocus
               />
@@ -67,7 +67,7 @@ export function Login() {
               <input
                 name="password"
                 type={show ? "text" : "password"}
-                defaultValue="CR@12345"
+                autoComplete="off"
                 required
               />
               <button type="button" onClick={() => setShow(!show)}>
