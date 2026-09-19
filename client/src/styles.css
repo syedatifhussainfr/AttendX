@@ -2399,6 +2399,110 @@ tr.clickable:hover td {
   overflow: hidden;
 }
 
+.database-management {
+  margin-bottom: 14px;
+}
+
+.database-management-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(35, 76, 105, 0.09);
+}
+
+.database-management-head h2,
+.database-management-head p {
+  margin: 0;
+}
+
+.database-management-head h2 {
+  margin-top: 4px;
+  color: #123b5d;
+  font-size: 18px;
+}
+
+.database-management-head p {
+  margin-top: 4px;
+  color: #758698;
+  font-size: 11px;
+}
+
+.database-management-head > svg {
+  width: 20px;
+  color: #356a8c;
+}
+
+.database-management-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  padding-top: 14px;
+}
+
+.database-management-grid button {
+  min-width: 0;
+  min-height: 90px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 16px;
+  gap: 10px;
+  align-items: center;
+  padding: 13px;
+  text-align: left;
+  color: #264c67;
+  border: 1px solid rgba(44, 91, 122, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.database-management-grid button:hover {
+  color: #0c3f64;
+  border-color: rgba(44, 91, 122, 0.24);
+  background: rgba(255, 255, 255, 0.67);
+}
+
+.database-management-grid button > span {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(224, 235, 241, 0.78);
+}
+
+.database-management-grid button svg {
+  width: 15px;
+}
+
+.database-management-grid button > div {
+  min-width: 0;
+}
+
+.database-management-grid strong,
+.database-management-grid small {
+  display: block;
+}
+
+.database-management-grid strong {
+  font-size: 12px;
+}
+
+.database-management-grid small {
+  margin-top: 3px;
+  color: #788999;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.database-management-grid button > svg {
+  color: #8a99a5;
+}
+
+.database-manage-action {
+  white-space: nowrap;
+}
+
 .database-toolbar {
   display: flex;
   justify-content: space-between;
@@ -2468,6 +2572,10 @@ tr.clickable:hover td {
   .database-summary {
     grid-template-columns: 1fr;
   }
+
+  .database-management-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 800px) {
@@ -2483,6 +2591,16 @@ tr.clickable:hover td {
   .database-toolbar .button-row {
     width: 100%;
     flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 520px) {
+  .database-management-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .database-management-grid button {
+    min-height: 78px;
   }
 }
 .toast.error {

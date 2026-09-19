@@ -1,10 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  ArrowRight,
+  BookOpen,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   Database as DatabaseIcon,
   Download,
+  FileClock,
+  GraduationCap,
+  KeyRound,
+  Settings,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 import { api, messageOf } from "../api.js";
@@ -22,6 +30,73 @@ const labels = {
   auth_sessions: "Login sessions",
   app_migrations: "Schema migrations",
 };
+
+const managementAreas = [
+  {
+    tables: ["users"],
+    route: "/users",
+    label: "Users & access",
+    description: "Create, disable, reset, or safely delete accounts.",
+    action: "Manage users",
+    Icon: Users,
+  },
+  {
+    tables: ["students"],
+    route: "/students",
+    label: "Students",
+    description: "Add, edit, import, and deactivate student records.",
+    action: "Manage students",
+    Icon: GraduationCap,
+  },
+  {
+    tables: ["subjects"],
+    route: "/subjects",
+    label: "Subjects",
+    description: "Create subjects and update their names or status.",
+    action: "Manage subjects",
+    Icon: BookOpen,
+  },
+  {
+    tables: ["timetable"],
+    route: "/timetable",
+    label: "Timetable",
+    description: "Create, edit, activate, or remove timetable entries.",
+    action: "Manage timetable",
+    Icon: CalendarDays,
+  },
+  {
+    tables: ["attendance_sessions", "attendance_records"],
+    route: "/history",
+    label: "Attendance records",
+    description: "Review sessions and make reason-backed corrections.",
+    action: "Review attendance",
+    Icon: FileClock,
+  },
+  {
+    tables: ["settings"],
+    route: "/settings",
+    label: "System settings",
+    description: "Update attendance rules and academic configuration.",
+    action: "Manage settings",
+    Icon: Settings,
+  },
+  {
+    tables: ["audit_logs"],
+    route: "/audit",
+    label: "Audit history",
+    description: "Inspect protected change history and administrator actions.",
+    action: "View audit logs",
+    Icon: ShieldCheck,
+  },
+  {
+    tables: ["auth_sessions"],
+    route: "/change-password",
+    label: "Login sessions",
+    description: "Review devices and revoke active browser sessions.",
+    action: "Manage sessions",
+    Icon: KeyRound,
+  },
+];
 
 const displayValue = (value) => {
   if (value === null || value === undefined) return "—";
@@ -63,6 +138,10 @@ export function DatabasePage() {
       Object.keys(row).forEach((key) => names.add(key));
     return [...names];
   }, [result]);
+  const selectedManagement = managementAreas.find((area) =>
+    area.tables.includes(selected),
+  );
+  const SelectedManagementIcon = selectedManagement?.Icon;
 
   const changeTable = (table) => {
     setSelected(table);
@@ -88,8 +167,8 @@ export function DatabasePage() {
           <span className="eyebrow">ADMIN++ · SECURE CONSOLE</span>
           <h1>Database</h1>
           <p>
-            Inspect stored records without bypassing AttendX permissions or
-            audit rules.
+            Inspect every table, then create or edit data through protected,
+            validated management controls.
           </p>
         </div>
         <div className="database-engine">
@@ -121,6 +200,34 @@ export function DatabasePage() {
         </div>
       </section>
 
+      <section className="panel database-management">
+        <div className="database-management-head">
+          <div>
+            <span className="eyebrow">MANAGE DATA</span>
+            <h2>Safe editing controls</h2>
+            <p>
+              Changes use AttendX validation, permissions, relationships, and
+              audit rules instead of unsafe raw cell editing.
+            </p>
+          </div>
+          <ShieldCheck />
+        </div>
+        <div className="database-management-grid">
+          {managementAreas.map(({ route, label, description, Icon }) => (
+            <button key={route} onClick={() => navigate(route)}>
+              <span>
+                <Icon />
+              </span>
+              <div>
+                <strong>{label}</strong>
+                <small>{description}</small>
+              </div>
+              <ArrowRight />
+            </button>
+          ))}
+        </div>
+      </section>
+
       <section className="panel database-browser">
         <div className="database-toolbar">
           <div>
@@ -129,12 +236,12 @@ export function DatabasePage() {
             <p>{result?.total ?? 0} stored records</p>
           </div>
           <div className="button-row">
-            {selected === "users" && (
+            {selectedManagement && (
               <button
-                className="secondary"
-                onClick={() => navigate("/users")}
+                className="primary database-manage-action"
+                onClick={() => navigate(selectedManagement.route)}
               >
-                <Users /> Manage users
+                <SelectedManagementIcon /> {selectedManagement.action}
               </button>
             )}
             <select
