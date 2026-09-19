@@ -13,12 +13,14 @@ import {
   KeyRound,
   LogOut,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   Settings,
   ShieldCheck,
   Users,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../state/AuthContext.jsx";
 import { Dialog } from "./Dialog.jsx";
 const baseLinks = [
@@ -36,17 +38,57 @@ const adminLinks = [
   ["/backups", "Backup & restore", DatabaseBackup],
   ["/settings", "Settings", Settings],
 ];
+const SIDEBAR_MIN = 214;
+const SIDEBAR_MAX = 340;
+const clampSidebarWidth = (value) =>
+  Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, Number(value) || 238));
+
 export function Layout() {
   const { user, logout } = useAuth(),
     navigate = useNavigate(),
     [open, setOpen] = useState(false),
     [passwordPrompt, setPasswordPrompt] = useState(false),
-    [skipPasswordPrompt, setSkipPasswordPrompt] = useState(false);
+    [skipPasswordPrompt, setSkipPasswordPrompt] = useState(false),
+    [logoutPrompt, setLogoutPrompt] = useState(false),
+    [loggingOut, setLoggingOut] = useState(false),
+    [sidebarVisible, setSidebarVisible] = useState(
+      () => localStorage.getItem("attendx_sidebar_visible") !== "false",
+    ),
+    [sidebarWidth, setSidebarWidth] = useState(() =>
+      clampSidebarWidth(localStorage.getItem("attendx_sidebar_width")),
+    );
   const passwordPromptKey = `attendx_skip_password_prompt_${user.id}`;
   const doLogout = async () => {
-    await logout();
-    navigate("/login");
+    setLoggingOut(true);
+    try {
+      await logout();
+      navigate("/login");
+    } finally {
+      setLoggingOut(false);
+      setLogoutPrompt(false);
+    }
   };
+  const requestLogout = () => {
+    setOpen(false);
+    setLogoutPrompt(true);
+  };
+  useEffect(() => {
+    if (!open) return undefined;
+    document.body.classList.add("mobile-nav-open");
+    return () => document.body.classList.remove("mobile-nav-open");
+  }, [open]);
+  useEffect(
+    () => () => document.body.classList.remove("sidebar-resizing"),
+    [],
+  );
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 901px)");
+    const closeDrawer = (event) => {
+      if (event.matches) setOpen(false);
+    };
+    desktop.addEventListener("change", closeDrawer);
+    return () => desktop.removeEventListener("change", closeDrawer);
+  }, []);
   const handleNavigation = (event, to) => {
     setOpen(false);
     if (
@@ -70,13 +112,69 @@ export function Layout() {
     surface.style.setProperty("--cursor-x", `${event.clientX - bounds.left}px`);
     surface.style.setProperty("--cursor-y", `${event.clientY - bounds.top}px`);
   };
+  const toggleSidebar = () => {
+    setSidebarVisible((visible) => {
+      localStorage.setItem("attendx_sidebar_visible", String(!visible));
+      return !visible;
+    });
+  };
+  const updateSidebarWidth = (value) => {
+    const next = clampSidebarWidth(value);
+    setSidebarWidth(next);
+    localStorage.setItem("attendx_sidebar_width", String(next));
+  };
+  const beginResize = (event) => {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    document.body.classList.add("sidebar-resizing");
+  };
+  const resizeSidebar = (event) => {
+    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+    updateSidebarWidth(event.clientX - 16);
+  };
+  const finishResize = (event) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId))
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    document.body.classList.remove("sidebar-resizing");
+  };
+  const resizeWithKeyboard = (event) => {
+    if (event.key === "ArrowLeft") updateSidebarWidth(sidebarWidth - 10);
+    else if (event.key === "ArrowRight") updateSidebarWidth(sidebarWidth + 10);
+    else if (event.key === "Home") updateSidebarWidth(SIDEBAR_MIN);
+    else if (event.key === "End") updateSidebarWidth(SIDEBAR_MAX);
+    else return;
+    event.preventDefault();
+  };
   return (
-    <div className="app-shell" onPointerMove={trackPointer}>
-      <button className="mobile-menu" onClick={() => setOpen(true)}>
+    <div
+      className={`app-shell ${sidebarVisible ? "" : "sidebar-collapsed"}`}
+      onPointerMove={trackPointer}
+      style={{ "--sidebar-width": `${sidebarWidth}px` }}
+    >
+      <button
+        className="mobile-menu"
+        onClick={() => setOpen(true)}
+        aria-label="Open navigation"
+        aria-expanded={open}
+      >
         <Menu />
       </button>
-      <aside className={open ? "sidebar open" : "sidebar"}>
-        <button className="sidebar-close" onClick={() => setOpen(false)}>
+      {open && (
+        <button
+          className="mobile-sidebar-backdrop"
+          aria-label="Close navigation"
+          onClick={() => setOpen(false)}
+        />
+      )}
+      <aside
+        className={open ? "sidebar open" : "sidebar"}
+        aria-label="Primary navigation"
+      >
+        <button
+          className="sidebar-close"
+          onClick={() => setOpen(false)}
+          aria-label="Close navigation"
+        >
           <X />
         </button>
         <div className="brand">
@@ -123,18 +221,49 @@ export function Layout() {
             <strong>{user.name}</strong>
             <small>{user.role}</small>
           </div>
-          <button onClick={doLogout} title="Sign out">
+          <button
+            onClick={requestLogout}
+            title="Sign out"
+            aria-label="Sign out"
+          >
             <LogOut />
           </button>
         </div>
+        <div
+          className="sidebar-resizer"
+          role="separator"
+          aria-label="Resize navigation sidebar"
+          aria-orientation="vertical"
+          aria-valuemin={SIDEBAR_MIN}
+          aria-valuemax={SIDEBAR_MAX}
+          aria-valuenow={sidebarWidth}
+          title={`Sidebar width: ${sidebarWidth}px`}
+          tabIndex={0}
+          onPointerDown={beginResize}
+          onPointerMove={resizeSidebar}
+          onPointerUp={finishResize}
+          onPointerCancel={finishResize}
+          onKeyDown={resizeWithKeyboard}
+        />
       </aside>
       <main className="main">
         <header className="topbar">
-          <div>
-            <small>SEMESTER I · 2026–27</small>
-            <strong>
-              <Clock3 /> Asia/Kolkata
-            </strong>
+          <div className="topbar-start">
+            <button
+              className="desktop-sidebar-toggle"
+              onClick={toggleSidebar}
+              aria-expanded={sidebarVisible}
+              aria-label={sidebarVisible ? "Hide sidebar" : "Show sidebar"}
+              title={sidebarVisible ? "Hide sidebar" : "Show sidebar"}
+            >
+              {sidebarVisible ? <PanelLeftClose /> : <PanelLeftOpen />}
+            </button>
+            <div>
+              <small>SEMESTER I · 2026–27</small>
+              <strong>
+                <Clock3 /> Asia/Kolkata
+              </strong>
+            </div>
           </div>
           <span className="role-pill">
             <ShieldCheck />
@@ -181,6 +310,41 @@ export function Layout() {
             </button>
             <button className="primary" onClick={continueToPassword}>
               Continue to security <KeyRound />
+            </button>
+          </div>
+        </div>
+      </Dialog>
+      <Dialog
+        open={logoutPrompt}
+        title="Sign out of AttendX?"
+        onClose={() => !loggingOut && setLogoutPrompt(false)}
+      >
+        <div className="logout-confirmation">
+          <span className="logout-confirmation-icon">
+            <LogOut />
+          </span>
+          <div>
+            <h3>End this session</h3>
+            <p>
+              You’ll need to enter your email and password to access AttendX
+              again on this browser.
+            </p>
+          </div>
+          <div className="dialog-actions">
+            <button
+              className="secondary"
+              onClick={() => setLogoutPrompt(false)}
+              disabled={loggingOut}
+            >
+              Stay signed in
+            </button>
+            <button
+              className="danger logout-confirm-button"
+              onClick={doLogout}
+              disabled={loggingOut}
+            >
+              {loggingOut ? "Signing out…" : "Sign out"}
+              <LogOut />
             </button>
           </div>
         </div>
