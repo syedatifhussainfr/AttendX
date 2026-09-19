@@ -105,13 +105,6 @@ export function Layout() {
     setPasswordPrompt(false);
     navigate("/change-password");
   };
-  const trackPointer = (event) => {
-    const surface = event.target.closest("[data-cursor-reactive]");
-    if (!surface || !event.currentTarget.contains(surface)) return;
-    const bounds = surface.getBoundingClientRect();
-    surface.style.setProperty("--cursor-x", `${event.clientX - bounds.left}px`);
-    surface.style.setProperty("--cursor-y", `${event.clientY - bounds.top}px`);
-  };
   const toggleSidebar = () => {
     setSidebarVisible((visible) => {
       localStorage.setItem("attendx_sidebar_visible", String(!visible));
@@ -148,7 +141,6 @@ export function Layout() {
   return (
     <div
       className={`app-shell ${sidebarVisible ? "" : "sidebar-collapsed"}`}
-      onPointerMove={trackPointer}
       style={{ "--sidebar-width": `${sidebarWidth}px` }}
     >
       <button
@@ -192,7 +184,6 @@ export function Layout() {
               to={to}
               end={to === "/"}
               onClick={(event) => handleNavigation(event, to)}
-              data-cursor-reactive
             >
               <Icon />
               {label}
@@ -206,7 +197,6 @@ export function Layout() {
                   key={to}
                   to={to}
                   onClick={() => setOpen(false)}
-                  data-cursor-reactive
                 >
                   <Icon />
                   {label}

@@ -102,7 +102,7 @@ export function Dashboard() {
           Start attendance
         </button>
       </div>
-      <section className="lecture-hero" data-cursor-reactive>
+      <section className="lecture-hero">
         <div>
           <span className={`live-label ${data.current ? "" : "idle"}`}>
             <i />{" "}
@@ -132,7 +132,6 @@ export function Dashboard() {
         <button
           className="hero-action"
           onClick={() => setOpen(true)}
-          data-cursor-reactive
         >
           {liveOrNext
             ? "Open attendance console"
@@ -143,7 +142,6 @@ export function Dashboard() {
       <div className="metric-row" aria-label="Today at a glance">
         <article
           className={`metric-card ${data.current ? "is-live" : ""}`}
-          data-cursor-reactive
         >
           <span className="metric-icon">
             <Clock3 />
@@ -163,7 +161,7 @@ export function Dashboard() {
             </span>
           </div>
         </article>
-        <article className="metric-card" data-cursor-reactive>
+        <article className="metric-card">
           <span className="metric-icon">
             <CalendarDays />
           </span>
@@ -180,7 +178,7 @@ export function Dashboard() {
             </span>
           </div>
         </article>
-        <article className="metric-card" data-cursor-reactive>
+        <article className="metric-card">
           <span className="metric-icon">
             <CheckCircle2 />
           </span>
@@ -195,7 +193,7 @@ export function Dashboard() {
             </span>
           </div>
         </article>
-        <article className="metric-card" data-cursor-reactive>
+        <article className="metric-card">
           <span className="metric-icon">
             <Users />
           </span>
@@ -208,7 +206,7 @@ export function Dashboard() {
         </article>
       </div>
       <div className="two-col">
-        <section className="panel" data-cursor-reactive>
+        <section className="panel">
           <div className="panel-title">
             <div>
               <h2>Today’s timetable</h2>
@@ -244,7 +242,7 @@ export function Dashboard() {
             )}
           </div>
         </section>
-        <section className="panel" data-cursor-reactive>
+        <section className="panel">
           <div className="panel-title">
             <div>
               <h2>Sessions today</h2>
