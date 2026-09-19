@@ -1000,7 +1000,7 @@ strong {
   background: #ffffff13;
   border-color: #ffffff14;
   color: #fff;
-  box-shadow: inset 3px 0 #f08a3c;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.08);
 }
 .sidebar svg {
   width: 18px;
@@ -2882,6 +2882,8 @@ body::after {
 }
 
 .sidebar nav a {
+  position: relative;
+  overflow: hidden;
   color: rgba(224, 235, 243, 0.72);
   margin: 3px 0;
   padding: 10px 11px;
@@ -2890,20 +2892,45 @@ body::after {
 }
 
 .sidebar nav a:hover {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.08);
+  background-color: rgba(255, 255, 255, 0.075);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(244, 249, 252, 0.96);
 }
 
 .sidebar nav a.active {
-  background: linear-gradient(
-    100deg,
-    rgba(255, 255, 255, 0.14),
-    rgba(255, 255, 255, 0.06)
+  background-color: rgba(224, 240, 248, 0.13);
+  background-image: linear-gradient(
+    110deg,
+    rgba(255, 255, 255, 0.075),
+    rgba(255, 255, 255, 0.015)
   );
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(200, 226, 239, 0.15);
   box-shadow:
-    inset 2px 0 var(--academic-orange),
-    0 8px 22px rgba(0, 0, 0, 0.08);
+    inset 0 1px rgba(255, 255, 255, 0.08),
+    0 7px 18px rgba(0, 14, 27, 0.1);
+  color: #fff;
+}
+
+.sidebar nav a.active svg {
+  color: #92d1e2;
+}
+
+.sidebar nav a.active::after {
+  content: "";
+  position: absolute;
+  right: 11px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #9ed6e4;
+  box-shadow: 0 0 0 3px rgba(158, 214, 228, 0.1);
+  transform: translateY(-50%);
+}
+
+.sidebar nav a:focus-visible {
+  outline: 2px solid rgba(164, 216, 232, 0.8);
+  outline-offset: 2px;
 }
 
 .sidebar-user {
@@ -3083,15 +3110,13 @@ body::after {
     inset 0 1px rgba(255, 255, 255, 0.9);
   transition:
     border-color 160ms ease,
-    box-shadow 160ms ease,
-    transform 160ms ease;
+    box-shadow 160ms ease;
 }
 
 .metric-row article:hover {
-  transform: translateY(-2px);
   border-color: rgba(121, 159, 183, 0.38);
   box-shadow:
-    0 18px 36px rgba(20, 53, 78, 0.1),
+    0 15px 32px rgba(20, 53, 78, 0.09),
     inset 0 1px rgba(255, 255, 255, 0.94);
 }
 
@@ -3159,6 +3184,83 @@ body::after {
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Pointer response adds local depth without moving or scaling the interface. */
+@media (hover: hover) and (pointer: fine) {
+  [data-cursor-reactive] {
+    --cursor-x: 50%;
+    --cursor-y: 50%;
+  }
+
+  .metric-card::before,
+  .two-col > .panel::before,
+  .hero-action::before,
+  .lecture-hero::before,
+  .sidebar nav a::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 180ms ease;
+  }
+
+  .metric-card::before,
+  .two-col > .panel::before,
+  .hero-action::before {
+    background: radial-gradient(
+      170px circle at var(--cursor-x) var(--cursor-y),
+      rgba(130, 190, 215, 0.16),
+      transparent 70%
+    );
+  }
+
+  .lecture-hero::before {
+    background: radial-gradient(
+      250px circle at var(--cursor-x) var(--cursor-y),
+      rgba(151, 211, 231, 0.13),
+      transparent 72%
+    );
+  }
+
+  .sidebar nav a::before {
+    background: radial-gradient(
+      130px circle at var(--cursor-x) var(--cursor-y),
+      rgba(154, 217, 234, 0.16),
+      transparent 72%
+    );
+  }
+
+  .metric-card:hover::before,
+  .two-col > .panel:hover::before,
+  .hero-action:hover::before,
+  .lecture-hero:hover::before,
+  .sidebar nav a:hover::before {
+    opacity: 1;
+  }
+
+  .metric-card > *,
+  .two-col > .panel > *,
+  .hero-action > *,
+  .lecture-hero > *,
+  .sidebar nav a > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .two-col > .panel,
+  .hero-action {
+    position: relative;
+    overflow: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-cursor-reactive]::before {
+    display: none;
+  }
 }
 
 .two-col {

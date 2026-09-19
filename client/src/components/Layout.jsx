@@ -63,8 +63,15 @@ export function Layout() {
     setPasswordPrompt(false);
     navigate("/change-password");
   };
+  const trackPointer = (event) => {
+    const surface = event.target.closest("[data-cursor-reactive]");
+    if (!surface || !event.currentTarget.contains(surface)) return;
+    const bounds = surface.getBoundingClientRect();
+    surface.style.setProperty("--cursor-x", `${event.clientX - bounds.left}px`);
+    surface.style.setProperty("--cursor-y", `${event.clientY - bounds.top}px`);
+  };
   return (
-    <div className="app-shell">
+    <div className="app-shell" onPointerMove={trackPointer}>
       <button className="mobile-menu" onClick={() => setOpen(true)}>
         <Menu />
       </button>
@@ -87,6 +94,7 @@ export function Layout() {
               to={to}
               end={to === "/"}
               onClick={(event) => handleNavigation(event, to)}
+              data-cursor-reactive
             >
               <Icon />
               {label}
@@ -96,7 +104,12 @@ export function Layout() {
             <>
               <p>Administration</p>
               {adminLinks.map(([to, label, Icon]) => (
-                <NavLink key={to} to={to} onClick={() => setOpen(false)}>
+                <NavLink
+                  key={to}
+                  to={to}
+                  onClick={() => setOpen(false)}
+                  data-cursor-reactive
+                >
                   <Icon />
                   {label}
                 </NavLink>

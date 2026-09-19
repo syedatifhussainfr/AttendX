@@ -102,7 +102,7 @@ export function Dashboard() {
           Start attendance
         </button>
       </div>
-      <section className="lecture-hero">
+      <section className="lecture-hero" data-cursor-reactive>
         <div>
           <span className={`live-label ${data.current ? "" : "idle"}`}>
             <i />{" "}
@@ -129,7 +129,11 @@ export function Dashboard() {
             )}
           </p>
         </div>
-        <button className="hero-action" onClick={() => setOpen(true)}>
+        <button
+          className="hero-action"
+          onClick={() => setOpen(true)}
+          data-cursor-reactive
+        >
           {liveOrNext
             ? "Open attendance console"
             : "Start an unscheduled lecture"}
@@ -137,7 +141,10 @@ export function Dashboard() {
         </button>
       </section>
       <div className="metric-row" aria-label="Today at a glance">
-        <article className={`metric-card ${data.current ? "is-live" : ""}`}>
+        <article
+          className={`metric-card ${data.current ? "is-live" : ""}`}
+          data-cursor-reactive
+        >
           <span className="metric-icon">
             <Clock3 />
           </span>
@@ -156,7 +163,7 @@ export function Dashboard() {
             </span>
           </div>
         </article>
-        <article className="metric-card">
+        <article className="metric-card" data-cursor-reactive>
           <span className="metric-icon">
             <CalendarDays />
           </span>
@@ -173,7 +180,7 @@ export function Dashboard() {
             </span>
           </div>
         </article>
-        <article className="metric-card">
+        <article className="metric-card" data-cursor-reactive>
           <span className="metric-icon">
             <CheckCircle2 />
           </span>
@@ -188,7 +195,7 @@ export function Dashboard() {
             </span>
           </div>
         </article>
-        <article className="metric-card">
+        <article className="metric-card" data-cursor-reactive>
           <span className="metric-icon">
             <Users />
           </span>
@@ -201,7 +208,7 @@ export function Dashboard() {
         </article>
       </div>
       <div className="two-col">
-        <section className="panel">
+        <section className="panel" data-cursor-reactive>
           <div className="panel-title">
             <div>
               <h2>Today’s timetable</h2>
@@ -237,7 +244,7 @@ export function Dashboard() {
             )}
           </div>
         </section>
-        <section className="panel">
+        <section className="panel" data-cursor-reactive>
           <div className="panel-title">
             <div>
               <h2>Sessions today</h2>
