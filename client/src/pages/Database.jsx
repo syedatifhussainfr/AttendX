@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Database as DatabaseIcon, Download } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Database as DatabaseIcon,
+  Download,
+} from "lucide-react";
 import { api, messageOf } from "../api.js";
 import { useToast } from "../state/ToastContext.jsx";
 
@@ -12,6 +17,7 @@ const labels = {
   attendance_records: "Attendance records",
   settings: "Settings",
   audit_logs: "Audit logs",
+  auth_sessions: "Login sessions",
   app_migrations: "Schema migrations",
 };
 
@@ -79,7 +85,8 @@ export function DatabasePage() {
           <span className="eyebrow">ADMIN · READ-ONLY CONSOLE</span>
           <h1>Database</h1>
           <p>
-            Inspect stored records without bypassing AttendX permissions or audit rules.
+            Inspect stored records without bypassing AttendX permissions or
+            audit rules.
           </p>
         </div>
         <div className="database-engine">
@@ -130,7 +137,11 @@ export function DatabasePage() {
                 </option>
               ))}
             </select>
-            <button className="secondary" onClick={downloadJson} disabled={!result?.rows?.length}>
+            <button
+              className="secondary"
+              onClick={downloadJson}
+              disabled={!result?.rows?.length}
+            >
               <Download /> Export page JSON
             </button>
           </div>
@@ -142,7 +153,11 @@ export function DatabasePage() {
           ) : result?.rows?.length ? (
             <table className="database-table">
               <thead>
-                <tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr>
+                <tr>
+                  {columns.map((column) => (
+                    <th key={column}>{column}</th>
+                  ))}
+                </tr>
               </thead>
               <tbody>
                 {result.rows.map((row, index) => (
@@ -157,7 +172,9 @@ export function DatabasePage() {
               </tbody>
             </table>
           ) : (
-            <div className="empty">This table does not contain any records.</div>
+            <div className="empty">
+              This table does not contain any records.
+            </div>
           )}
         </div>
 
@@ -170,7 +187,8 @@ export function DatabasePage() {
             <ChevronLeft /> Previous
           </button>
           <span>
-            Page <strong>{result?.page || page}</strong> of {result?.totalPages || 1}
+            Page <strong>{result?.page || page}</strong> of{" "}
+            {result?.totalPages || 1}
           </span>
           <button
             className="secondary"

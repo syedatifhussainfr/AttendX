@@ -9,8 +9,9 @@ import backupRoutes from "./routes/backups.js";
 import { errorHandler, notFound } from "./middleware/error.js";
 
 export const app = express();
+app.set("trust proxy", process.env.TRUST_PROXY === "true" ? 1 : false);
 app.use(helmet());
-app.use(cors({ origin: config.clientUrl }));
+app.use(cors({ origin: config.clientUrl, credentials: true }));
 app.use(express.json({ limit: "2mb" }));
 app.get("/api/health", (req, res) =>
   res.json({ ok: true, serverTime: new Date().toISOString() }),

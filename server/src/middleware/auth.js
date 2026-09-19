@@ -1,23 +1,29 @@
 import jwt from "jsonwebtoken";
 import { config } from "../config.js";
-import { User } from "../db/index.js";
+import { validateAccessSession } from "../services/authSessionService.js";
 
 export async function requireAuth(req, res, next) {
+  const token = req.headers.authorization?.replace(/^Bearer\s+/i, "");
+  if (!token)
+    return res.status(401).json({ message: "Authentication required." });
+  let payload;
   try {
-    const token = req.headers.authorization?.replace(/^Bearer\s+/i, "");
-    if (!token)
-      return res.status(401).json({ message: "Authentication required." });
-    const payload = jwt.verify(token, config.jwtSecret);
-    const user = await User.findByPk(payload.sub, {
-      attributes: { exclude: ["passwordHash"] },
+    payload = jwt.verify(token, config.jwtSecret, {
+      algorithms: ["HS256"],
+      issuer: config.jwtIssuer,
+      audience: config.jwtAudience,
     });
-    if (!user?.active)
-      return res.status(401).json({ message: "Account is unavailable." });
-    if (Number(payload.ver || 0) !== Number(user.tokenVersion || 0))
-      return res.status(401).json({ message: "Session has been revoked." });
-    req.user = user;
+  } catch {
+    return res.status(401).json({ message: "Session expired or invalid." });
+  }
+  try {
+    const authenticated = await validateAccessSession(payload);
+    if (!authenticated)
+      return res.status(401).json({ message: "Session expired or revoked." });
+    req.user = authenticated.user;
+    req.authSession = authenticated.session;
     if (
-      user.mustChangePassword &&
+      authenticated.user.mustChangePassword &&
       !req.originalUrl.startsWith("/api/auth/change-password") &&
       !req.originalUrl.startsWith("/api/auth/me")
     )
@@ -25,9 +31,9 @@ export async function requireAuth(req, res, next) {
         code: "PASSWORD_CHANGE_REQUIRED",
         message: "Change the temporary password before continuing.",
       });
-    next();
-  } catch {
-    res.status(401).json({ message: "Session expired or invalid." });
+    return next();
+  } catch (error) {
+    return next(error);
   }
 }
 export const requireRole =

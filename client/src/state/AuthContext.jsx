@@ -1,42 +1,67 @@
-import { createContext, useContext, useMemo, useState } from "react";
-import { api } from "../api.js";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { api, resumeSession, setAccessToken } from "../api.js";
+
 const AuthContext = createContext(null);
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem("attendx_user") || "null");
-      if (
-        stored &&
-        typeof stored.name === "string" &&
-        ["ADMIN", "CR"].includes(stored.role)
-      ) {
-        return stored;
-      }
-    } catch {
-      // Ignore stale or malformed data left by another localhost application.
-    }
+  const [user, setUser] = useState(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
     localStorage.removeItem("attendx_token");
     localStorage.removeItem("attendx_user");
-    return null;
-  });
+    let active = true;
+    resumeSession()
+      .then((data) => {
+        if (active) setUser(data.user);
+      })
+      .catch(() => {
+        setAccessToken(null);
+        if (active) setUser(null);
+      })
+      .finally(() => {
+        if (active) setReady(true);
+      });
+    const ended = () => {
+      setAccessToken(null);
+      setUser(null);
+      setReady(true);
+    };
+    const refreshed = (event) => {
+      if (event.detail) setUser(event.detail);
+    };
+    window.addEventListener("attendx:session-ended", ended);
+    window.addEventListener("attendx:session-refreshed", refreshed);
+    return () => {
+      active = false;
+      window.removeEventListener("attendx:session-ended", ended);
+      window.removeEventListener("attendx:session-refreshed", refreshed);
+    };
+  }, []);
+
   const login = async (credentials) => {
-    const { data } = await api.post("/auth/login", credentials);
-    localStorage.setItem("attendx_token", data.token);
-    localStorage.setItem("attendx_user", JSON.stringify(data.user));
+    const { data } = await api.post("/auth/login", credentials, { skipAuthRefresh: true });
+    setAccessToken(data.accessToken);
     setUser(data.user);
     return data.user;
   };
-  const logout = () => {
-    localStorage.removeItem("attendx_token");
-    localStorage.removeItem("attendx_user");
-    setUser(null);
+
+  const logout = async () => {
+    try {
+      await api.post("/auth/logout", null, { skipAuthRefresh: true, skipAuthorization: true });
+    } finally {
+      setAccessToken(null);
+      setUser(null);
+    }
   };
+
   return (
     <AuthContext.Provider
-      value={useMemo(() => ({ user, login, logout }), [user])}
+      value={useMemo(() => ({ user, ready, login, logout }), [user, ready])}
     >
       {children}
     </AuthContext.Provider>
   );
 }
+
 export const useAuth = () => useContext(AuthContext);

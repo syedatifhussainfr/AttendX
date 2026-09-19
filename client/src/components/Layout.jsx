@@ -43,8 +43,8 @@ export function Layout() {
     [passwordPrompt, setPasswordPrompt] = useState(false),
     [skipPasswordPrompt, setSkipPasswordPrompt] = useState(false);
   const passwordPromptKey = `attendx_skip_password_prompt_${user.id}`;
-  const doLogout = () => {
-    logout();
+  const doLogout = async () => {
+    await logout();
     navigate("/login");
   };
   const handleNavigation = (event, to) => {
@@ -59,8 +59,7 @@ export function Layout() {
     }
   };
   const continueToPassword = () => {
-    if (skipPasswordPrompt)
-      localStorage.setItem(passwordPromptKey, "true");
+    if (skipPasswordPrompt) localStorage.setItem(passwordPromptKey, "true");
     setPasswordPrompt(false);
     navigate("/change-password");
   };
@@ -137,7 +136,9 @@ export function Layout() {
         onClose={() => setPasswordPrompt(false)}
       >
         <div className="password-nav-prompt">
-          <span className="prompt-security-icon"><KeyRound /></span>
+          <span className="prompt-security-icon">
+            <KeyRound />
+          </span>
           <div>
             <h3>Change your AttendX password</h3>
             <p>
@@ -153,11 +154,16 @@ export function Layout() {
             />
             <span>
               Don’t show this confirmation again
-              <small>You can still open Change password from the sidebar.</small>
+              <small>
+                You can still open Change password from the sidebar.
+              </small>
             </span>
           </label>
           <div className="dialog-actions">
-            <button className="secondary" onClick={() => setPasswordPrompt(false)}>
+            <button
+              className="secondary"
+              onClick={() => setPasswordPrompt(false)}
+            >
               Stay here
             </button>
             <button className="primary" onClick={continueToPassword}>

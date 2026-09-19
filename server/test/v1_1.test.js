@@ -4,7 +4,6 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import request from "supertest";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "attendx-v11-"));
@@ -20,15 +19,14 @@ const backup = await import("../src/services/backupService.js");
 const studentImport = await import("../src/services/studentImportService.js");
 const sessions = await import("../src/services/sessionService.js");
 const attendance = await import("../src/services/attendanceService.js");
+const authSessions = await import("../src/services/authSessionService.js");
 
 let admin;
 let cr;
+let sessionUser;
 let subject;
-const sign = (user) =>
-  jwt.sign(
-    { sub: user.id, role: user.role, ver: user.tokenVersion || 0 },
-    process.env.JWT_SECRET,
-  );
+let adminToken;
+let crToken;
 
 before(async () => {
   await db.initDatabase({ force: true });
@@ -44,6 +42,14 @@ before(async () => {
     passwordHash: await bcrypt.hash("CRTestPass@123", 4),
     role: "CR",
   });
+  sessionUser = await db.User.create({
+    name: "Session Test",
+    email: "session-v11@test.local",
+    passwordHash: await bcrypt.hash("SessionTest@123", 4),
+    role: "CR",
+  });
+  adminToken = (await authSessions.createAuthSession(admin, { userAgent: "Admin test browser" })).accessToken;
+  crToken = (await authSessions.createAuthSession(cr, { userAgent: "CR test browser" })).accessToken;
   subject = await db.Subject.create({ code: "V11", name: "V1.1 Safety" });
   await db.Setting.create({ key: "lateThresholdMinutes", value: "15" });
   await db.Student.bulkCreate([
@@ -62,13 +68,89 @@ test("versioned migration adds V1.1 columns and records itself", async () => {
   const records = await db.sequelize
     .getQueryInterface()
     .describeTable("attendance_records");
+  const authSessionsTable = await db.sequelize
+    .getQueryInterface()
+    .describeTable("auth_sessions");
   assert.ok(users.must_change_password);
   assert.ok(users.token_version);
   assert.ok(records.correction_reason);
+  assert.ok(authSessionsTable.current_token_hash);
+  assert.ok(authSessionsTable.expires_at);
   const [migrations] = await db.sequelize.query(
     "SELECT id FROM app_migrations WHERE id = '001-v1.1-core-safety'",
   );
   assert.equal(migrations.length, 1);
+  const [sessionMigrations] = await db.sequelize.query(
+    "SELECT id FROM app_migrations WHERE id = '002-secure-auth-sessions'",
+  );
+  assert.equal(sessionMigrations.length, 1);
+});
+
+test("secure browser sessions rotate, reject stale access, and revoke on logout", async () => {
+  const agent = request.agent(app);
+  const login = await agent
+    .post("/api/auth/login")
+    .set("User-Agent", "AttendX test browser")
+    .send({ email: sessionUser.email, password: "SessionTest@123" })
+    .expect(200);
+  assert.match(login.headers["set-cookie"][0], /HttpOnly/i);
+  assert.match(login.headers["set-cookie"][0], /SameSite=Strict/i);
+  const firstRefreshCookie = login.headers["set-cookie"][0].split(";", 1)[0];
+  const firstAccessToken = login.body.accessToken;
+  const otherDevice = await authSessions.createAuthSession(sessionUser, {
+    userAgent: "Other test device",
+  });
+
+  const sessionsResponse = await agent
+    .get("/api/auth/sessions")
+    .set("Authorization", `Bearer ${firstAccessToken}`)
+    .expect(200);
+  assert.equal(sessionsResponse.body.sessions.filter((row) => row.current).length, 1);
+  assert.ok(sessionsResponse.body.sessions.some((row) => row.userAgent === "AttendX test browser"));
+  const otherRow = sessionsResponse.body.sessions.find((row) => row.userAgent === "Other test device");
+  await agent
+    .delete(`/api/auth/sessions/${otherRow.id}`)
+    .set("Authorization", `Bearer ${firstAccessToken}`)
+    .expect(204);
+  await request(app)
+    .get("/api/auth/me")
+    .set("Authorization", `Bearer ${otherDevice.accessToken}`)
+    .expect(401);
+
+  const thirdDevice = await authSessions.createAuthSession(sessionUser, {
+    userAgent: "Third test device",
+  });
+  await agent
+    .post("/api/auth/sessions/revoke-others")
+    .set("Authorization", `Bearer ${firstAccessToken}`)
+    .expect(200);
+  await request(app)
+    .get("/api/auth/me")
+    .set("Authorization", `Bearer ${thirdDevice.accessToken}`)
+    .expect(401);
+
+  const refresh = await agent.post("/api/auth/refresh").expect(200);
+  assert.notEqual(refresh.body.accessToken, firstAccessToken);
+  await agent
+    .get("/api/auth/me")
+    .set("Authorization", `Bearer ${firstAccessToken}`)
+    .expect(401);
+  await agent
+    .get("/api/auth/me")
+    .set("Authorization", `Bearer ${refresh.body.accessToken}`)
+    .expect(200);
+
+  const reused = await request(app)
+    .post("/api/auth/refresh")
+    .set("Cookie", firstRefreshCookie)
+    .expect(401);
+  assert.equal(reused.body.code, "REFRESH_TOKEN_REUSED");
+  await agent
+    .get("/api/auth/me")
+    .set("Authorization", `Bearer ${refresh.body.accessToken}`)
+    .expect(401);
+
+  await agent.post("/api/auth/logout").expect(204);
 });
 
 test("backup creation produces a valid, downloadable SQLite snapshot", async () => {
@@ -175,12 +257,12 @@ test("CR cannot reopen while ADMIN can reopen with a required reason", async () 
   });
   await request(app)
     .post(`/api/attendance/sessions/${closed.id}/reopen`)
-    .set("Authorization", `Bearer ${sign(cr)}`)
+    .set("Authorization", `Bearer ${crToken}`)
     .send({ reason: "Not permitted" })
     .expect(403);
   await request(app)
     .post(`/api/attendance/sessions/${closed.id}/reopen`)
-    .set("Authorization", `Bearer ${sign(admin)}`)
+    .set("Authorization", `Bearer ${adminToken}`)
     .send({ reason: "Approved correction" })
     .expect(200);
   assert.equal((await db.AttendanceSession.findByPk(closed.id)).status, "OPEN");
@@ -221,11 +303,11 @@ test("review export is authenticated, validated and securely named", async () =>
   await request(app).get("/api/attendance/export/review").expect(401);
   await request(app)
     .get("/api/attendance/export/review?from=2026-09-20&to=2026-09-18")
-    .set("Authorization", `Bearer ${sign(admin)}`)
+    .set("Authorization", `Bearer ${adminToken}`)
     .expect(400);
   await request(app)
     .get("/api/attendance/export/review?from=2026-09-18&to=2026-09-18")
-    .set("Authorization", `Bearer ${sign(admin)}`)
+    .set("Authorization", `Bearer ${adminToken}`)
     .expect(200)
     .expect("Content-Type", /spreadsheetml/)
     .expect("Cache-Control", "private, no-store")
@@ -235,22 +317,23 @@ test("review export is authenticated, validated and securely named", async () =>
 test("ADMIN cannot disable their own account but can disable another account", async () => {
   await request(app)
     .patch(`/api/admin/users/${admin.id}`)
-    .set("Authorization", `Bearer ${sign(admin)}`)
+    .set("Authorization", `Bearer ${adminToken}`)
     .send({ active: false })
     .expect(409);
   assert.equal((await db.User.findByPk(admin.id)).active, true);
   await request(app)
     .patch(`/api/admin/users/${cr.id}`)
-    .set("Authorization", `Bearer ${sign(admin)}`)
+    .set("Authorization", `Bearer ${adminToken}`)
     .send({ active: false })
     .expect(200);
   assert.equal((await db.User.findByPk(cr.id)).active, false);
   await db.User.update({ active: true }, { where: { id: cr.id } });
   await cr.reload();
+  crToken = (await authSessions.createAuthSession(cr, { userAgent: "CR replacement browser" })).accessToken;
 });
 
 test("password change revokes the old token and replaces the password", async () => {
-  const oldToken = sign(cr);
+  const oldToken = crToken;
   await request(app)
     .post("/api/auth/change-password")
     .set("Authorization", `Bearer ${oldToken}`)

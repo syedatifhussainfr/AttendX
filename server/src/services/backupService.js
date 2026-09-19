@@ -74,7 +74,9 @@ export async function validateBackup(filename) {
     const names = new Set(tables.map((row) => row.name));
     const missing = requiredTables.filter((table) => !names.has(table));
     if (missing.length)
-      throw new Error(`Backup is missing required tables: ${missing.join(", ")}.`);
+      throw new Error(
+        `Backup is missing required tables: ${missing.join(", ")}.`,
+      );
     const students = await get(db, "SELECT COUNT(*) AS count FROM students");
     return { valid: true, size: stat.size, students: students.count };
   } catch (error) {
@@ -109,7 +111,8 @@ export async function listBackups() {
     entries
       .filter(
         (entry) =>
-          entry.isFile() && /^attendx-[a-z0-9.-]+-\d{4}-.*\.sqlite$/i.test(entry.name),
+          entry.isFile() &&
+          /^attendx-[a-z0-9.-]+-\d{4}-.*\.sqlite$/i.test(entry.name),
       )
       .map(async (entry) => {
         const stat = await fs.stat(path.join(directory, entry.name));
@@ -124,7 +127,10 @@ export async function listBackups() {
 }
 
 export function backupPath(filename) {
-  if (path.basename(filename) !== filename || !/^attendx-.*\.sqlite$/i.test(filename)) {
+  if (
+    path.basename(filename) !== filename ||
+    !/^attendx-.*\.sqlite$/i.test(filename)
+  ) {
     const error = new Error("Backup file is unavailable.");
     error.status = 404;
     throw error;
@@ -165,6 +171,9 @@ export async function restoreStagedBackup({ stagedPath, userId, sourceName }) {
     try {
       const user = await get(db, "SELECT id FROM users WHERE id = ?", [userId]);
       const now = new Date().toISOString();
+      const tables = await all(db, "SELECT name FROM sqlite_master WHERE type = 'table'");
+      if (tables.some((table) => table.name === "auth_sessions"))
+        await run(db, "UPDATE auth_sessions SET revoked_at = ?, updated_at = ? WHERE revoked_at IS NULL", [now, now]);
       await run(
         db,
         `INSERT INTO audit_logs
@@ -187,8 +196,14 @@ export async function restoreStagedBackup({ stagedPath, userId, sourceName }) {
     await fs.rm(stagedPath, { force: true });
     return { safetyBackup: safetyBackup.filename, restartRequired: true };
   } catch (error) {
-    const liveExists = await fs.access(livePath).then(() => true, () => false);
-    const oldExists = await fs.access(oldPath).then(() => true, () => false);
+    const liveExists = await fs.access(livePath).then(
+      () => true,
+      () => false,
+    );
+    const oldExists = await fs.access(oldPath).then(
+      () => true,
+      () => false,
+    );
     if (oldExists) {
       if (liveExists) await fs.rm(livePath, { force: true });
       await fs.rename(oldPath, livePath);

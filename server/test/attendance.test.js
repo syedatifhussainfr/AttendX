@@ -156,17 +156,25 @@ test("review workbook organizes subject and student totals with percentages", as
   assert.equal(sessions.length, 1);
   assert.deepEqual(
     workbook.worksheets.map((sheet) => sheet.name),
-    ["Overview", "Student Summary", "Student by Subject", "Session Summary"],
+    ["Student Summary", "Attendance Register", "Student by Subject", "Overview", "Session Summary"],
   );
   const studentSheet = workbook.getWorksheet("Student Summary");
-  assert.equal(studentSheet.getCell("A5").value, "01");
-  assert.equal(studentSheet.getCell("C5").value, 1);
-  assert.equal(studentSheet.getCell("D5").value, 1);
-  assert.equal(studentSheet.getCell("G5").value, 1);
+  assert.equal(studentSheet.getCell("A6").value, "01");
+  assert.equal(studentSheet.getCell("B6").value, "Student 01");
+  assert.equal(studentSheet.getCell("C6").value, 1);
+  assert.equal(studentSheet.getCell("D6").value, 1);
+  assert.equal(studentSheet.getCell("E6").value, 1);
+  assert.equal(studentSheet.getCell("H6").value, 100);
+  assert.equal(studentSheet.getCell("I6").value, 100);
   const totalRow = studentSheet.lastRow;
-  assert.equal(totalRow.getCell(1).value, "TOTAL");
-  assert.equal(totalRow.getCell(3).value, 3);
-  assert.equal(totalRow.getCell(7).value, 1 / 3);
+  assert.equal(totalRow.getCell(1).value, "CLASS TOTAL");
+  assert.equal(totalRow.getCell(4).value, 3);
+  assert.equal(totalRow.getCell(8).value, 33);
+  assert.equal(totalRow.getCell(9).value, 33.33);
+  const register = workbook.getWorksheet("Attendance Register");
+  assert.equal(register.getCell("A6").value, "01");
+  assert.equal(register.getCell("B6").value, "Student 01");
+  assert.equal(register.getCell("J6").value, "PRESENT");
   const buffer = await workbook.xlsx.writeBuffer();
   assert.ok(buffer.byteLength > 1_000);
 });

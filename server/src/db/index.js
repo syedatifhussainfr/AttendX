@@ -33,6 +33,43 @@ export const User = sequelize.define(
   },
   common,
 );
+export const AuthSession = sequelize.define(
+  "AuthSession",
+  {
+    id: {
+      type: DataTypes.UUID,
+      primaryKey: true,
+      defaultValue: DataTypes.UUIDV4,
+    },
+    currentTokenHash: {
+      type: DataTypes.STRING(64),
+      allowNull: false,
+      unique: true,
+    },
+    tokenHistory: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+      defaultValue: "[]",
+    },
+    generation: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+    userAgent: {
+      type: DataTypes.STRING(300),
+      allowNull: false,
+      defaultValue: "Unknown device",
+    },
+    ipHash: { type: DataTypes.STRING(64), allowNull: true },
+    lastUsedAt: { type: DataTypes.DATE, allowNull: false },
+    expiresAt: { type: DataTypes.DATE, allowNull: false },
+    revokedAt: { type: DataTypes.DATE, allowNull: true },
+  },
+  {
+    ...common,
+    indexes: [
+      { fields: ["user_id", "revoked_at", "expires_at"] },
+      { unique: true, fields: ["current_token_hash"] },
+    ],
+  },
+);
 export const Student = sequelize.define(
   "Student",
   {
@@ -162,6 +199,12 @@ User.hasMany(AttendanceSession, {
   foreignKey: "createdById",
   as: "createdSessions",
 });
+User.hasMany(AuthSession, {
+  foreignKey: "UserId",
+  as: "authSessions",
+  onDelete: "CASCADE",
+});
+AuthSession.belongsTo(User, { foreignKey: "UserId", as: "user" });
 AttendanceSession.belongsTo(User, {
   foreignKey: "createdById",
   as: "createdBy",
@@ -194,6 +237,7 @@ AuditLog.belongsTo(AttendanceSession);
 
 export const models = {
   User,
+  AuthSession,
   Student,
   Subject,
   Timetable,

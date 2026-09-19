@@ -45,88 +45,102 @@ function RouteProgress() {
 }
 
 export function App() {
-  const { user } = useAuth();
+  const { user, ready } = useAuth();
+  if (!ready)
+    return <div className="auth-loading"><span>AttendX</span><small>Checking secure session…</small></div>;
   return (
     <>
       <RouteProgress />
       <Routes>
-      <Route
-        path="/login"
-        element={user ? <Navigate to={user.mustChangePassword ? "/change-password" : "/"} /> : <Login />}
-      />
-      <Route
-        path="/change-password"
-        element={<Protected allowPasswordChange><ChangePassword /></Protected>}
-      />
-      <Route
-        element={
-          <Protected>
-            <Layout />
-          </Protected>
-        }
-      >
-        <Route index element={<Dashboard />} />
-        <Route path="attendance/:id" element={<AttendanceSessionPage />} />
-        <Route path="history" element={<History />} />
-        <Route path="students" element={<Students />} />
         <Route
-          path="subjects"
+          path="/login"
           element={
-            <Protected admin>
-              <Subjects />
+            user ? (
+              <Navigate
+                to={user.mustChangePassword ? "/change-password" : "/"}
+              />
+            ) : (
+              <Login />
+            )
+          }
+        />
+        <Route
+          path="/change-password"
+          element={
+            <Protected allowPasswordChange>
+              <ChangePassword />
             </Protected>
           }
         />
         <Route
-          path="timetable"
           element={
-            <Protected admin>
-              <Timetable />
+            <Protected>
+              <Layout />
             </Protected>
           }
-        />
-        <Route
-          path="users"
-          element={
-            <Protected admin>
-              <UsersPage />
-            </Protected>
-          }
-        />
-        <Route
-          path="audit"
-          element={
-            <Protected admin>
-              <Audit />
-            </Protected>
-          }
-        />
-        <Route
-          path="database"
-          element={
-            <Protected admin>
-              <DatabasePage />
-            </Protected>
-          }
-        />
-        <Route
-          path="backups"
-          element={
-            <Protected admin>
-              <BackupsPage />
-            </Protected>
-          }
-        />
-        <Route
-          path="settings"
-          element={
-            <Protected admin>
-              <SettingsPage />
-            </Protected>
-          }
-        />
-      </Route>
-      <Route path="*" element={<Navigate to="/" />} />
+        >
+          <Route index element={<Dashboard />} />
+          <Route path="attendance/:id" element={<AttendanceSessionPage />} />
+          <Route path="history" element={<History />} />
+          <Route path="students" element={<Students />} />
+          <Route
+            path="subjects"
+            element={
+              <Protected admin>
+                <Subjects />
+              </Protected>
+            }
+          />
+          <Route
+            path="timetable"
+            element={
+              <Protected admin>
+                <Timetable />
+              </Protected>
+            }
+          />
+          <Route
+            path="users"
+            element={
+              <Protected admin>
+                <UsersPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="audit"
+            element={
+              <Protected admin>
+                <Audit />
+              </Protected>
+            }
+          />
+          <Route
+            path="database"
+            element={
+              <Protected admin>
+                <DatabasePage />
+              </Protected>
+            }
+          />
+          <Route
+            path="backups"
+            element={
+              <Protected admin>
+                <BackupsPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="settings"
+            element={
+              <Protected admin>
+                <SettingsPage />
+              </Protected>
+            }
+          />
+        </Route>
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </>
   );

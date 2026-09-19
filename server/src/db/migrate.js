@@ -1,7 +1,8 @@
 import { DataTypes } from "sequelize";
 import { migration001 } from "./migrations/001-v1-1-core.js";
+import { migration002 } from "./migrations/002-auth-sessions.js";
 
-const migrations = [migration001];
+const migrations = [migration001, migration002];
 
 export async function runMigrations(sequelize) {
   const queryInterface = sequelize.getQueryInterface();
