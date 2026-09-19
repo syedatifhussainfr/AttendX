@@ -30,7 +30,11 @@ import {
   reconcileStudentRows,
 } from "../services/studentImportService.js";
 import { passwordSchema, publicUser } from "../utils/password.js";
-import { revokeUserSessions } from "../services/authSessionService.js";
+import {
+  listUserSessions,
+  revokeSessionById,
+  revokeUserSessions,
+} from "../services/authSessionService.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -76,6 +80,44 @@ router.patch("/students/:id", requireRole("ADMIN"), async (req, res) => {
   await row.update(data);
   res.json(row);
 });
+router.delete(
+  "/students/:id",
+  requireAdminPlus,
+  requireAdminElevation,
+  async (req, res) => {
+    const row = await Student.findByPk(req.params.id);
+    if (!row) return res.status(404).json({ message: "Student not found." });
+    const references = await Promise.all([
+      AttendanceRecord.count({ where: { StudentId: row.id } }),
+      AuditLog.count({ where: { StudentId: row.id } }),
+    ]);
+    if (references.some(Boolean))
+      return res.status(409).json({
+        code: "STUDENT_HAS_HISTORY",
+        message:
+          "This student has attendance or audit history and cannot be permanently deleted. Mark the student inactive instead.",
+      });
+    await sequelize.transaction(async (transaction) => {
+      await AuditLog.create(
+        {
+          entityType: "STUDENT",
+          entityId: row.id,
+          action: "STUDENT_DELETED",
+          oldValue: JSON.stringify({
+            id: row.id,
+            rollNumber: row.rollNumber,
+            name: row.name,
+            active: row.active,
+          }),
+          UserId: req.user.id,
+        },
+        { transaction },
+      );
+      await row.destroy({ transaction });
+    });
+    res.status(204).end();
+  },
+);
 const importRowsSchema = z
   .array(
     z.object({
@@ -143,6 +185,48 @@ router.patch("/subjects/:id", requireRole("ADMIN"), async (req, res) => {
   );
   res.json(row);
 });
+router.delete(
+  "/subjects/:id",
+  requireAdminPlus,
+  requireAdminElevation,
+  async (req, res) => {
+    const row = await Subject.findByPk(req.params.id);
+    if (!row) return res.status(404).json({ message: "Subject not found." });
+    const references = await Promise.all([
+      Timetable.count({ where: { SubjectId: row.id } }),
+      AttendanceSession.count({
+        where: {
+          [Op.or]: [{ SubjectId: row.id }, { scheduledSubjectId: row.id }],
+        },
+      }),
+    ]);
+    if (references.some(Boolean))
+      return res.status(409).json({
+        code: "SUBJECT_HAS_HISTORY",
+        message:
+          "This subject is used by timetable or attendance history and cannot be permanently deleted. Mark it inactive instead.",
+      });
+    await sequelize.transaction(async (transaction) => {
+      await AuditLog.create(
+        {
+          entityType: "SUBJECT",
+          entityId: row.id,
+          action: "SUBJECT_DELETED",
+          oldValue: JSON.stringify({
+            id: row.id,
+            code: row.code,
+            name: row.name,
+            active: row.active,
+          }),
+          UserId: req.user.id,
+        },
+        { transaction },
+      );
+      await row.destroy({ transaction });
+    });
+    res.status(204).end();
+  },
+);
 router.get("/timetable", async (req, res) =>
   res.json(
     await Timetable.findAll({
@@ -341,6 +425,63 @@ router.post(
     await revokeUserSessions(row.id);
     res.json({
       message: "Temporary password set. Existing sessions were revoked.",
+    });
+  },
+);
+router.get(
+  "/users/:id/sessions",
+  requireAdminPlus,
+  requireAdminElevation,
+  async (req, res) => {
+    const row = await User.findByPk(req.params.id);
+    if (!row) return res.status(404).json({ message: "User not found." });
+    res.json({
+      user: publicUser(row),
+      sessions: await listUserSessions(row.id, req.authSession.id),
+    });
+  },
+);
+router.delete(
+  "/users/:userId/sessions/:sessionId",
+  requireAdminPlus,
+  requireAdminElevation,
+  async (req, res) => {
+    const row = await User.findByPk(req.params.userId);
+    if (!row) return res.status(404).json({ message: "User not found." });
+    const sessionId = z.string().uuid().parse(req.params.sessionId);
+    await revokeSessionById(row.id, sessionId, req.authSession.id);
+    await AuditLog.create({
+      entityType: "USER",
+      entityId: row.id,
+      action: "USER_SESSION_REVOKED",
+      newValue: JSON.stringify({ sessionId }),
+      UserId: req.user.id,
+    });
+    res.status(204).end();
+  },
+);
+router.post(
+  "/users/:id/revoke-sessions",
+  requireAdminPlus,
+  requireAdminElevation,
+  async (req, res) => {
+    const row = await User.findByPk(req.params.id);
+    if (!row) return res.status(404).json({ message: "User not found." });
+    const isCurrentUser = row.id === req.user.id;
+    await revokeUserSessions(row.id, {
+      exceptSessionId: isCurrentUser ? req.authSession.id : null,
+    });
+    await AuditLog.create({
+      entityType: "USER",
+      entityId: row.id,
+      action: "USER_SESSIONS_REVOKED",
+      newValue: JSON.stringify({ preservedCurrentSession: isCurrentUser }),
+      UserId: req.user.id,
+    });
+    res.json({
+      message: isCurrentUser
+        ? "Every other session for your account was revoked."
+        : `Every active session for ${row.name} was revoked.`,
     });
   },
 );

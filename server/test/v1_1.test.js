@@ -387,6 +387,91 @@ test("Admin++ management requires password elevation and deletes only safe accou
     .expect(409);
 });
 
+test("Admin++ permanently deletes only students and subjects without history", async () => {
+  const unusedStudent = await db.Student.create({
+    rollNumber: "99",
+    name: "Unused Student",
+  });
+  await request(app)
+    .delete(`/api/admin/students/${unusedStudent.id}`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .expect(204);
+  assert.equal(await db.Student.findByPk(unusedStudent.id), null);
+
+  const historicalStudent = await db.Student.findOne({
+    where: { rollNumber: "01" },
+  });
+  const blockedStudent = await request(app)
+    .delete(`/api/admin/students/${historicalStudent.id}`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .expect(409);
+  assert.equal(blockedStudent.body.code, "STUDENT_HAS_HISTORY");
+
+  const unusedSubject = await db.Subject.create({
+    code: "UNUSED",
+    name: "Unused Subject",
+  });
+  await request(app)
+    .delete(`/api/admin/subjects/${unusedSubject.id}`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .expect(204);
+  assert.equal(await db.Subject.findByPk(unusedSubject.id), null);
+
+  const blockedSubject = await request(app)
+    .delete(`/api/admin/subjects/${subject.id}`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .expect(409);
+  assert.equal(blockedSubject.body.code, "SUBJECT_HAS_HISTORY");
+});
+
+test("Admin++ can review and revoke another user's login sessions", async () => {
+  const managedUser = await db.User.create({
+    name: "Managed Sessions",
+    email: "managed-sessions@test.local",
+    passwordHash: await bcrypt.hash("Managed@123", 4),
+    role: "CR",
+  });
+  const first = await authSessions.createAuthSession(managedUser, {
+    userAgent: "Managed device one",
+  });
+  const second = await authSessions.createAuthSession(managedUser, {
+    userAgent: "Managed device two",
+  });
+  const listed = await request(app)
+    .get(`/api/admin/users/${managedUser.id}/sessions`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .expect(200);
+  assert.equal(listed.body.sessions.length, 2);
+
+  const firstRow = listed.body.sessions.find(
+    (row) => row.userAgent === "Managed device one",
+  );
+  await request(app)
+    .delete(`/api/admin/users/${managedUser.id}/sessions/${firstRow.id}`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .expect(204);
+  await request(app)
+    .get("/api/auth/me")
+    .set("Authorization", `Bearer ${first.accessToken}`)
+    .expect(401);
+
+  await request(app)
+    .post(`/api/admin/users/${managedUser.id}/revoke-sessions`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .expect(200);
+  await request(app)
+    .get("/api/auth/me")
+    .set("Authorization", `Bearer ${second.accessToken}`)
+    .expect(401);
+});
+
 test("ADMIN cannot disable their own account but can disable another account", async () => {
   await request(app)
     .patch(`/api/admin/users/${admin.id}`)

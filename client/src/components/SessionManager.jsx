@@ -9,7 +9,7 @@ import {
 import { api, messageOf } from "../api.js";
 import { useToast } from "../state/ToastContext.jsx";
 
-function deviceName(userAgent = "") {
+export function deviceName(userAgent = "") {
   const browser = userAgent.includes("Edg/")
     ? "Microsoft Edge"
     : userAgent.includes("Chrome/")
@@ -33,7 +33,7 @@ function deviceName(userAgent = "") {
   return { browser, platform, mobile: /Android|iPhone|iPad/i.test(userAgent) };
 }
 
-const formatTime = (value) =>
+export const formatSessionTime = (value) =>
   new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
@@ -128,8 +128,8 @@ export function SessionManager() {
                     {device.browser} on {device.platform}
                   </span>
                   <small>
-                    Last active {formatTime(session.lastUsedAt)} · Expires{" "}
-                    {formatTime(session.expiresAt)}
+                    Last active {formatSessionTime(session.lastUsedAt)} · Expires{" "}
+                    {formatSessionTime(session.expiresAt)}
                   </small>
                 </div>
                 {session.current ? (

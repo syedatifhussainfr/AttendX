@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
-import { api, messageOf } from "../api.js";
+import { Plus, Trash2 } from "lucide-react";
+import { api, messageOf, setAdminElevation } from "../api.js";
 import { Dialog } from "../components/Dialog.jsx";
 import { useToast } from "../state/ToastContext.jsx";
+import { useAuth } from "../state/AuthContext.jsx";
 export function Subjects() {
   const [rows, setRows] = useState([]),
     [edit, setEdit] = useState(null),
     [adding, setAdding] = useState(false),
-    toast = useToast();
+    [deleteSubject, setDeleteSubject] = useState(null),
+    [deleting, setDeleting] = useState(false),
+    toast = useToast(),
+    { user } = useAuth();
   const load = () =>
     api
       .get("/admin/subjects")
@@ -32,6 +36,23 @@ export function Subjects() {
       load();
     } catch (x) {
       toast(messageOf(x), "error");
+    }
+  };
+  const remove = async (event) => {
+    event.preventDefault();
+    setDeleting(true);
+    try {
+      const password = new FormData(event.currentTarget).get("password");
+      const { data } = await api.post("/auth/elevate", { password });
+      setAdminElevation(data.elevationToken, data.expiresInSeconds);
+      await api.delete(`/admin/subjects/${deleteSubject.id}`);
+      toast("Subject permanently deleted.");
+      setDeleteSubject(null);
+      load();
+    } catch (error) {
+      toast(messageOf(error), "error");
+    } finally {
+      setDeleting(false);
     }
   };
   return (
@@ -86,7 +107,50 @@ export function Subjects() {
               </select>
             </label>
           )}
-          <button className="primary">Save subject</button>
+          <div className="dialog-actions">
+            {edit && user.adminPlus && (
+              <button
+                type="button"
+                className="danger-outline"
+                onClick={() => {
+                  setDeleteSubject(edit);
+                  setEdit(null);
+                }}
+              >
+                <Trash2 /> Delete permanently
+              </button>
+            )}
+            <button className="primary">Save subject</button>
+          </div>
+        </form>
+      </Dialog>
+      <Dialog
+        open={!!deleteSubject}
+        title={deleteSubject ? `Delete ${deleteSubject.name}?` : "Delete subject"}
+        onClose={() => !deleting && setDeleteSubject(null)}
+      >
+        <form className="form-stack" onSubmit={remove}>
+          <div className="danger-note">
+            This is only allowed when the subject has never been used in the
+            timetable or attendance history. Used subjects must be made inactive.
+          </div>
+          <label>
+            Confirm your Admin++ password
+            <input name="password" type="password" autoComplete="current-password" required />
+          </label>
+          <div className="dialog-actions">
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => setDeleteSubject(null)}
+              disabled={deleting}
+            >
+              Cancel
+            </button>
+            <button className="danger" disabled={deleting}>
+              <Trash2 /> {deleting ? "Deleting…" : "Delete permanently"}
+            </button>
+          </div>
         </form>
       </Dialog>
     </div>

@@ -90,10 +90,10 @@ const managementAreas = [
   },
   {
     tables: ["auth_sessions"],
-    route: "/change-password",
+    route: "/users",
     label: "Login sessions",
-    description: "Review devices and revoke active browser sessions.",
-    action: "Manage sessions",
+    description: "Open a user account to review and revoke its active devices.",
+    action: "Manage user sessions",
     Icon: KeyRound,
   },
 ];

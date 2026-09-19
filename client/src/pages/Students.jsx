@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { FileUp, Plus, Search } from "lucide-react";
-import { api, messageOf } from "../api.js";
+import { FileUp, Plus, Search, Trash2 } from "lucide-react";
+import { api, messageOf, setAdminElevation } from "../api.js";
 import { Dialog } from "../components/Dialog.jsx";
 import { useToast } from "../state/ToastContext.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
@@ -14,6 +14,8 @@ export function Students() {
     [importRows, setImportRows] = useState([]),
     [review, setReview] = useState(null),
     [missingAction, setMissingAction] = useState("KEEP"),
+    [deleteStudent, setDeleteStudent] = useState(null),
+    [deleting, setDeleting] = useState(false),
     toast = useToast(),
     { user } = useAuth();
   const load = async () => {
@@ -83,6 +85,23 @@ export function Students() {
       load();
     } catch (e) {
       toast(messageOf(e), "error");
+    }
+  };
+  const remove = async (event) => {
+    event.preventDefault();
+    setDeleting(true);
+    try {
+      const password = new FormData(event.currentTarget).get("password");
+      const { data } = await api.post("/auth/elevate", { password });
+      setAdminElevation(data.elevationToken, data.expiresInSeconds);
+      await api.delete(`/admin/students/${deleteStudent.id}`);
+      toast("Student record permanently deleted.");
+      setDeleteStudent(null);
+      load();
+    } catch (error) {
+      toast(messageOf(error), "error");
+    } finally {
+      setDeleting(false);
     }
   };
   return (
@@ -198,7 +217,49 @@ export function Students() {
             </>
           )}
           <div className="dialog-actions full">
+            {selected && user.adminPlus && (
+              <button
+                type="button"
+                className="danger-outline"
+                onClick={() => {
+                  setDeleteStudent(selected);
+                  setSelected(null);
+                }}
+              >
+                <Trash2 /> Delete permanently
+              </button>
+            )}
             <button className="primary">Save student</button>
+          </div>
+        </form>
+      </Dialog>
+      <Dialog
+        open={!!deleteStudent}
+        title={deleteStudent ? `Delete ${deleteStudent.name}?` : "Delete student"}
+        onClose={() => !deleting && setDeleteStudent(null)}
+      >
+        <form className="form-stack" onSubmit={remove}>
+          <div className="danger-note">
+            This is only allowed when the student has no attendance or audit
+            history. Otherwise, AttendX will preserve the record and ask you to
+            mark it inactive.
+          </div>
+          <label>
+            Confirm your Admin++ password
+            <input name="password" type="password" autoComplete="current-password" required />
+          </label>
+          <div className="dialog-actions">
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => setDeleteStudent(null)}
+              disabled={deleting}
+            >
+              Cancel
+            </button>
+            <button className="danger" disabled={deleting}>
+              <Trash2 /> {deleting ? "Deleting…" : "Delete permanently"}
+            </button>
           </div>
         </form>
       </Dialog>

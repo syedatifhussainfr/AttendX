@@ -1,7 +1,21 @@
 import { useEffect, useState } from "react";
-import { KeyRound, Plus, ShieldCheck, Trash2, UserRound } from "lucide-react";
+import {
+  KeyRound,
+  Laptop,
+  LogOut,
+  MonitorSmartphone,
+  Plus,
+  ShieldCheck,
+  Smartphone,
+  Trash2,
+  UserRound,
+} from "lucide-react";
 import { api, messageOf } from "../api.js";
 import { Dialog } from "../components/Dialog.jsx";
+import {
+  deviceName,
+  formatSessionTime,
+} from "../components/SessionManager.jsx";
 import { useToast } from "../state/ToastContext.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
 export function UsersPage() {
@@ -10,6 +24,10 @@ export function UsersPage() {
     [resetUser, setResetUser] = useState(null),
     [deleteUser, setDeleteUser] = useState(null),
     [deleting, setDeleting] = useState(false),
+    [sessionsUser, setSessionsUser] = useState(null),
+    [sessions, setSessions] = useState([]),
+    [sessionsLoading, setSessionsLoading] = useState(false),
+    [sessionsBusy, setSessionsBusy] = useState(""),
     toast = useToast(),
     { user } = useAuth();
   const load = () =>
@@ -73,6 +91,48 @@ export function UsersPage() {
       setDeleting(false);
     }
   };
+  const openSessions = async (account) => {
+    setSessionsUser(account);
+    setSessions([]);
+    setSessionsLoading(true);
+    try {
+      const { data } = await api.get(`/admin/users/${account.id}/sessions`);
+      setSessions(data.sessions);
+    } catch (error) {
+      toast(messageOf(error), "error");
+      setSessionsUser(null);
+    } finally {
+      setSessionsLoading(false);
+    }
+  };
+  const revokeSession = async (sessionId) => {
+    setSessionsBusy(sessionId);
+    try {
+      await api.delete(
+        `/admin/users/${sessionsUser.id}/sessions/${sessionId}`,
+      );
+      setSessions((current) => current.filter((item) => item.id !== sessionId));
+      toast("That login session was revoked.");
+    } catch (error) {
+      toast(messageOf(error), "error");
+    } finally {
+      setSessionsBusy("");
+    }
+  };
+  const revokeAllSessions = async () => {
+    setSessionsBusy("all");
+    try {
+      const { data } = await api.post(
+        `/admin/users/${sessionsUser.id}/revoke-sessions`,
+      );
+      setSessions((current) => current.filter((item) => item.current));
+      toast(data.message);
+    } catch (error) {
+      toast(messageOf(error), "error");
+    } finally {
+      setSessionsBusy("");
+    }
+  };
   return (
     <div className="page">
       <div className="page-intro">
@@ -101,6 +161,9 @@ export function UsersPage() {
               </small>
             </div>
             <div className="user-actions">
+              <button className="secondary" onClick={() => openSessions(u)}>
+                <MonitorSmartphone /> Sessions
+              </button>
               {u.role === "CR" && (
                 <button className="secondary" onClick={() => setResetUser(u)}>
                   <KeyRound /> Reset password
@@ -192,6 +255,73 @@ export function UsersPage() {
               <Trash2 /> {deleting ? "Deleting…" : "Delete permanently"}
             </button>
           </div>
+        </div>
+      </Dialog>
+      <Dialog
+        open={!!sessionsUser}
+        title={sessionsUser ? `Login sessions · ${sessionsUser.name}` : "Login sessions"}
+        onClose={() => !sessionsBusy && setSessionsUser(null)}
+      >
+        <div className="form-stack">
+          <p>
+            Review every active device for this account and sign out anything
+            that should no longer have access.
+          </p>
+          <div className="secure-session-list admin-session-list">
+            {sessionsLoading && <p>Checking active sessions…</p>}
+            {!sessionsLoading && sessions.length === 0 && (
+              <p>No active login sessions.</p>
+            )}
+            {!sessionsLoading &&
+              sessions.map((session) => {
+                const device = deviceName(session.userAgent);
+                const DeviceIcon = device.mobile ? Smartphone : Laptop;
+                return (
+                  <article key={session.id}>
+                    <DeviceIcon />
+                    <div>
+                      <strong>
+                        {session.current ? "This Admin++ session" : device.browser}
+                      </strong>
+                      <span>
+                        {device.browser} on {device.platform}
+                      </span>
+                      <small>
+                        Last active {formatSessionTime(session.lastUsedAt)} · Expires{" "}
+                        {formatSessionTime(session.expiresAt)}
+                      </small>
+                    </div>
+                    {session.current ? (
+                      <b className="current-session">CURRENT</b>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => revokeSession(session.id)}
+                        disabled={!!sessionsBusy}
+                      >
+                        <LogOut />
+                        {sessionsBusy === session.id ? "Revoking…" : "Revoke"}
+                      </button>
+                    )}
+                  </article>
+                );
+              })}
+          </div>
+          {sessions.some((session) => !session.current) && (
+            <button
+              type="button"
+              className="danger-outline"
+              onClick={revokeAllSessions}
+              disabled={!!sessionsBusy}
+            >
+              <LogOut />
+              {sessionsBusy === "all"
+                ? "Revoking sessions…"
+                : sessionsUser?.id === user.id
+                  ? "Revoke every other session"
+                  : "Revoke all sessions"}
+            </button>
+          )}
         </div>
       </Dialog>
       <Dialog
