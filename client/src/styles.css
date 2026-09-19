@@ -112,12 +112,13 @@ button:disabled {
 .password-nav-prompt .dialog-actions svg { width: 1rem; }
 .password-nav-prompt .dialog-actions .primary {
   transform: none;
-  background: #0a3b68;
+  background-color: #0a3b68;
+  background-image: none;
   transition: background-color 0.16s ease, box-shadow 0.16s ease;
 }
 .password-nav-prompt .dialog-actions .primary:hover {
   transform: none;
-  background: #0d4a80;
+  background-color: #0d4a80;
   box-shadow: 0 9px 22px rgba(10, 59, 104, 0.22);
 }
 
@@ -649,12 +650,7 @@ strong {
     opacity 0.18s ease;
 }
 .primary {
-  background: #0a3b68;
   color: #fff;
-  box-shadow: 0 7px 18px #0a3b6824;
-}
-.primary:hover {
-  background: #0d4a80;
 }
 .secondary {
   background: #fff;
@@ -2466,10 +2462,23 @@ body::after {
 
 .primary {
   border: 1px solid rgba(255, 255, 255, 0.16);
-  background: linear-gradient(135deg, #0a355e, #0c4b7b);
+  background-color: #0a355e;
+  background-image: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.02),
+    rgba(52, 140, 193, 0.18)
+  );
   box-shadow:
     0 12px 26px rgba(8, 52, 91, 0.19),
     inset 0 1px rgba(255, 255, 255, 0.14);
+}
+
+.primary:not(:disabled):hover {
+  background-color: #0d4a80;
+  border-color: rgba(255, 255, 255, 0.24);
+  box-shadow:
+    0 13px 28px rgba(8, 52, 91, 0.23),
+    inset 0 1px rgba(255, 255, 255, 0.18);
 }
 
 .secondary,
