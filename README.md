@@ -34,7 +34,7 @@ The [`v1.0.0` GitHub release](https://github.com/syedatifhussainfr/AttendX/relea
 - `npm run seed` is idempotent and never creates dummy students.
 - `npm run create-admin` creates a clean administrator account without student or attendance data.
 - Numeric student rolls are normalized (`1` becomes `01`) and listed in natural numeric order.
-- The ADMIN database browser is read-only and never exposes password hashes or arbitrary SQL execution.
+- The Admin++ database browser is read-only and never exposes password hashes or arbitrary SQL execution. Account management uses validated, audited controls instead of raw table edits.
 
 ## V1.1.0 — current local branch (unreleased)
 
@@ -72,6 +72,8 @@ These items remain deliberately unimplemented until the V1.1 safety work is comp
 - **Security navigation:** voluntary password changes show a confirmation dialog with a per-account **Don't show again** preference. Forced temporary-password changes cannot be skipped. A slim progress bar confirms every page transition.
 - **Corrections:** a reason is mandatory. The roll grid marks edited records and preserves original status, current status, reason, administrator/CR, and correction time.
 - **Self-lockout protection:** the current ADMIN account cannot be disabled, even by calling the API directly. Other accounts can still be enabled or disabled.
+- **Admin++ protected management:** run `npm run admin-pp` to promote an existing ADMIN or create a new Admin++. The CLI verifies the account password, requires a unique mobile number, revokes existing sessions after promotion, and uses the configurable `ADMIN_PHONE_COUNTRY_CODE` and `ADMIN_PHONE_LOCAL_DIGITS` settings. Browser access to Users and Database requires Admin++ plus a fresh password confirmation that expires after five minutes and is never written to browser storage.
+- **Safe account deletion:** Admin++ can permanently delete an unused account after confirmation. AttendX blocks self-deletion, deletion of the last active Admin++, and deletion of accounts attached to attendance or audit history; those accounts must be disabled instead.
 
 ## Attendance rule
 
@@ -167,6 +169,7 @@ npm run dev       # frontend + backend
 npm run backup    # safe timestamped SQLite backup
 npm run demo-attendance -- 12 # temporary sessions/records for analytics testing
 npm run create-admin    # create a clean permanent ADMIN account
+npm run admin-pp        # promote an ADMIN or create a protected ADMIN++
 npm run normalize-rolls # repair numeric rolls imported by an older build
 npm test          # backend business-rule tests
 npm run build     # production frontend build

@@ -51,6 +51,32 @@ function issueAccessToken(user, session) {
   );
 }
 
+export function issueAdminElevationToken(user, session) {
+  if (user.role !== "ADMIN" || !user.adminPlus)
+    throw sessionError(
+      403,
+      "ADMIN_PLUS_REQUIRED",
+      "Admin++ permission is required.",
+    );
+  return jwt.sign(
+    {
+      sub: String(user.id),
+      type: "admin-elevation",
+      scope: "database-management",
+      sid: session.id,
+      gen: session.generation,
+      ver: user.tokenVersion || 0,
+    },
+    config.jwtSecret,
+    {
+      algorithm: "HS256",
+      issuer: config.jwtIssuer,
+      audience: config.jwtAudience,
+      expiresIn: "5m",
+    },
+  );
+}
+
 function metadataOf(metadata = {}) {
   const forwarded = String(metadata.ip || "").trim();
   return {

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ChevronLeft,
   ChevronRight,
   Database as DatabaseIcon,
   Download,
+  Users,
 } from "lucide-react";
 import { api, messageOf } from "../api.js";
 import { useToast } from "../state/ToastContext.jsx";
@@ -35,6 +37,7 @@ export function DatabasePage() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const toast = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     api
@@ -82,7 +85,7 @@ export function DatabasePage() {
     <div className="page database-page">
       <div className="page-intro">
         <div>
-          <span className="eyebrow">ADMIN · READ-ONLY CONSOLE</span>
+          <span className="eyebrow">ADMIN++ · SECURE CONSOLE</span>
           <h1>Database</h1>
           <p>
             Inspect stored records without bypassing AttendX permissions or
@@ -126,6 +129,14 @@ export function DatabasePage() {
             <p>{result?.total ?? 0} stored records</p>
           </div>
           <div className="button-row">
+            {selected === "users" && (
+              <button
+                className="secondary"
+                onClick={() => navigate("/users")}
+              >
+                <Users /> Manage users
+              </button>
+            )}
             <select
               value={selected}
               onChange={(event) => changeTable(event.target.value)}

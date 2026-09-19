@@ -3611,6 +3611,62 @@ body.sidebar-resizing * {
   width: 15px;
 }
 
+.admin-plus-lock {
+  min-height: calc(100vh - 90px);
+  display: grid;
+  place-items: center;
+}
+
+.admin-plus-lock-card {
+  width: min(100%, 460px);
+  padding: clamp(24px, 4vw, 38px);
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.64);
+  box-shadow:
+    0 24px 65px rgba(19, 49, 71, 0.12),
+    inset 0 1px rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(24px) saturate(125%);
+}
+
+.admin-plus-lock-icon {
+  width: 50px;
+  height: 50px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 22px;
+  color: #174f77;
+  border: 1px solid rgba(25, 79, 118, 0.13);
+  border-radius: 13px;
+  background: rgba(229, 239, 244, 0.76);
+}
+
+.admin-plus-lock-icon svg {
+  width: 21px;
+}
+
+.admin-plus-lock-card h1 {
+  margin: 8px 0 8px;
+  color: #102f48;
+  font-size: 28px;
+}
+
+.admin-plus-lock-card > p,
+.admin-plus-lock-card > small {
+  color: #687c8c;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.admin-plus-lock-card form {
+  margin: 22px 0 16px;
+}
+
+.admin-plus-lock-card form button {
+  justify-content: center;
+  width: 100%;
+}
+
 .page,
 .panel,
 .page-intro,

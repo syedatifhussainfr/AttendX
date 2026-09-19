@@ -8,6 +8,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { passwordSchema, publicUser } from "../utils/password.js";
 import {
   createAuthSession,
+  issueAdminElevationToken,
   listUserSessions,
   resumeAuthSession,
   revokeRefreshSession,
@@ -32,6 +33,14 @@ const refreshLimiter = rateLimit({
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { message: "Too many session requests. Sign in again shortly." },
+});
+const elevationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 8,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  keyGenerator: (req) => `elevate-${req.user.id}`,
+  message: { message: "Too many password checks. Try again in 15 minutes." },
 });
 
 function requestMetadata(req) {
@@ -133,6 +142,23 @@ router.post("/logout", async (req, res) => {
 });
 
 router.get("/me", requireAuth, (req, res) => res.json(publicUser(req.user)));
+
+router.post("/elevate", requireAuth, elevationLimiter, async (req, res) => {
+  if (req.user.role !== "ADMIN" || !req.user.adminPlus)
+    return res.status(403).json({
+      code: "ADMIN_PLUS_REQUIRED",
+      message: "Admin++ permission is required.",
+    });
+  const { password } = z.object({ password: z.string().min(1).max(128) }).parse(req.body);
+  const user = await User.findByPk(req.user.id);
+  if (!(await bcrypt.compare(password, user.passwordHash)))
+    return res.status(401).json({ message: "Password is incorrect." });
+  res.setHeader("Cache-Control", "no-store");
+  res.json({
+    elevationToken: issueAdminElevationToken(user, req.authSession),
+    expiresInSeconds: 300,
+  });
+});
 
 router.get("/sessions", requireAuth, async (req, res) =>
   res.json({

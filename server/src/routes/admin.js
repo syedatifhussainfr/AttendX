@@ -2,7 +2,12 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { Op } from "sequelize";
 import { z } from "zod";
-import { requireAuth, requireRole } from "../middleware/auth.js";
+import {
+  requireAdminElevation,
+  requireAdminPlus,
+  requireAuth,
+  requireRole,
+} from "../middleware/auth.js";
 import {
   sequelize,
   Student,
@@ -215,7 +220,7 @@ router.put("/settings", requireRole("ADMIN"), async (req, res) => {
     await Setting.upsert({ key, value: JSON.stringify(value) });
   res.json(data);
 });
-router.get("/users", requireRole("ADMIN"), async (req, res) =>
+router.get("/users", requireAdminPlus, requireAdminElevation, async (req, res) =>
   res.json(
     await User.findAll({
       attributes: { exclude: ["passwordHash"] },
@@ -226,7 +231,7 @@ router.get("/users", requireRole("ADMIN"), async (req, res) =>
     }),
   ),
 );
-router.post("/users", requireRole("ADMIN"), async (req, res) => {
+router.post("/users", requireAdminPlus, requireAdminElevation, async (req, res) => {
   const data = z
     .object({
       name: z.string().min(2),
@@ -235,18 +240,31 @@ router.post("/users", requireRole("ADMIN"), async (req, res) => {
       role: z.enum(["ADMIN", "CR"]),
     })
     .parse(req.body);
-  res.status(201).json(
-    await User.create({
-      ...data,
-      email: data.email.toLowerCase(),
-      passwordHash: await bcrypt.hash(data.password, 12),
-      mustChangePassword: true,
-    }).then((row) => ({
-      ...publicUser(row),
-    })),
-  );
+  const created = await sequelize.transaction(async (transaction) => {
+    const row = await User.create(
+      {
+        ...data,
+        email: data.email.toLowerCase(),
+        passwordHash: await bcrypt.hash(data.password, 12),
+        mustChangePassword: true,
+      },
+      { transaction },
+    );
+    await AuditLog.create(
+      {
+        entityType: "USER",
+        entityId: row.id,
+        action: "USER_CREATED",
+        newValue: JSON.stringify(publicUser(row)),
+        UserId: req.user.id,
+      },
+      { transaction },
+    );
+    return row;
+  });
+  res.status(201).json(publicUser(created));
 });
-router.patch("/users/:id", requireRole("ADMIN"), async (req, res) => {
+router.patch("/users/:id", requireAdminPlus, requireAdminElevation, async (req, res) => {
   const row = await User.findByPk(req.params.id);
   if (!row) return res.status(404).json({ message: "User not found." });
   const data = z
@@ -268,13 +286,28 @@ router.patch("/users/:id", requireRole("ADMIN"), async (req, res) => {
       message:
         "You cannot remove ADMIN access from the account you are currently using.",
     });
-  await row.update(data);
+  const before = publicUser(row);
+  await sequelize.transaction(async (transaction) => {
+    await row.update(data, { transaction });
+    await AuditLog.create(
+      {
+        entityType: "USER",
+        entityId: row.id,
+        action: "USER_UPDATED",
+        oldValue: JSON.stringify(before),
+        newValue: JSON.stringify(publicUser(row)),
+        UserId: req.user.id,
+      },
+      { transaction },
+    );
+  });
   if (data.active === false) await revokeUserSessions(row.id);
   res.json(publicUser(row));
 });
 router.post(
   "/users/:id/reset-password",
-  requireRole("ADMIN"),
+  requireAdminPlus,
+  requireAdminElevation,
   async (req, res) => {
     const row = await User.findByPk(req.params.id);
     if (!row) return res.status(404).json({ message: "User not found." });
@@ -309,6 +342,66 @@ router.post(
     res.json({
       message: "Temporary password set. Existing sessions were revoked.",
     });
+  },
+);
+router.delete(
+  "/users/:id",
+  requireAdminPlus,
+  requireAdminElevation,
+  async (req, res) => {
+    const row = await User.findByPk(req.params.id);
+    if (!row) return res.status(404).json({ message: "User not found." });
+    if (row.id === req.user.id)
+      return res.status(409).json({
+        code: "SELF_DELETE_BLOCKED",
+        message: "You cannot delete the account you are currently using.",
+      });
+    if (
+      row.adminPlus &&
+      (await User.count({ where: { adminPlus: true, active: true } })) <= 1
+    )
+      return res.status(409).json({
+        code: "LAST_ADMIN_PLUS",
+        message: "The last active Admin++ account cannot be deleted.",
+      });
+    const references = await Promise.all([
+      AttendanceSession.count({
+        where: {
+          [Op.or]: [
+            { createdById: row.id },
+            { closedById: row.id },
+            { reopenedById: row.id },
+          ],
+        },
+      }),
+      AttendanceRecord.count({
+        where: {
+          [Op.or]: [{ markedById: row.id }, { correctedById: row.id }],
+        },
+      }),
+      AuditLog.count({ where: { UserId: row.id } }),
+    ]);
+    if (references.some(Boolean))
+      return res.status(409).json({
+        code: "USER_HAS_HISTORY",
+        message:
+          "This account has audit or attendance history and cannot be deleted. Disable it instead.",
+      });
+    await sequelize.transaction(async (transaction) => {
+      await AuthSession.destroy({ where: { UserId: row.id }, transaction });
+      await AuditLog.create(
+        {
+          entityType: "USER",
+          entityId: row.id,
+          action: "USER_DELETED",
+          oldValue: JSON.stringify(publicUser(row)),
+          UserId: req.user.id,
+        },
+        { transaction },
+      );
+      await row.destroy({ transaction });
+    });
+    res.status(204).end();
   },
 );
 router.get("/audit-logs", requireRole("ADMIN"), async (req, res) =>
@@ -352,7 +445,7 @@ const databaseTables = {
   app_migrations: { model: AppMigration, order: [["appliedAt", "DESC"]] },
 };
 
-router.get("/database/overview", requireRole("ADMIN"), async (req, res) => {
+router.get("/database/overview", requireAdminPlus, requireAdminElevation, async (req, res) => {
   const entries = await Promise.all(
     Object.entries(databaseTables).map(async ([name, definition]) => [
       name,
@@ -368,7 +461,8 @@ router.get("/database/overview", requireRole("ADMIN"), async (req, res) => {
 
 router.get(
   "/database/tables/:table",
-  requireRole("ADMIN"),
+  requireAdminPlus,
+  requireAdminElevation,
   async (req, res) => {
     const definition = databaseTables[req.params.table];
     if (!definition)

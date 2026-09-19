@@ -12,6 +12,8 @@ export const config = {
   jwtAudience: process.env.JWT_AUDIENCE || "attendx-web",
   accessTokenExpiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN || "15m",
   refreshSessionDays: Number(process.env.REFRESH_SESSION_DAYS || 14),
+  adminPhoneCountryCode: process.env.ADMIN_PHONE_COUNTRY_CODE || "+91",
+  adminPhoneLocalDigits: Number(process.env.ADMIN_PHONE_LOCAL_DIGITS || 10),
   dialect: process.env.DB_DIALECT || "sqlite",
   databaseUrl: process.env.DATABASE_URL,
   sqlitePath: process.env.SQLITE_PATH || "./data/attendx.sqlite",
@@ -30,3 +32,11 @@ if (
   config.refreshSessionDays > 90
 )
   throw new Error("REFRESH_SESSION_DAYS must be an integer between 1 and 90");
+if (!/^\+[1-9]\d{0,3}$/.test(config.adminPhoneCountryCode))
+  throw new Error("ADMIN_PHONE_COUNTRY_CODE must look like +91");
+if (
+  !Number.isInteger(config.adminPhoneLocalDigits) ||
+  config.adminPhoneLocalDigits < 6 ||
+  config.adminPhoneLocalDigits > 14
+)
+  throw new Error("ADMIN_PHONE_LOCAL_DIGITS must be between 6 and 14");

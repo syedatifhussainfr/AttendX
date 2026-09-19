@@ -17,6 +17,8 @@ export const publicUser = (user) => ({
   name: user.name,
   email: user.email,
   role: user.role,
+  adminPlus: Boolean(user.adminPlus),
+  phoneNumber: user.phoneNumber || null,
   active: user.active,
   mustChangePassword: user.mustChangePassword,
 });

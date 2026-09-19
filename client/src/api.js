@@ -3,11 +3,30 @@ import axios from "axios";
 let accessToken = null;
 let refreshPromise = null;
 let resumePromise = null;
+let adminElevation = { token: null, expiresAt: 0 };
 
 export const api = axios.create({ baseURL: "/api", withCredentials: true });
 
 export function setAccessToken(token) {
   accessToken = token || null;
+  if (!accessToken) clearAdminElevation();
+}
+
+export function setAdminElevation(token, expiresInSeconds = 300) {
+  adminElevation = {
+    token,
+    expiresAt: Date.now() + expiresInSeconds * 1000,
+  };
+}
+
+export function clearAdminElevation() {
+  adminElevation = { token: null, expiresAt: 0 };
+}
+
+export function hasAdminElevation() {
+  return Boolean(
+    adminElevation.token && adminElevation.expiresAt > Date.now() + 5_000,
+  );
 }
 
 const wait = (milliseconds) =>
@@ -62,6 +81,8 @@ async function refreshAccessToken() {
 api.interceptors.request.use((request) => {
   if (accessToken && !request.skipAuthorization)
     request.headers.Authorization = `Bearer ${accessToken}`;
+  if (hasAdminElevation())
+    request.headers["X-Admin-Elevation"] = adminElevation.token;
   return request;
 });
 
@@ -69,6 +90,10 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const request = error.config || {};
+    if (error.response?.data?.code === "ADMIN_ELEVATION_REQUIRED") {
+      clearAdminElevation();
+      window.dispatchEvent(new Event("attendx:admin-elevation-ended"));
+    }
     if (
       error.response?.status === 401 &&
       !request.skipAuthRefresh &&

@@ -32,6 +32,12 @@ export const User = sequelize.define(
     active: { type: DataTypes.BOOLEAN, defaultValue: true },
     mustChangePassword: { type: DataTypes.BOOLEAN, defaultValue: false },
     tokenVersion: { type: DataTypes.INTEGER, defaultValue: 0 },
+    adminPlus: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+    phoneNumber: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+      unique: true,
+    },
   },
   common,
 );

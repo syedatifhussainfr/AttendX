@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { KeyRound, Plus, ShieldCheck, UserRound } from "lucide-react";
+import { KeyRound, Plus, ShieldCheck, Trash2, UserRound } from "lucide-react";
 import { api, messageOf } from "../api.js";
 import { Dialog } from "../components/Dialog.jsx";
 import { useToast } from "../state/ToastContext.jsx";
@@ -8,6 +8,8 @@ export function UsersPage() {
   const [rows, setRows] = useState([]),
     [open, setOpen] = useState(false),
     [resetUser, setResetUser] = useState(null),
+    [deleteUser, setDeleteUser] = useState(null),
+    [deleting, setDeleting] = useState(false),
     toast = useToast(),
     { user } = useAuth();
   const load = () =>
@@ -58,11 +60,24 @@ export function UsersPage() {
       toast(messageOf(e), "error");
     }
   };
+  const remove = async () => {
+    setDeleting(true);
+    try {
+      await api.delete(`/admin/users/${deleteUser.id}`);
+      toast("User account permanently deleted.");
+      setDeleteUser(null);
+      load();
+    } catch (error) {
+      toast(messageOf(error), "error");
+    } finally {
+      setDeleting(false);
+    }
+  };
   return (
     <div className="page">
       <div className="page-intro">
         <div>
-          <span className="eyebrow">ACCESS CONTROL</span>
+          <span className="eyebrow">ADMIN++ · ACCESS CONTROL</span>
           <h1>Users & CR access</h1>
           <p>Passwords are hashed; only role and access state are visible.</p>
         </div>
@@ -81,7 +96,8 @@ export function UsersPage() {
               <strong>{u.name}</strong>
               <p>{u.email}</p>
               <small>
-                {u.role} · {u.active ? "Active" : "Disabled"}
+                {u.adminPlus ? "ADMIN++" : u.role} · {u.active ? "Active" : "Disabled"}
+                {u.phoneNumber ? ` · ${u.phoneNumber}` : ""}
               </small>
             </div>
             <div className="user-actions">
@@ -94,10 +110,26 @@ export function UsersPage() {
                 className="secondary"
                 onClick={() => toggle(u)}
                 disabled={u.id === user.id && u.active}
-                title={u.id === user.id && u.active ? "You cannot disable your own active account." : ""}
+                title={
+                  u.id === user.id && u.active
+                    ? "You cannot disable your own active account."
+                    : ""
+                }
               >
-                {u.id === user.id && u.active ? "Current account" : u.active ? "Disable" : "Enable"}
+                {u.id === user.id && u.active
+                  ? "Current account"
+                  : u.active
+                    ? "Disable"
+                    : "Enable"}
               </button>
+              {u.id !== user.id && (
+                <button
+                  className="danger-outline"
+                  onClick={() => setDeleteUser(u)}
+                >
+                  <Trash2 /> Delete
+                </button>
+              )}
             </div>
           </article>
         ))}
@@ -126,25 +158,71 @@ export function UsersPage() {
           <label>
             Temporary password
             <input name="password" type="password" minLength="10" required />
-            <small>10+ characters with uppercase, lowercase, number, and symbol.</small>
+            <small>
+              10+ characters with uppercase, lowercase, number, and symbol.
+            </small>
           </label>
           <button className="primary">Create account</button>
         </form>
       </Dialog>
       <Dialog
+        open={!!deleteUser}
+        title={deleteUser ? `Delete ${deleteUser.name}?` : "Delete user"}
+        onClose={() => !deleting && setDeleteUser(null)}
+      >
+        <div className="form-stack">
+          <div className="danger-note">
+            This permanently removes the account. AttendX will block deletion
+            if the user owns attendance or audit history; disable the account
+            instead in that case.
+          </div>
+          <div className="dialog-actions">
+            <button
+              className="secondary"
+              onClick={() => setDeleteUser(null)}
+              disabled={deleting}
+            >
+              Cancel
+            </button>
+            <button
+              className="danger logout-confirm-button"
+              onClick={remove}
+              disabled={deleting}
+            >
+              <Trash2 /> {deleting ? "Deleting…" : "Delete permanently"}
+            </button>
+          </div>
+        </div>
+      </Dialog>
+      <Dialog
         open={!!resetUser}
-        title={resetUser ? `Reset password · ${resetUser.name}` : "Reset password"}
+        title={
+          resetUser ? `Reset password · ${resetUser.name}` : "Reset password"
+        }
         onClose={() => setResetUser(null)}
       >
         <form className="form-stack" onSubmit={resetPassword}>
-          <p>The CR will be signed out everywhere and required to replace this temporary password.</p>
+          <p>
+            The CR will be signed out everywhere and required to replace this
+            temporary password.
+          </p>
           <label>
             Temporary password
-            <input name="temporaryPassword" type="password" minLength="10" required />
+            <input
+              name="temporaryPassword"
+              type="password"
+              minLength="10"
+              required
+            />
           </label>
           <label>
             Confirm temporary password
-            <input name="confirmation" type="password" minLength="10" required />
+            <input
+              name="confirmation"
+              type="password"
+              minLength="10"
+              required
+            />
           </label>
           <button className="primary">Reset CR password</button>
         </form>

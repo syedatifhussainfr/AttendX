@@ -11,6 +11,7 @@
     "build": "npm run build -w client",
     "seed": "npm run seed -w server",
     "create-admin": "npm run create-admin -w server --",
+    "admin-pp": "npm run admin-pp -w server",
     "backup": "npm run backup -w server",
     "demo-attendance": "npm run demo-attendance -w server --",
     "normalize-rolls": "npm run normalize-rolls -w server",

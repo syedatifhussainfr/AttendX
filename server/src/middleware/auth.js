@@ -44,3 +44,41 @@ export const requireRole =
       : res
           .status(403)
           .json({ message: "You do not have permission for this action." });
+
+export function requireAdminPlus(req, res, next) {
+  if (req.user.role === "ADMIN" && req.user.adminPlus) return next();
+  return res.status(403).json({
+    code: "ADMIN_PLUS_REQUIRED",
+    message: "Admin++ permission is required for this action.",
+  });
+}
+
+export function requireAdminElevation(req, res, next) {
+  const token = req.get("x-admin-elevation");
+  if (!token)
+    return res.status(403).json({
+      code: "ADMIN_ELEVATION_REQUIRED",
+      message: "Confirm your password to open protected management tools.",
+    });
+  try {
+    const payload = jwt.verify(token, config.jwtSecret, {
+      algorithms: ["HS256"],
+      issuer: config.jwtIssuer,
+      audience: config.jwtAudience,
+    });
+    const valid =
+      payload.type === "admin-elevation" &&
+      payload.scope === "database-management" &&
+      String(payload.sub) === String(req.user.id) &&
+      payload.sid === req.authSession.id &&
+      payload.gen === req.authSession.generation &&
+      Number(payload.ver || 0) === Number(req.user.tokenVersion || 0);
+    if (!valid) throw new Error("Invalid elevation");
+    return next();
+  } catch {
+    return res.status(403).json({
+      code: "ADMIN_ELEVATION_REQUIRED",
+      message: "Protected access expired. Confirm your password again.",
+    });
+  }
+}

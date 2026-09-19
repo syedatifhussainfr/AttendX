@@ -27,6 +27,7 @@ let sessionUser;
 let subject;
 let adminToken;
 let crToken;
+let adminElevationToken;
 
 before(async () => {
   await db.initDatabase({ force: true });
@@ -35,6 +36,8 @@ before(async () => {
     email: "admin-v11@test.local",
     passwordHash: await bcrypt.hash("AdminTest@123", 4),
     role: "ADMIN",
+    adminPlus: true,
+    phoneNumber: "+919876543210",
   });
   cr = await db.User.create({
     name: "CR Test",
@@ -50,6 +53,12 @@ before(async () => {
   });
   adminToken = (await authSessions.createAuthSession(admin, { userAgent: "Admin test browser" })).accessToken;
   crToken = (await authSessions.createAuthSession(cr, { userAgent: "CR test browser" })).accessToken;
+  const elevation = await request(app)
+    .post("/api/auth/elevate")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .send({ password: "AdminTest@123" })
+    .expect(200);
+  adminElevationToken = elevation.body.elevationToken;
   subject = await db.Subject.create({ code: "V11", name: "V1.1 Safety" });
   await db.Setting.create({ key: "lateThresholdMinutes", value: "15" });
   await db.Student.bulkCreate([
@@ -76,6 +85,8 @@ test("versioned migration adds V1.1 columns and records itself", async () => {
   assert.ok(records.correction_reason);
   assert.ok(authSessionsTable.current_token_hash);
   assert.ok(authSessionsTable.expires_at);
+  assert.ok(users.admin_plus);
+  assert.ok(users.phone_number);
   const [migrations] = await db.sequelize.query(
     "SELECT id FROM app_migrations WHERE id = '001-v1.1-core-safety'",
   );
@@ -84,6 +95,10 @@ test("versioned migration adds V1.1 columns and records itself", async () => {
     "SELECT id FROM app_migrations WHERE id = '002-secure-auth-sessions'",
   );
   assert.equal(sessionMigrations.length, 1);
+  const [adminPlusMigrations] = await db.sequelize.query(
+    "SELECT id FROM app_migrations WHERE id = '003-admin-plus-security'",
+  );
+  assert.equal(adminPlusMigrations.length, 1);
 });
 
 test("secure browser sessions rotate, reject stale access, and revoke on logout", async () => {
@@ -323,16 +338,67 @@ test("review export is authenticated, validated and securely named", async () =>
     .expect("Content-Disposition", 'attachment; filename="attendance_2026-09-18.xlsx"');
 });
 
+test("Admin++ management requires password elevation and deletes only safe accounts", async () => {
+  await request(app)
+    .get("/api/admin/users")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .expect(403);
+  await request(app)
+    .post("/api/auth/elevate")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .send({ password: "wrong-password" })
+    .expect(401);
+  await request(app)
+    .post("/api/auth/elevate")
+    .set("Authorization", `Bearer ${crToken}`)
+    .send({ password: "CRTestPass@123" })
+    .expect(403);
+  await request(app)
+    .get("/api/admin/users")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .expect(200);
+  const created = await request(app)
+    .post("/api/admin/users")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .send({
+      name: "Disposable User",
+      email: "disposable@test.local",
+      password: "Disposable@123",
+      role: "CR",
+    })
+    .expect(201);
+  await request(app)
+    .delete(`/api/admin/users/${created.body.id}`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .expect(204);
+  assert.equal(await db.User.findByPk(created.body.id), null);
+  await request(app)
+    .delete(`/api/admin/users/${admin.id}`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .expect(409);
+  await request(app)
+    .delete(`/api/admin/users/${cr.id}`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .expect(409);
+});
+
 test("ADMIN cannot disable their own account but can disable another account", async () => {
   await request(app)
     .patch(`/api/admin/users/${admin.id}`)
     .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
     .send({ active: false })
     .expect(409);
   assert.equal((await db.User.findByPk(admin.id)).active, true);
   await request(app)
     .patch(`/api/admin/users/${cr.id}`)
     .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
     .send({ active: false })
     .expect(200);
   assert.equal((await db.User.findByPk(cr.id)).active, false);
