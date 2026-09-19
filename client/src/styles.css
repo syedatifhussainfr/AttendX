@@ -110,6 +110,16 @@ button:disabled {
 .password-nav-prompt .dialog-actions { grid-column: 1 / -1; }
 .password-nav-prompt .dialog-actions button { display: inline-flex; align-items: center; gap: 0.45rem; }
 .password-nav-prompt .dialog-actions svg { width: 1rem; }
+.password-nav-prompt .dialog-actions .primary {
+  transform: none;
+  background: #0a3b68;
+  transition: background-color 0.16s ease, box-shadow 0.16s ease;
+}
+.password-nav-prompt .dialog-actions .primary:hover {
+  transform: none;
+  background: #0d4a80;
+  box-shadow: 0 9px 22px rgba(10, 59, 104, 0.22);
+}
 
 .import-review {
   display: grid;
@@ -968,6 +978,8 @@ select:focus {
   display: grid;
   place-items: center;
   padding: 20px;
+  overscroll-behavior: contain;
+  touch-action: none;
 }
 .dialog {
   width: min(540px, 100%);
@@ -976,6 +988,8 @@ select:focus {
   background: #fff;
   border-radius: 11px;
   box-shadow: 0 24px 80px #00172e52;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 .dialog > header {
   display: flex;
