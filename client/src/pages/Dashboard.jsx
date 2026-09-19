@@ -45,10 +45,16 @@ export function Dashboard() {
   }, []);
   const suggested = data?.current || data?.next || data?.timetable?.[0];
   const liveOrNext = data?.current || data?.next;
+  const completedToday = data?.sessions.filter(
+    (session) => session.status === "CLOSED",
+  ).length;
   const sendStart = async (payload, allowOverlap = false) => {
     setSaving(true);
     try {
-      const { data: s } = await api.post("/attendance/sessions", { ...payload, allowOverlap });
+      const { data: s } = await api.post("/attendance/sessions", {
+        ...payload,
+        allowOverlap,
+      });
       navigate(`/attendance/${s.id}`);
     } catch (err) {
       if (err.response?.data?.code === "SESSION_CONFLICT") {
@@ -99,7 +105,12 @@ export function Dashboard() {
       <section className="lecture-hero">
         <div>
           <span className={`live-label ${data.current ? "" : "idle"}`}>
-            <i /> {data.current ? "LECTURE IN PROGRESS" : data.next ? "UP NEXT" : "DAY COMPLETE"}
+            <i />{" "}
+            {data.current
+              ? "LECTURE IN PROGRESS"
+              : data.next
+                ? "UP NEXT"
+                : "DAY COMPLETE"}
           </span>
           <h2>
             {data.current?.Subject?.name ||
@@ -110,7 +121,8 @@ export function Dashboard() {
             {liveOrNext ? (
               <>
                 {data.current ? "Expected current lecture" : "Up next"} ·{" "}
-                {prettyTime(liveOrNext.startTime)}–{prettyTime(liveOrNext.endTime)}
+                {prettyTime(liveOrNext.startTime)}–
+                {prettyTime(liveOrNext.endTime)}
               </>
             ) : (
               "Open an extra or replacement lecture whenever needed."
@@ -118,55 +130,73 @@ export function Dashboard() {
           </p>
         </div>
         <button className="hero-action" onClick={() => setOpen(true)}>
-          {liveOrNext ? "Open attendance console" : "Start an unscheduled lecture"}
+          {liveOrNext
+            ? "Open attendance console"
+            : "Start an unscheduled lecture"}
           <ArrowRight />
         </button>
       </section>
-      <div className="metric-row">
-        <article>
-          <span>
+      <div className="metric-row" aria-label="Today at a glance">
+        <article className={`metric-card ${data.current ? "is-live" : ""}`}>
+          <span className="metric-icon">
             <Clock3 />
           </span>
           <div>
             <small>Current lecture</small>
-            <strong>{data.current?.Subject?.code || "—"}</strong>
-            <p>{data.current?.faculty || "Faculty not assigned"}</p>
+            <strong>
+              {data.current?.Subject?.code || "No lecture in progress"}
+            </strong>
+            <p>
+              {data.current?.Subject?.name || "Nothing scheduled right now"}
+            </p>
+            <span className="metric-detail">
+              {data.current
+                ? `${prettyTime(data.current.startTime)}–${prettyTime(data.current.endTime)} · ${data.current.faculty || "Faculty not assigned"}`
+                : "Updates automatically from today’s timetable"}
+            </span>
           </div>
         </article>
-        <article>
-          <span>
+        <article className="metric-card">
+          <span className="metric-icon">
             <CalendarDays />
           </span>
           <div>
             <small>Next lecture</small>
-            <strong>{data.next?.Subject?.code || "—"}</strong>
+            <strong>{data.next?.Subject?.code || "Schedule complete"}</strong>
             <p>
-              {data.next
-                ? prettyTime(data.next.startTime)
-                : "Schedule complete"}
+              {data.next?.Subject?.name || "No more scheduled lectures today"}
             </p>
+            <span className="metric-detail">
+              {data.next
+                ? `${prettyTime(data.next.startTime)}–${prettyTime(data.next.endTime)} · ${data.next.faculty || "Faculty not assigned"}`
+                : "You can still start an extra lecture"}
+            </span>
           </div>
         </article>
-        <article>
-          <span>
+        <article className="metric-card">
+          <span className="metric-icon">
             <CheckCircle2 />
           </span>
           <div>
             <small>Completed today</small>
-            <strong>
-              {data.sessions.filter((s) => s.status === "CLOSED").length}
-            </strong>
-            <p>attendance sessions</p>
+            <strong>{completedToday}</strong>
+            <p>{completedToday === 1 ? "session closed" : "sessions closed"}</p>
+            <span className="metric-detail">
+              {data.sessions.length - completedToday
+                ? `${data.sessions.length - completedToday} still open`
+                : `${data.sessions.length} recorded today`}
+            </span>
           </div>
         </article>
-        <article>
-          <span>
+        <article className="metric-card">
+          <span className="metric-icon">
             <Users />
           </span>
           <div>
             <small>Class strength</small>
-            <strong>78</strong>
+            <strong>{data.activeStudentCount ?? "—"}</strong>
             <p>active students</p>
+            <span className="metric-detail">Eligible for attendance</span>
           </div>
         </article>
       </div>
@@ -327,30 +357,58 @@ export function Dashboard() {
         onClose={() => setConflict(null)}
       >
         <div className="form-stack">
-          <div className="danger-note">{conflict?.message} No session has been created.</div>
+          <div className="danger-note">
+            {conflict?.message} No session has been created.
+          </div>
           {(conflict?.details?.otherOpen || []).map((item) => (
             <div className="import-line" key={`open-${item.id}`}>
-              <b>Open #{item.id}</b><span>{item.subject} · {prettyTime(item.startTime)}–{prettyTime(item.endTime)}</span>
+              <b>Open #{item.id}</b>
+              <span>
+                {item.subject} · {prettyTime(item.startTime)}–
+                {prettyTime(item.endTime)}
+              </span>
             </div>
           ))}
           {(conflict?.details?.conflicting || []).map((item) => (
             <div className="import-line" key={`conflict-${item.id}`}>
-              <b>Overlap #{item.id}</b><span>{item.subject} · {prettyTime(item.startTime)}–{prettyTime(item.endTime)} · {item.status}</span>
+              <b>Overlap #{item.id}</b>
+              <span>
+                {item.subject} · {prettyTime(item.startTime)}–
+                {prettyTime(item.endTime)} · {item.status}
+              </span>
             </div>
           ))}
-          <p>Continuing records this as an explicitly confirmed replacement or extra class.</p>
+          <p>
+            Continuing records this as an explicitly confirmed replacement or
+            extra class.
+          </p>
           <div className="dialog-actions">
-            <button className="secondary" onClick={() => setConflict(null)}>Go back</button>
+            <button className="secondary" onClick={() => setConflict(null)}>
+              Go back
+            </button>
             <button
               className="primary"
               disabled={saving}
-              onClick={() => sendStart({
-                ...pendingStart,
-                sessionType: pendingStart?.sessionType === "SCHEDULED" ? "EXTRA" : pendingStart?.sessionType,
-                reason: pendingStart?.reason || "Confirmed overlapping class",
-              }, true)}
+              onClick={() =>
+                sendStart(
+                  {
+                    ...pendingStart,
+                    sessionType:
+                      pendingStart?.sessionType === "SCHEDULED"
+                        ? "EXTRA"
+                        : pendingStart?.sessionType,
+                    reason:
+                      pendingStart?.reason || "Confirmed overlapping class",
+                  },
+                  true,
+                )
+              }
             >
-              {saving ? "Opening…" : pendingStart?.sessionType === "SCHEDULED" ? "Confirm as extra class" : "Confirm overlap"}
+              {saving
+                ? "Opening…"
+                : pendingStart?.sessionType === "SCHEDULED"
+                  ? "Confirm as extra class"
+                  : "Confirm overlap"}
             </button>
           </div>
         </div>

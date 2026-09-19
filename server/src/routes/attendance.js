@@ -74,16 +74,19 @@ function exportHeaders(res, filename) {
 router.get("/dashboard", async (req, res) => {
   const now = DateTime.now().setZone(config.timezone),
     dayOfWeek = now.weekday;
-  const timetable = await Timetable.findAll({
-    where: { dayOfWeek, active: true },
-    order: [["startTime", "ASC"]],
-    include: [Subject],
-  });
-  const sessions = await AttendanceSession.findAll({
-    where: { sessionDate: now.toISODate() },
-    include: [Subject, AttendanceRecord],
-    order: [["openedAt", "DESC"]],
-  });
+  const [timetable, sessions, activeStudentCount] = await Promise.all([
+    Timetable.findAll({
+      where: { dayOfWeek, active: true },
+      order: [["startTime", "ASC"]],
+      include: [Subject],
+    }),
+    AttendanceSession.findAll({
+      where: { sessionDate: now.toISODate() },
+      include: [Subject, AttendanceRecord],
+      order: [["openedAt", "DESC"]],
+    }),
+    Student.count({ where: { active: true } }),
+  ]);
   const currentMinutes = now.hour * 60 + now.minute;
   const decorated = timetable.map((item) => item.toJSON());
   const current = decorated.find((item) => {
@@ -101,6 +104,7 @@ router.get("/dashboard", async (req, res) => {
     timetable: decorated,
     current,
     next,
+    activeStudentCount,
     sessions: sessions.map((s) => ({
       ...s.toJSON(),
       summary: summarize(s.AttendanceRecords),
@@ -127,14 +131,16 @@ router.post("/sessions", async (req, res) => {
     })
     .parse(req.body);
   const now = DateTime.now().setZone(config.timezone);
-  res.status(201).json(await openAttendanceSession({
-    input: {
-      ...input,
-      sessionDate: now.toISODate(),
-    },
-    userId: req.user.id,
-    now: now.toJSDate(),
-  }));
+  res.status(201).json(
+    await openAttendanceSession({
+      input: {
+        ...input,
+        sessionDate: now.toISODate(),
+      },
+      userId: req.user.id,
+      now: now.toJSDate(),
+    }),
+  );
 });
 router.get("/sessions", async (req, res) => {
   const where = {};
@@ -176,15 +182,13 @@ router.post("/sessions/:id/mark", async (req, res, next) => {
     const input = z
       .object({ rollNumber: z.string().trim().min(1).max(20) })
       .parse(req.body);
-    res
-      .status(201)
-      .json(
-        await markAttendance({
-          sessionId: req.params.id,
-          rollNumber: normalizeRollNumber(input.rollNumber),
-          markedById: req.user.id,
-        }),
-      );
+    res.status(201).json(
+      await markAttendance({
+        sessionId: req.params.id,
+        rollNumber: normalizeRollNumber(input.rollNumber),
+        markedById: req.user.id,
+      }),
+    );
   } catch (error) {
     if (error.existing)
       return res
@@ -224,22 +228,18 @@ router.post("/sessions/:id/close", async (req, res) =>
     await closeSession({ sessionId: req.params.id, userId: req.user.id }),
   ),
 );
-router.post(
-  "/sessions/:id/reopen",
-  requireRole("ADMIN"),
-  async (req, res) => {
-    const { reason } = z
-      .object({ reason: z.string().trim().min(3).max(250) })
-      .parse(req.body);
-    res.json(
-      await reopenSession({
-        sessionId: req.params.id,
-        userId: req.user.id,
-        reason,
-      }),
-    );
-  },
-);
+router.post("/sessions/:id/reopen", requireRole("ADMIN"), async (req, res) => {
+  const { reason } = z
+    .object({ reason: z.string().trim().min(3).max(250) })
+    .parse(req.body);
+  res.json(
+    await reopenSession({
+      sessionId: req.params.id,
+      userId: req.user.id,
+      reason,
+    }),
+  );
+});
 router.get("/export/review", exportLimiter, async (req, res) => {
   const filters = exportFiltersSchema.parse(req.query);
   const { workbook, sessions } = await buildAttendanceReviewWorkbook(filters);
