@@ -89,7 +89,7 @@ router.post("/session", refreshLimiter, async (req, res) => {
     );
     return authResponse(res, result);
   } catch (error) {
-    clearRefreshCookie(res);
+    if (error.status === 401) clearRefreshCookie(res);
     throw error;
   }
 });
@@ -104,7 +104,7 @@ router.post("/refresh", refreshLimiter, async (req, res) => {
     setRefreshCookie(res, result.refreshToken);
     return authResponse(res, result);
   } catch (error) {
-    clearRefreshCookie(res);
+    if (error.status === 401) clearRefreshCookie(res);
     throw error;
   }
 });

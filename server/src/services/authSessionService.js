@@ -98,14 +98,15 @@ async function resolveRefreshSession(rawToken, transaction) {
   if (!rawToken)
     throw sessionError(401, "SESSION_REQUIRED", "Sign in to continue.");
   const tokenHash = hashToken(rawToken);
-  const sessions = await AuthSession.findAll({
+  const current = await AuthSession.findOne({
+    where: { currentTokenHash: tokenHash },
     transaction,
-    lock: transaction.LOCK.UPDATE,
   });
-  const current = sessions.find(
-    (session) => session.currentTokenHash === tokenHash,
-  );
   if (current) return { session: current, reused: false };
+  const sessions = await AuthSession.findAll({
+    attributes: ["id", "UserId", "tokenHistory"],
+    transaction,
+  });
   const reused = sessions.find((session) =>
     tokenHistory(session).some((entry) => entry.hash === tokenHash),
   );
@@ -123,11 +124,59 @@ async function enabledUser(session, transaction) {
   return user;
 }
 
+async function resumeWithoutRotation(rawToken, metadata) {
+  const resolved = await resolveRefreshSession(rawToken);
+  if (!resolved)
+    throw sessionError(
+      401,
+      "SESSION_INVALID",
+      "This session is invalid. Sign in again.",
+    );
+  const { session, reused } = resolved;
+  if (reused) {
+    await revokeUserSessions(session.UserId);
+    throw sessionError(
+      401,
+      "REFRESH_TOKEN_REUSED",
+      "Session reuse was detected. Sign in again.",
+    );
+  }
+  if (session.revokedAt || new Date(session.expiresAt).getTime() <= Date.now())
+    throw sessionError(
+      401,
+      "SESSION_EXPIRED",
+      "This session has expired. Sign in again.",
+    );
+  const user = await enabledUser(session);
+
+  // Session bootstrap is deliberately read-mostly. React development mode can
+  // request it twice, and making both requests write the same SQLite row causes
+  // SQLITE_BUSY. Activity timestamps are approximate and must never break auth.
+  if (Date.now() - new Date(session.lastUsedAt).getTime() > 5 * 60_000) {
+    try {
+      await session.update({ lastUsedAt: new Date(), ...metadataOf(metadata) });
+    } catch (error) {
+      if (
+        error.name !== "SequelizeTimeoutError" &&
+        error.original?.code !== "SQLITE_BUSY"
+      )
+        throw error;
+    }
+  }
+  return {
+    accessToken: issueAccessToken(user, session),
+    refreshToken: rawToken,
+    expiresIn: config.accessTokenExpiresIn,
+    user: publicUser(user),
+  };
+}
+
 export async function resumeAuthSession(
   rawToken,
   metadata = {},
   { rotate = false } = {},
 ) {
+  if (!rotate) return resumeWithoutRotation(rawToken, metadata);
   const result = await sequelize.transaction(async (transaction) => {
     const resolved = await resolveRefreshSession(rawToken, transaction);
     if (!resolved)

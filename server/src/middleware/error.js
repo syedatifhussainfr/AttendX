@@ -8,6 +8,16 @@ export function errorHandler(error, req, res, next) {
       .json({ message: "Validation failed.", errors: error.flatten() });
   if (error.name === "SequelizeUniqueConstraintError")
     return res.status(409).json({ message: "That record already exists." });
+  if (
+    error.name === "SequelizeTimeoutError" ||
+    error.original?.code === "SQLITE_BUSY"
+  ) {
+    res.setHeader("Retry-After", "1");
+    return res.status(503).json({
+      message: "The database is briefly busy. Please retry.",
+      code: "DATABASE_BUSY",
+    });
+  }
   if (!error.status || error.status >= 500) console.error(error);
   res.status(error.status || 500).json({
     message: error.status ? error.message : "Unexpected server error.",

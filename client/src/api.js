@@ -2,6 +2,7 @@ import axios from "axios";
 
 let accessToken = null;
 let refreshPromise = null;
+let resumePromise = null;
 
 export const api = axios.create({ baseURL: "/api", withCredentials: true });
 
@@ -9,12 +10,35 @@ export function setAccessToken(token) {
   accessToken = token || null;
 }
 
-export async function resumeSession() {
-  const { data } = await api.post("/auth/session", null, {
-    skipAuthRefresh: true,
-  });
-  setAccessToken(data.accessToken);
-  return data;
+const wait = (milliseconds) =>
+  new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+
+async function requestSessionResume() {
+  const delays = [0, 180, 450];
+  let lastError;
+  for (const delay of delays) {
+    if (delay) await wait(delay);
+    try {
+      const { data } = await api.post("/auth/session", null, {
+        skipAuthRefresh: true,
+      });
+      setAccessToken(data.accessToken);
+      return data;
+    } catch (error) {
+      lastError = error;
+      const status = error.response?.status;
+      if (status && status < 500) throw error;
+    }
+  }
+  throw lastError;
+}
+
+export function resumeSession() {
+  if (!resumePromise)
+    resumePromise = requestSessionResume().finally(() => {
+      resumePromise = null;
+    });
+  return resumePromise;
 }
 
 async function refreshAccessToken() {

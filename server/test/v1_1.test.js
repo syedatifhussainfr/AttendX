@@ -97,6 +97,15 @@ test("secure browser sessions rotate, reject stale access, and revoke on logout"
   assert.match(login.headers["set-cookie"][0], /SameSite=Strict/i);
   const firstRefreshCookie = login.headers["set-cookie"][0].split(";", 1)[0];
   const firstAccessToken = login.body.accessToken;
+  const parallelResume = await Promise.all([
+    agent.post("/api/auth/session"),
+    agent.post("/api/auth/session"),
+  ]);
+  assert.deepEqual(
+    parallelResume.map((response) => response.status),
+    [200, 200],
+  );
+  assert.ok(parallelResume.every((response) => response.body.user.id === sessionUser.id));
   const otherDevice = await authSessions.createAuthSession(sessionUser, {
     userAgent: "Other test device",
   });

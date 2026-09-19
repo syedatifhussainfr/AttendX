@@ -16,6 +16,8 @@ export const sequelize =
         dialect: "sqlite",
         storage: config.sqlitePath,
         logging: false,
+        retry: { match: [/SQLITE_BUSY/i], max: 5 },
+        pool: { max: 1, min: 0, idle: 10_000 },
       });
 
 const common = { underscored: true, timestamps: true };
@@ -249,6 +251,11 @@ export const models = {
 };
 export async function initDatabase({ force = false } = {}) {
   await sequelize.authenticate();
+  if (config.dialect === "sqlite") {
+    await sequelize.query("PRAGMA journal_mode = WAL");
+    await sequelize.query("PRAGMA busy_timeout = 5000");
+    await sequelize.query("PRAGMA synchronous = NORMAL");
+  }
   await sequelize.sync({ force });
   await runMigrations(sequelize);
 }
