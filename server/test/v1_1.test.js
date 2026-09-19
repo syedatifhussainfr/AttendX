@@ -217,6 +217,21 @@ test("corrections preserve original status and correction metadata", async () =>
   assert.equal(record.correctedById, admin.id);
 });
 
+test("review export is authenticated, validated and securely named", async () => {
+  await request(app).get("/api/attendance/export/review").expect(401);
+  await request(app)
+    .get("/api/attendance/export/review?from=2026-09-20&to=2026-09-18")
+    .set("Authorization", `Bearer ${sign(admin)}`)
+    .expect(400);
+  await request(app)
+    .get("/api/attendance/export/review?from=2026-09-18&to=2026-09-18")
+    .set("Authorization", `Bearer ${sign(admin)}`)
+    .expect(200)
+    .expect("Content-Type", /spreadsheetml/)
+    .expect("Cache-Control", "private, no-store")
+    .expect("Content-Disposition", 'attachment; filename="attendance_2026-09-18.xlsx"');
+});
+
 test("ADMIN cannot disable their own account but can disable another account", async () => {
   await request(app)
     .patch(`/api/admin/users/${admin.id}`)

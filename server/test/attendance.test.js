@@ -8,6 +8,7 @@ process.env.SQLITE_PATH = ":memory:";
 process.env.JWT_SECRET = "test-secret";
 const db = await import("../src/db/index.js");
 const service = await import("../src/services/attendanceService.js");
+const exports = await import("../src/services/exportService.js");
 const rolls = await import("../src/utils/rollNumber.js");
 let user, subject, students, session;
 
@@ -148,4 +149,24 @@ test("analytics percentage uses credited present only while physical appearance 
       attendancePercentage: 33.33,
     },
   );
+});
+
+test("review workbook organizes subject and student totals with percentages", async () => {
+  const { workbook, sessions } = await exports.buildAttendanceReviewWorkbook({});
+  assert.equal(sessions.length, 1);
+  assert.deepEqual(
+    workbook.worksheets.map((sheet) => sheet.name),
+    ["Overview", "Student Summary", "Student by Subject", "Session Summary"],
+  );
+  const studentSheet = workbook.getWorksheet("Student Summary");
+  assert.equal(studentSheet.getCell("A5").value, "01");
+  assert.equal(studentSheet.getCell("C5").value, 1);
+  assert.equal(studentSheet.getCell("D5").value, 1);
+  assert.equal(studentSheet.getCell("G5").value, 1);
+  const totalRow = studentSheet.lastRow;
+  assert.equal(totalRow.getCell(1).value, "TOTAL");
+  assert.equal(totalRow.getCell(3).value, 3);
+  assert.equal(totalRow.getCell(7).value, 1 / 3);
+  const buffer = await workbook.xlsx.writeBuffer();
+  assert.ok(buffer.byteLength > 1_000);
 });

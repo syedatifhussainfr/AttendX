@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowRight, Download, Filter } from "lucide-react";
 import { api, messageOf } from "../api.js";
 import { useToast } from "../state/ToastContext.jsx";
+import { downloadAttendanceExport } from "../utils/download.js";
 export function History() {
   const [rows, setRows] = useState([]),
     [subjects, setSubjects] = useState([]),
@@ -27,21 +28,13 @@ export function History() {
     e.preventDefault();
     load(Object.fromEntries(new FormData(e.currentTarget)));
   };
-  const exportRange = async (e) => {
+  const exportRange = async (e, review) => {
     const params = Object.fromEntries(
       new FormData(e.currentTarget.closest("form")),
     );
     try {
-      const r = await api.get("/attendance/export", {
-          params,
-          responseType: "blob",
-        }),
-        url = URL.createObjectURL(r.data),
-        a = document.createElement("a");
-      a.href = url;
-      a.download = "AttendX-attendance.xlsx";
-      a.click();
-      URL.revokeObjectURL(url);
+      const filename = await downloadAttendanceExport({ review, params });
+      toast(`${review ? "Review report" : "Machine data"} downloaded as ${filename}.`);
     } catch (x) {
       toast(messageOf(x), "error");
     }
@@ -79,9 +72,13 @@ export function History() {
           <Filter />
           Apply
         </button>
-        <button type="button" className="primary" onClick={exportRange}>
+        <button type="button" className="secondary" onClick={(e) => exportRange(e, false)}>
           <Download />
-          Export Excel
+          Machine data
+        </button>
+        <button type="button" className="primary" onClick={(e) => exportRange(e, true)}>
+          <Download />
+          Review report
         </button>
       </form>
       <section className="panel table-panel">

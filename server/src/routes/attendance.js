@@ -2,6 +2,7 @@ import { Router } from "express";
 import { Op } from "sequelize";
 import { DateTime } from "luxon";
 import { z } from "zod";
+import rateLimit from "express-rate-limit";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import {
   AttendanceSession,
@@ -19,7 +20,11 @@ import {
   reopenSession,
 } from "../services/attendanceService.js";
 import { openAttendanceSession } from "../services/sessionService.js";
-import { buildAttendanceWorkbook } from "../services/exportService.js";
+import {
+  attendanceExportFilename,
+  buildAttendanceReviewWorkbook,
+  buildAttendanceWorkbook,
+} from "../services/exportService.js";
 import { config } from "../config.js";
 import {
   compareRollNumbers,
@@ -28,6 +33,44 @@ import {
 
 const router = Router();
 router.use(requireAuth);
+
+const optionalExportId = z.preprocess(
+  (value) => (value === "" || value == null ? undefined : value),
+  z.coerce.number().int().positive().optional(),
+);
+const optionalExportDate = z.preprocess(
+  (value) => (value === "" || value == null ? undefined : value),
+  z.string().date().optional(),
+);
+const exportFiltersSchema = z
+  .object({
+    sessionId: optionalExportId,
+    from: optionalExportDate,
+    to: optionalExportDate,
+    subjectId: optionalExportId,
+  })
+  .refine((value) => !value.from || !value.to || value.from <= value.to, {
+    path: ["to"],
+    message: "The export end date must be on or after the start date.",
+  });
+const exportLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: (req) => `user-${req.user.id}`,
+  message: { message: "Too many export requests. Please wait a minute." },
+});
+
+function exportHeaders(res, filename) {
+  res.setHeader(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  );
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.setHeader("Cache-Control", "private, no-store");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+}
 router.get("/dashboard", async (req, res) => {
   const now = DateTime.now().setZone(config.timezone),
     dayOfWeek = now.weekday;
@@ -197,21 +240,17 @@ router.post(
     );
   },
 );
-router.get("/export", async (req, res) => {
-  const workbook = await buildAttendanceWorkbook({
-    sessionId: req.query.sessionId,
-    from: req.query.from,
-    to: req.query.to,
-    subjectId: req.query.subjectId,
-  });
-  res.setHeader(
-    "Content-Type",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  );
-  res.setHeader(
-    "Content-Disposition",
-    `attachment; filename="AttendX-${Date.now()}.xlsx"`,
-  );
+router.get("/export/review", exportLimiter, async (req, res) => {
+  const filters = exportFiltersSchema.parse(req.query);
+  const { workbook, sessions } = await buildAttendanceReviewWorkbook(filters);
+  exportHeaders(res, attendanceExportFilename(filters, sessions));
+  await workbook.xlsx.write(res);
+  res.end();
+});
+router.get("/export", exportLimiter, async (req, res) => {
+  const filters = exportFiltersSchema.parse(req.query);
+  const { workbook, sessions } = await buildAttendanceWorkbook(filters);
+  exportHeaders(res, attendanceExportFilename(filters, sessions, true));
   await workbook.xlsx.write(res);
   res.end();
 });

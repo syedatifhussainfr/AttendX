@@ -14,6 +14,7 @@ import { api, messageOf } from "../api.js";
 import { useToast } from "../state/ToastContext.jsx";
 import { Dialog } from "../components/Dialog.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
+import { downloadAttendanceExport } from "../utils/download.js";
 const fmt = (t) =>
   new Date(t).toLocaleTimeString("en-IN", {
     hour: "2-digit",
@@ -110,18 +111,13 @@ export function AttendanceSessionPage() {
       setBusy(false);
     }
   };
-  const download = async () => {
+  const download = async (review = false) => {
     try {
-      const r = await api.get("/attendance/export", {
+      const filename = await downloadAttendanceExport({
+        review,
         params: { sessionId: id },
-        responseType: "blob",
       });
-      const url = URL.createObjectURL(r.data),
-        a = document.createElement("a");
-      a.href = url;
-      a.download = `AttendX-session-${id}.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      toast(`${review ? "Review report" : "Machine data"} downloaded as ${filename}.`);
     } catch (e) {
       toast(messageOf(e), "error");
     }
@@ -179,10 +175,15 @@ export function AttendanceSessionPage() {
           )}
         </div>
         <div className="session-actions">
-          <button className="secondary" onClick={download}>
+          <button className="secondary" onClick={() => download(false)}>
             <Download />
-            Export
+            Machine data
           </button>
+          {s.status === "CLOSED" && (
+            <button className="primary" onClick={() => download(true)}>
+              <Download /> Review report
+            </button>
+          )}
           {s.status === "OPEN" && (
             <button className="danger-outline" onClick={() => setClosing(true)}>
               <Lock />
