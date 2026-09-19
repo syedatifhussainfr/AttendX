@@ -29,11 +29,16 @@ export async function getSessionDetail(id, transaction) {
     transaction,
     include: [
       Subject,
+      { association: "scheduledSubject" },
+      { association: "createdBy", attributes: ["id", "name"] },
+      { association: "closedBy", attributes: ["id", "name"] },
+      { association: "reopenedBy", attributes: ["id", "name"] },
       {
         model: AttendanceRecord,
         include: [
           { model: Student },
           { association: "markedBy", attributes: ["id", "name"] },
+          { association: "correctedBy", attributes: ["id", "name"] },
         ],
       },
     ],
@@ -75,7 +80,7 @@ export async function markAttendance({
     const student = studentId
       ? await Student.findByPk(studentId, { transaction })
       : await Student.findOne({ where: { rollNumber }, transaction });
-    if (!student?.active) {
+    if (!student || (!student.active && !allowCorrection)) {
       const error = new Error("Active student not found for that roll number.");
       error.status = 404;
       throw error;
@@ -106,9 +111,10 @@ export async function markAttendance({
         {
           status: resolvedStatus,
           attendanceCredit: creditFor(resolvedStatus),
-          markedAt: now,
-          markedById,
-          method,
+          correctedFromStatus: existing.correctedFromStatus || oldStatus,
+          correctionReason: reason,
+          correctedAt: now,
+          correctedById: markedById,
         },
         { transaction },
       );
@@ -141,6 +147,54 @@ export async function markAttendance({
       { transaction },
     );
     return { record, student, corrected: false };
+  });
+}
+
+export async function reopenSession({ sessionId, userId, reason, now = new Date() }) {
+  return sequelize.transaction(async (transaction) => {
+    const session = await AttendanceSession.findByPk(sessionId, {
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    if (!session) {
+      const error = new Error("Attendance session not found.");
+      error.status = 404;
+      throw error;
+    }
+    if (session.status !== "CLOSED") {
+      const error = new Error("Only a closed session can be reopened.");
+      error.status = 409;
+      throw error;
+    }
+    const previousClose = {
+      closedAt: session.closedAt,
+      closedById: session.closedById,
+    };
+    await session.update(
+      {
+        status: "OPEN",
+        reopenedAt: now,
+        reopenedById: userId,
+        reopenReason: reason,
+        closedAt: null,
+        closedById: null,
+      },
+      { transaction },
+    );
+    await AuditLog.create(
+      {
+        entityType: "ATTENDANCE_SESSION",
+        entityId: session.id,
+        action: "SESSION_REOPENED",
+        oldValue: JSON.stringify(previousClose),
+        newValue: JSON.stringify({ reopenedAt: now }),
+        reason,
+        UserId: userId,
+        AttendanceSessionId: session.id,
+      },
+      { transaction },
+    );
+    return getSessionDetail(session.id, transaction);
   });
 }
 

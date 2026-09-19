@@ -23,6 +23,8 @@ export function Dashboard() {
   const [data, setData] = useState(null),
     [subjects, setSubjects] = useState([]),
     [open, setOpen] = useState(false),
+    [conflict, setConflict] = useState(null),
+    [pendingStart, setPendingStart] = useState(null),
     [saving, setSaving] = useState(false),
     navigate = useNavigate(),
     toast = useToast();
@@ -43,24 +45,31 @@ export function Dashboard() {
   }, []);
   const suggested = data?.current || data?.next || data?.timetable?.[0];
   const liveOrNext = data?.current || data?.next;
-  const start = async (e) => {
-    e.preventDefault();
+  const sendStart = async (payload, allowOverlap = false) => {
     setSaving(true);
-    const f = new FormData(e.currentTarget);
     try {
-      const { data: s } = await api.post("/attendance/sessions", {
-        subjectId: Number(f.get("subjectId")),
-        scheduledStartTime: f.get("startTime"),
-        scheduledEndTime: f.get("endTime"),
-        faculty: f.get("faculty") || null,
-        sessionType: f.get("sessionType"),
-        reason: f.get("reason") || null,
-      });
+      const { data: s } = await api.post("/attendance/sessions", { ...payload, allowOverlap });
       navigate(`/attendance/${s.id}`);
     } catch (err) {
-      toast(messageOf(err), "error");
+      if (err.response?.data?.code === "SESSION_CONFLICT") {
+        setPendingStart(payload);
+        setConflict(err.response.data);
+      } else toast(messageOf(err), "error");
       setSaving(false);
     }
+  };
+  const start = async (e) => {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    await sendStart({
+      subjectId: Number(f.get("subjectId")),
+      scheduledSubjectId: suggested?.SubjectId || null,
+      scheduledStartTime: f.get("startTime"),
+      scheduledEndTime: f.get("endTime"),
+      faculty: f.get("faculty") || null,
+      sessionType: f.get("sessionType"),
+      reason: f.get("reason") || null,
+    });
   };
   if (!data)
     return (
@@ -311,6 +320,40 @@ export function Dashboard() {
             </button>
           </div>
         </form>
+      </Dialog>
+      <Dialog
+        open={!!conflict}
+        title="Session conflict detected"
+        onClose={() => setConflict(null)}
+      >
+        <div className="form-stack">
+          <div className="danger-note">{conflict?.message} No session has been created.</div>
+          {(conflict?.details?.otherOpen || []).map((item) => (
+            <div className="import-line" key={`open-${item.id}`}>
+              <b>Open #{item.id}</b><span>{item.subject} · {prettyTime(item.startTime)}–{prettyTime(item.endTime)}</span>
+            </div>
+          ))}
+          {(conflict?.details?.conflicting || []).map((item) => (
+            <div className="import-line" key={`conflict-${item.id}`}>
+              <b>Overlap #{item.id}</b><span>{item.subject} · {prettyTime(item.startTime)}–{prettyTime(item.endTime)} · {item.status}</span>
+            </div>
+          ))}
+          <p>Continuing records this as an explicitly confirmed replacement or extra class.</p>
+          <div className="dialog-actions">
+            <button className="secondary" onClick={() => setConflict(null)}>Go back</button>
+            <button
+              className="primary"
+              disabled={saving}
+              onClick={() => sendStart({
+                ...pendingStart,
+                sessionType: pendingStart?.sessionType === "SCHEDULED" ? "EXTRA" : pendingStart?.sessionType,
+                reason: pendingStart?.reason || "Confirmed overlapping class",
+              }, true)}
+            >
+              {saving ? "Opening…" : pendingStart?.sessionType === "SCHEDULED" ? "Confirm as extra class" : "Confirm overlap"}
+            </button>
+          </div>
+        </div>
       </Dialog>
     </div>
   );

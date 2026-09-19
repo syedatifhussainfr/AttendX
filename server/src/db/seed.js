@@ -1,11 +1,5 @@
 import bcrypt from "bcryptjs";
-import {
-  initDatabase,
-  User,
-  Subject,
-  Timetable,
-  Setting,
-} from "./index.js";
+import { initDatabase, User, Subject, Timetable, Setting } from "./index.js";
 
 const subjects = [
   ["UI", "Understanding India"],
@@ -46,14 +40,15 @@ const routine = [
 
 export async function seed() {
   await initDatabase();
-  const adminHash = await bcrypt.hash("Admin@123", 12),
-    crHash = await bcrypt.hash("CR@12345", 12);
+  const adminHash = await bcrypt.hash("Admin@12345", 12),
+    crHash = await bcrypt.hash("CR@123456", 12);
   await User.findOrCreate({
     where: { email: "admin@attendx.local" },
     defaults: {
       name: "AttendX Administrator",
       passwordHash: adminHash,
       role: "ADMIN",
+      mustChangePassword: true,
     },
   });
   await User.findOrCreate({
@@ -62,6 +57,7 @@ export async function seed() {
       name: "Class Representative",
       passwordHash: crHash,
       role: "CR",
+      mustChangePassword: true,
     },
   });
   const subjectMap = {};

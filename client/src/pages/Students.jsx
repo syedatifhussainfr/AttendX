@@ -4,13 +4,16 @@ import { api, messageOf } from "../api.js";
 import { Dialog } from "../components/Dialog.jsx";
 import { useToast } from "../state/ToastContext.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
+import { downloadImportErrors, parseCsv } from "../utils/csv.js";
 export function Students() {
   const [rows, setRows] = useState([]),
     [q, setQ] = useState(""),
     [selected, setSelected] = useState(null),
     [create, setCreate] = useState(false),
     [importing, setImporting] = useState(false),
-    [preview, setPreview] = useState([]),
+    [importRows, setImportRows] = useState([]),
+    [review, setReview] = useState(null),
+    [missingAction, setMissingAction] = useState("KEEP"),
     toast = useToast(),
     { user } = useAuth();
   const load = async () => {
@@ -53,31 +56,30 @@ export function Students() {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      const lines = reader.result.trim().split(/\r?\n/);
-      const parsed = lines
-        .slice(1)
-        .map((line) => {
-          const [rollNumber, ...name] = line.split(",");
-          const cleanedRoll = rollNumber?.trim();
-          return {
-            rollNumber: /^\d+$/.test(cleanedRoll)
-              ? cleanedRoll.replace(/^0+(?=\d)/, "").padStart(2, "0")
-              : cleanedRoll,
-            name: name.join(",").trim(),
-          };
-        })
-        .filter((x) => x.rollNumber && x.name);
-      setPreview(parsed);
-      setImporting(true);
+    reader.onload = async () => {
+      try {
+        const parsed = parseCsv(reader.result);
+        const { data } = await api.post("/admin/students/import/preview", { rows: parsed });
+        setImportRows(parsed);
+        setReview(data);
+        setMissingAction("KEEP");
+        setImporting(true);
+      } catch (error) {
+        toast(messageOf(error), "error");
+      }
     };
     reader.readAsText(file);
   };
   const submitImport = async () => {
     try {
-      await api.post("/admin/students/import", { rows: preview });
-      toast(`${preview.length} student rows imported.`);
+      const { data } = await api.post("/admin/students/import/apply", {
+        rows: importRows,
+        missingAction,
+        confirmed: true,
+      });
+      toast(`Import complete: ${data.added} added, ${data.updated} updated, ${data.deactivated} deactivated.`);
       setImporting(false);
+      setReview(null);
       load();
     } catch (e) {
       toast(messageOf(e), "error");
@@ -205,27 +207,26 @@ export function Students() {
         title="Preview CSV import"
         onClose={() => setImporting(false)}
       >
-        <p>
-          Expected columns: <code>rollNumber,name</code>. Existing rolls will
-          have their names updated.
-        </p>
-        <div className="import-preview">
-          {preview.slice(0, 12).map((r, i) => (
-            <div key={i}>
-              <b>{r.rollNumber}</b>
-              <span>{r.name}</span>
-            </div>
-          ))}
-          {preview.length > 12 && (
-            <small>+ {preview.length - 12} more rows</small>
-          )}
-        </div>
+        {review && <div className="import-review">
+          <p>Nothing has been changed yet. Review every category, then confirm one transactional update.</p>
+          <div className="import-summary">
+            <span><b>{review.summary.new}</b> New</span>
+            <span><b>{review.summary.changed}</b> Name changes</span>
+            <span><b>{review.summary.unchanged}</b> Unchanged</span>
+            <span><b>{review.summary.invalid}</b> Invalid</span>
+            <span><b>{review.summary.missing}</b> Missing from CSV</span>
+          </div>
+          {!!review.nameChanges.length && <section><h3>Name changes</h3>{review.nameChanges.slice(0, 10).map((row) => <div className="import-line" key={row.rollNumber}><b>{row.rollNumber}</b><span>{row.oldName} → {row.name}</span></div>)}</section>}
+          {!!review.newStudents.length && <section><h3>New students</h3>{review.newStudents.slice(0, 10).map((row) => <div className="import-line" key={row.rollNumber}><b>{row.rollNumber}</b><span>{row.name}</span></div>)}</section>}
+          {!!review.invalidRows.length && <section className="import-errors"><h3>Invalid or duplicate rows</h3>{review.invalidRows.slice(0, 10).map((row) => <div className="import-line" key={`${row.rowNumber}-${row.rollNumber}`}><b>Row {row.rowNumber}</b><span>{row.errors.join(" ")}</span></div>)}<button className="secondary" onClick={() => downloadImportErrors(review.invalidRows)}>Download error CSV</button></section>}
+          {!!review.missingStudents.length && <section><h3>Active students missing from this CSV</h3><p>{review.missingStudents.map((row) => row.rollNumber).join(", ")}</p><label>When applying<select value={missingAction} onChange={(event) => setMissingAction(event.target.value)}><option value="KEEP">Keep them active</option><option value="DEACTIVATE">Deactivate them</option></select></label></section>}
+        </div>}
         <div className="dialog-actions">
           <button className="secondary" onClick={() => setImporting(false)}>
             Cancel
           </button>
-          <button className="primary" onClick={submitImport}>
-            Import {preview.length} rows
+          <button className="primary" onClick={submitImport} disabled={!review?.canApply}>
+            Confirm and apply {review?.summary.valid || 0} rows
           </button>
         </div>
       </Dialog>

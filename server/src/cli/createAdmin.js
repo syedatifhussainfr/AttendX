@@ -2,6 +2,7 @@ import { Writable } from "node:stream";
 import readline from "node:readline";
 import bcrypt from "bcryptjs";
 import { initDatabase, Setting, User } from "../db/index.js";
+import { passwordSchema } from "../utils/password.js";
 
 const args = process.argv.slice(2);
 const getArg = (name) => {
@@ -25,7 +26,9 @@ const rl = readline.createInterface({
 });
 
 const ask = (question) =>
-  new Promise((resolve) => rl.question(question, (answer) => resolve(answer.trim())));
+  new Promise((resolve) =>
+    rl.question(question, (answer) => resolve(answer.trim())),
+  );
 
 const askPassword = async (question) => {
   if (!process.stdin.isTTY) return ask(question);
@@ -50,12 +53,19 @@ try {
   const name = getArg("name") || (await ask("Admin name: "));
   const email = (getArg("email") || (await ask("Admin email: "))).toLowerCase();
   const suppliedPassword = getArg("password");
-  const password = suppliedPassword || (await askPassword("Password (minimum 8 characters): "));
-  const confirmation = suppliedPassword || (await askPassword("Confirm password: "));
+  const password =
+    suppliedPassword ||
+    (await askPassword(
+      "Password (10+ chars, mixed case, number and symbol): ",
+    ));
+  const confirmation =
+    suppliedPassword || (await askPassword("Confirm password: "));
 
-  if (name.length < 2) throw new Error("Admin name must contain at least 2 characters.");
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Enter a valid email address.");
-  if (password.length < 8) throw new Error("Password must contain at least 8 characters.");
+  if (name.length < 2)
+    throw new Error("Admin name must contain at least 2 characters.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    throw new Error("Enter a valid email address.");
+  passwordSchema.parse(password);
   if (password !== confirmation) throw new Error("Passwords do not match.");
 
   await initDatabase();
@@ -78,7 +88,9 @@ try {
   }
 
   console.log(`\nADMIN created successfully: ${user.email}`);
-  console.log("No dummy students, subjects, timetable entries, or attendance records were added.");
+  console.log(
+    "No dummy students, subjects, timetable entries, or attendance records were added.",
+  );
 } catch (error) {
   console.error(`\nCould not create ADMIN: ${error.message}`);
   process.exitCode = 1;

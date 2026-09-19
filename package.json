@@ -1,16 +1,22 @@
 {
   "name": "attendx-v1",
   "private": true,
-  "version": "1.0.0",
-  "workspaces": ["client", "server"],
+  "version": "1.1.0",
+  "workspaces": [
+    "client",
+    "server"
+  ],
   "scripts": {
     "dev": "concurrently -n API,WEB -c blue,cyan \"npm run dev -w server\" \"npm run dev -w client\"",
     "build": "npm run build -w client",
     "seed": "npm run seed -w server",
     "create-admin": "npm run create-admin -w server --",
+    "backup": "npm run backup -w server",
     "normalize-rolls": "npm run normalize-rolls -w server",
     "test": "npm test -w server",
     "start": "npm start -w server"
   },
-  "devDependencies": { "concurrently": "^9.1.2" }
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
 }

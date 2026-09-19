@@ -12,6 +12,7 @@ export const config = {
   dialect: process.env.DB_DIALECT || "sqlite",
   databaseUrl: process.env.DATABASE_URL,
   sqlitePath: process.env.SQLITE_PATH || "./data/attendx.sqlite",
+  backupDir: process.env.BACKUP_DIR || "./backups",
   timezone: "Asia/Kolkata",
 };
 

@@ -12,6 +12,7 @@ const labels = {
   attendance_records: "Attendance records",
   settings: "Settings",
   audit_logs: "Audit logs",
+  app_migrations: "Schema migrations",
 };
 
 const displayValue = (value) => {

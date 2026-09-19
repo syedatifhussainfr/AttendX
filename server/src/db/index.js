@@ -1,5 +1,6 @@
 import { Sequelize, DataTypes } from "sequelize";
 import { config } from "../config.js";
+import { runMigrations } from "./migrate.js";
 
 export const sequelize =
   config.dialect === "postgres"
@@ -27,6 +28,8 @@ export const User = sequelize.define(
     passwordHash: { type: DataTypes.STRING, allowNull: false },
     role: { type: DataTypes.ENUM("ADMIN", "CR"), allowNull: false },
     active: { type: DataTypes.BOOLEAN, defaultValue: true },
+    mustChangePassword: { type: DataTypes.BOOLEAN, defaultValue: false },
+    tokenVersion: { type: DataTypes.INTEGER, defaultValue: 0 },
   },
   common,
 );
@@ -85,6 +88,9 @@ export const AttendanceSession = sequelize.define(
     reason: { type: DataTypes.STRING, allowNull: true },
     faculty: { type: DataTypes.STRING, allowNull: true },
     lateThresholdMinutes: { type: DataTypes.INTEGER, allowNull: false },
+    scheduledSubjectId: { type: DataTypes.INTEGER, allowNull: true },
+    reopenedAt: { type: DataTypes.DATE, allowNull: true },
+    reopenReason: { type: DataTypes.STRING(250), allowNull: true },
   },
   common,
 );
@@ -99,6 +105,9 @@ export const AttendanceRecord = sequelize.define(
     attendanceCredit: { type: DataTypes.BOOLEAN, allowNull: false },
     markedAt: { type: DataTypes.DATE, allowNull: false },
     method: { type: DataTypes.ENUM("MANUAL", "QR"), defaultValue: "MANUAL" },
+    correctedFromStatus: { type: DataTypes.STRING(20), allowNull: true },
+    correctionReason: { type: DataTypes.STRING(250), allowNull: true },
+    correctedAt: { type: DataTypes.DATE, allowNull: true },
   },
   {
     ...common,
@@ -128,11 +137,27 @@ export const AuditLog = sequelize.define(
   },
   common,
 );
+export const AppMigration = sequelize.define(
+  "AppMigration",
+  {
+    id: { type: DataTypes.STRING(100), primaryKey: true },
+    appliedAt: { type: DataTypes.DATE, allowNull: false },
+  },
+  { tableName: "app_migrations", underscored: true, timestamps: false },
+);
 
 Subject.hasMany(Timetable);
 Timetable.belongsTo(Subject);
 Subject.hasMany(AttendanceSession);
 AttendanceSession.belongsTo(Subject);
+Subject.hasMany(AttendanceSession, {
+  foreignKey: "scheduledSubjectId",
+  as: "scheduledSessions",
+});
+AttendanceSession.belongsTo(Subject, {
+  foreignKey: "scheduledSubjectId",
+  as: "scheduledSubject",
+});
 User.hasMany(AttendanceSession, {
   foreignKey: "createdById",
   as: "createdSessions",
@@ -146,12 +171,20 @@ User.hasMany(AttendanceSession, {
   as: "closedSessions",
 });
 AttendanceSession.belongsTo(User, { foreignKey: "closedById", as: "closedBy" });
+AttendanceSession.belongsTo(User, {
+  foreignKey: "reopenedById",
+  as: "reopenedBy",
+});
 AttendanceSession.hasMany(AttendanceRecord, { onDelete: "CASCADE" });
 AttendanceRecord.belongsTo(AttendanceSession);
 Student.hasMany(AttendanceRecord);
 AttendanceRecord.belongsTo(Student);
 User.hasMany(AttendanceRecord, { foreignKey: "markedById" });
 AttendanceRecord.belongsTo(User, { foreignKey: "markedById", as: "markedBy" });
+AttendanceRecord.belongsTo(User, {
+  foreignKey: "correctedById",
+  as: "correctedBy",
+});
 User.hasMany(AuditLog);
 AuditLog.belongsTo(User);
 Student.hasMany(AuditLog);
@@ -168,8 +201,10 @@ export const models = {
   AttendanceRecord,
   Setting,
   AuditLog,
+  AppMigration,
 };
 export async function initDatabase({ force = false } = {}) {
   await sequelize.authenticate();
   await sequelize.sync({ force });
+  await runMigrations(sequelize);
 }

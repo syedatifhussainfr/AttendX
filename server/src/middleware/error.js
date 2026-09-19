@@ -11,5 +11,7 @@ export function errorHandler(error, req, res, next) {
     return res.status(409).json({ message: "That record already exists." });
   res.status(error.status || 500).json({
     message: error.status ? error.message : "Unexpected server error.",
+    ...(error.code && { code: error.code }),
+    ...(error.details && { details: error.details }),
   });
 }

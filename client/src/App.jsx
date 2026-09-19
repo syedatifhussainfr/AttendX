@@ -12,10 +12,14 @@ import { UsersPage } from "./pages/Users.jsx";
 import { Audit } from "./pages/Audit.jsx";
 import { SettingsPage } from "./pages/Settings.jsx";
 import { DatabasePage } from "./pages/Database.jsx";
+import { ChangePassword } from "./pages/ChangePassword.jsx";
+import { BackupsPage } from "./pages/Backups.jsx";
 
-function Protected({ children, admin }) {
+function Protected({ children, admin, allowPasswordChange = false }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
+  if (user.mustChangePassword && !allowPasswordChange)
+    return <Navigate to="/change-password" replace />;
   if (admin && user.role !== "ADMIN") return <Navigate to="/" replace />;
   return children;
 }
@@ -23,7 +27,14 @@ export function App() {
   const { user } = useAuth();
   return (
     <Routes>
-      <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
+      <Route
+        path="/login"
+        element={user ? <Navigate to={user.mustChangePassword ? "/change-password" : "/"} /> : <Login />}
+      />
+      <Route
+        path="/change-password"
+        element={<Protected allowPasswordChange><ChangePassword /></Protected>}
+      />
       <Route
         element={
           <Protected>
@@ -72,6 +83,14 @@ export function App() {
           element={
             <Protected admin>
               <DatabasePage />
+            </Protected>
+          }
+        />
+        <Route
+          path="backups"
+          element={
+            <Protected admin>
+              <BackupsPage />
             </Protected>
           }
         />

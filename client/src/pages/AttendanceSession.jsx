@@ -32,6 +32,7 @@ export function AttendanceSessionPage() {
     [busy, setBusy] = useState(false),
     [selected, setSelected] = useState(null),
     [closing, setClosing] = useState(false),
+    [reopening, setReopening] = useState(false),
     [now, setNow] = useState(Date.now());
   const load = async (silent = false) => {
     try {
@@ -125,6 +126,21 @@ export function AttendanceSessionPage() {
       toast(messageOf(e), "error");
     }
   };
+  const reopen = async (event) => {
+    event.preventDefault();
+    const reason = new FormData(event.currentTarget).get("reason");
+    setBusy(true);
+    try {
+      await api.post(`/attendance/sessions/${id}/reopen`, { reason });
+      toast("Session reopened with an audit entry.");
+      setReopening(false);
+      await load();
+    } catch (error) {
+      toast(messageOf(error), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
   if (!data)
     return (
       <div className="page">
@@ -173,6 +189,11 @@ export function AttendanceSessionPage() {
               Review & close
             </button>
           )}
+          {s.status === "CLOSED" && user.role === "ADMIN" && (
+            <button className="danger-outline" onClick={() => setReopening(true)}>
+              <Lock /> Reopen with reason
+            </button>
+          )}
         </div>
       </div>
       <section className="session-banner">
@@ -182,8 +203,12 @@ export function AttendanceSessionPage() {
           </span>
           <h1>{s.Subject.name}</h1>
           <p>
+            {s.scheduledSubject && s.scheduledSubject.id !== s.Subject.id
+              ? `Scheduled: ${s.scheduledSubject.name} · Actual: ${s.Subject.name} · `
+              : ""}
             {s.scheduledStartTime}–{s.scheduledEndTime} ·{" "}
             {s.faculty || "Faculty not assigned"} · Opened {fmt(s.openedAt)}
+            {s.createdBy?.name ? ` by ${s.createdBy.name}` : ""}
           </p>
         </div>
         <div className={left ? "countdown" : "countdown elapsed"}>
@@ -274,7 +299,7 @@ export function AttendanceSessionPage() {
             return (
               <button
                 key={student.id}
-                className={`roll-tile ${state}`}
+                className={`roll-tile ${state} ${r?.correctedAt ? "corrected" : ""}`}
                 onClick={() => setSelected(student)}
               >
                 <strong>{student.rollNumber}</strong>
@@ -303,6 +328,14 @@ export function AttendanceSessionPage() {
             </strong>
             {records.get(selected?.id) && (
               <small>Marked {fmt(records.get(selected.id).markedAt)}</small>
+            )}
+            {records.get(selected?.id)?.correctedAt && (
+              <div className="correction-note">
+                <b>Corrected</b>
+                <span>{records.get(selected.id).correctedFromStatus} → {records.get(selected.id).status}</span>
+                <span>{records.get(selected.id).correctionReason}</span>
+                <small>By {records.get(selected.id).correctedBy?.name || "Unknown"} · {fmt(records.get(selected.id).correctedAt)}</small>
+              </div>
             )}
           </div>
           {(s.status === "OPEN" || user.role === "ADMIN") && (
@@ -333,6 +366,13 @@ export function AttendanceSessionPage() {
             </form>
           )}
         </div>
+      </Dialog>
+      <Dialog open={reopening} title="Reopen closed session" onClose={() => setReopening(false)}>
+        <form className="form-stack" onSubmit={reopen}>
+          <div className="danger-note">Reopening permits corrections again. The reason, administrator, and time are permanently audited.</div>
+          <label>Reason for reopening<input name="reason" minLength="3" maxLength="250" required placeholder="Explain why this closed session must change" /></label>
+          <button className="danger" disabled={busy}>{busy ? "Reopening…" : "Reopen session"}</button>
+        </form>
       </Dialog>
       <Dialog
         open={closing}

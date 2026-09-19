@@ -13,11 +13,17 @@ import {
   AuditLog,
   AttendanceSession,
   AttendanceRecord,
+  AppMigration,
 } from "../db/index.js";
 import {
   compareRollNumbers,
   normalizeRollNumber,
 } from "../utils/rollNumber.js";
+import {
+  applyStudentImport,
+  reconcileStudentRows,
+} from "../services/studentImportService.js";
+import { passwordSchema, publicUser } from "../utils/password.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -63,44 +69,32 @@ router.patch("/students/:id", requireRole("ADMIN"), async (req, res) => {
   await row.update(data);
   res.json(row);
 });
-router.post("/students/import", requireRole("ADMIN"), async (req, res) => {
-  const rows = z
-    .array(
-      z.object({
-        rollNumber: z.string().trim().min(1).max(20),
-        name: z.string().trim().min(2),
-      }),
-    )
-    .min(1)
-    .max(500)
-    .parse(req.body.rows)
-    .map((item) => ({
-      ...item,
-      rollNumber: normalizeRollNumber(item.rollNumber),
-    }));
-  const uniqueRolls = new Set(rows.map((item) => item.rollNumber));
-  if (uniqueRolls.size !== rows.length)
-    return res
-      .status(400)
-      .json({ message: "The CSV contains duplicate roll numbers." });
-  const results = await sequelize.transaction(async (transaction) => {
-    const imported = [];
-    for (const item of rows) {
-      const [student, created] = await Student.findOrCreate({
-        where: { rollNumber: item.rollNumber },
-        defaults: { name: item.name },
-        transaction,
-      });
-      if (!created)
-        await student.update(
-          { name: item.name, active: true },
-          { transaction },
-        );
-      imported.push({ rollNumber: item.rollNumber, created });
-    }
-    return imported;
-  });
-  res.json({ imported: results.length, results });
+const importRowsSchema = z.array(
+  z.object({
+    rowNumber: z.number().int().positive().optional(),
+    rollNumber: z.unknown().optional(),
+    name: z.unknown().optional(),
+  }),
+).min(1).max(1000);
+router.post("/students/import/preview", requireRole("ADMIN"), async (req, res) => {
+  const rows = importRowsSchema.parse(req.body.rows);
+  res.json(await reconcileStudentRows(rows));
+});
+router.post("/students/import/apply", requireRole("ADMIN"), async (req, res) => {
+  const data = z
+    .object({
+      rows: importRowsSchema,
+      missingAction: z.enum(["KEEP", "DEACTIVATE"]),
+      confirmed: z.literal(true),
+    })
+    .parse(req.body);
+  res.json(
+    await applyStudentImport({
+      rawRows: data.rows,
+      missingAction: data.missingAction,
+      userId: req.user.id,
+    }),
+  );
 });
 router.get("/subjects", async (req, res) =>
   res.json(await Subject.findAll({ order: [["name", "ASC"]] })),
@@ -226,7 +220,7 @@ router.post("/users", requireRole("ADMIN"), async (req, res) => {
     .object({
       name: z.string().min(2),
       email: z.string().email(),
-      password: z.string().min(8),
+      password: passwordSchema,
       role: z.enum(["ADMIN", "CR"]),
     })
     .parse(req.body);
@@ -237,12 +231,9 @@ router.post("/users", requireRole("ADMIN"), async (req, res) => {
         ...data,
         email: data.email.toLowerCase(),
         passwordHash: await bcrypt.hash(data.password, 12),
+        mustChangePassword: true,
       }).then((row) => ({
-        id: row.id,
-        name: row.name,
-        email: row.email,
-        role: row.role,
-        active: row.active,
+        ...publicUser(row),
       })),
     );
 });
@@ -254,19 +245,50 @@ router.patch("/users/:id", requireRole("ADMIN"), async (req, res) => {
       name: z.string().min(2).optional(),
       role: z.enum(["ADMIN", "CR"]).optional(),
       active: z.boolean().optional(),
-      password: z.string().min(8).optional(),
     })
     .parse(req.body);
-  if (data.password) data.passwordHash = await bcrypt.hash(data.password, 12);
-  delete data.password;
+  if (row.id === req.user.id && data.active === false)
+    return res.status(409).json({
+      code: "SELF_DISABLE_BLOCKED",
+      message: "You cannot disable the administrator account you are currently using.",
+    });
+  if (row.id === req.user.id && data.role && data.role !== "ADMIN")
+    return res.status(409).json({
+      code: "SELF_ROLE_CHANGE_BLOCKED",
+      message: "You cannot remove ADMIN access from the account you are currently using.",
+    });
   await row.update(data);
-  res.json({
-    id: row.id,
-    name: row.name,
-    email: row.email,
-    role: row.role,
-    active: row.active,
+  res.json(publicUser(row));
+});
+router.post("/users/:id/reset-password", requireRole("ADMIN"), async (req, res) => {
+  const row = await User.findByPk(req.params.id);
+  if (!row) return res.status(404).json({ message: "User not found." });
+  if (row.role !== "CR")
+    return res.status(400).json({ message: "ADMIN can reset only CR passwords." });
+  const { temporaryPassword } = z
+    .object({ temporaryPassword: passwordSchema })
+    .parse(req.body);
+  await sequelize.transaction(async (transaction) => {
+    await row.update(
+      {
+        passwordHash: await bcrypt.hash(temporaryPassword, 12),
+        mustChangePassword: true,
+        tokenVersion: (row.tokenVersion || 0) + 1,
+      },
+      { transaction },
+    );
+    await AuditLog.create(
+      {
+        entityType: "USER",
+        entityId: row.id,
+        action: "CR_PASSWORD_RESET",
+        newValue: JSON.stringify({ mustChangePassword: true }),
+        UserId: req.user.id,
+      },
+      { transaction },
+    );
   });
+  res.json({ message: "Temporary password set. Existing sessions were revoked." });
 });
 router.get("/audit-logs", requireRole("ADMIN"), async (req, res) =>
   res.json(
@@ -301,6 +323,7 @@ const databaseTables = {
   },
   settings: { model: Setting, order: [["key", "ASC"]] },
   audit_logs: { model: AuditLog, order: [["id", "DESC"]] },
+  app_migrations: { model: AppMigration, order: [["appliedAt", "DESC"]] },
 };
 
 router.get("/database/overview", requireRole("ADMIN"), async (req, res) => {

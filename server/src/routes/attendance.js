@@ -9,7 +9,6 @@ import {
   Student,
   Subject,
   Timetable,
-  Setting,
   User,
 } from "../db/index.js";
 import {
@@ -17,7 +16,9 @@ import {
   closeSession,
   getSessionDetail,
   summarize,
+  reopenSession,
 } from "../services/attendanceService.js";
+import { openAttendanceSession } from "../services/sessionService.js";
 import { buildAttendanceWorkbook } from "../services/exportService.js";
 import { config } from "../config.js";
 import {
@@ -27,11 +28,6 @@ import {
 
 const router = Router();
 router.use(requireAuth);
-const getSetting = async (key, fallback) => {
-  const row = await Setting.findByPk(key);
-  return row ? JSON.parse(row.value) : fallback;
-};
-
 router.get("/dashboard", async (req, res) => {
   const now = DateTime.now().setZone(config.timezone),
     dayOfWeek = now.weekday;
@@ -72,6 +68,7 @@ router.post("/sessions", async (req, res) => {
   const input = z
     .object({
       subjectId: z.number().int(),
+      scheduledSubjectId: z.number().int().nullable().optional(),
       scheduledStartTime: z.string().regex(/^\d{2}:\d{2}$/),
       scheduledEndTime: z.string().regex(/^\d{2}:\d{2}$/),
       faculty: z.string().trim().max(120).nullable().optional(),
@@ -79,24 +76,22 @@ router.post("/sessions", async (req, res) => {
         .enum(["SCHEDULED", "REPLACEMENT", "EXTRA"])
         .default("SCHEDULED"),
       reason: z.string().trim().max(250).nullable().optional(),
+      allowOverlap: z.boolean().default(false),
+    })
+    .refine((value) => value.scheduledEndTime > value.scheduledStartTime, {
+      path: ["scheduledEndTime"],
+      message: "End time must be after start time.",
     })
     .parse(req.body);
-  if (
-    !(await Subject.findOne({ where: { id: input.subjectId, active: true } }))
-  )
-    return res
-      .status(400)
-      .json({ message: "Selected subject is unavailable." });
   const now = DateTime.now().setZone(config.timezone);
-  const session = await AttendanceSession.create({
-    ...input,
-    SubjectId: input.subjectId,
-    sessionDate: now.toISODate(),
-    openedAt: now.toJSDate(),
-    lateThresholdMinutes: await getSetting("lateThresholdMinutes", 15),
-    createdById: req.user.id,
-  });
-  res.status(201).json(await getSessionDetail(session.id));
+  res.status(201).json(await openAttendanceSession({
+    input: {
+      ...input,
+      sessionDate: now.toISODate(),
+    },
+    userId: req.user.id,
+    now: now.toJSDate(),
+  }));
 });
 router.get("/sessions", async (req, res) => {
   const where = {};
@@ -163,6 +158,8 @@ router.patch("/sessions/:id/students/:studentId", async (req, res) => {
     })
     .parse(req.body);
   const session = await AttendanceSession.findByPk(req.params.id);
+  if (!session)
+    return res.status(404).json({ message: "Attendance session not found." });
   const allow = req.user.role === "ADMIN" || session?.status === "OPEN";
   if (!allow)
     return res
@@ -183,6 +180,22 @@ router.post("/sessions/:id/close", async (req, res) =>
   res.json(
     await closeSession({ sessionId: req.params.id, userId: req.user.id }),
   ),
+);
+router.post(
+  "/sessions/:id/reopen",
+  requireRole("ADMIN"),
+  async (req, res) => {
+    const { reason } = z
+      .object({ reason: z.string().trim().min(3).max(250) })
+      .parse(req.body);
+    res.json(
+      await reopenSession({
+        sessionId: req.params.id,
+        userId: req.user.id,
+        reason,
+      }),
+    );
+  },
 );
 router.get("/export", async (req, res) => {
   const workbook = await buildAttendanceWorkbook({

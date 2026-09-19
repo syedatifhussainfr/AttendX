@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
-import { Plus, ShieldCheck, UserRound } from "lucide-react";
+import { KeyRound, Plus, ShieldCheck, UserRound } from "lucide-react";
 import { api, messageOf } from "../api.js";
 import { Dialog } from "../components/Dialog.jsx";
 import { useToast } from "../state/ToastContext.jsx";
+import { useAuth } from "../state/AuthContext.jsx";
 export function UsersPage() {
   const [rows, setRows] = useState([]),
     [open, setOpen] = useState(false),
-    toast = useToast();
+    [resetUser, setResetUser] = useState(null),
+    toast = useToast(),
+    { user } = useAuth();
   const load = () =>
     api
       .get("/admin/users")
@@ -27,6 +30,23 @@ export function UsersPage() {
       load();
     } catch (x) {
       toast(messageOf(x), "error");
+    }
+  };
+  const resetPassword = async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const temporaryPassword = form.get("temporaryPassword");
+    if (temporaryPassword !== form.get("confirmation"))
+      return toast("Password confirmation does not match.", "error");
+    try {
+      await api.post(`/admin/users/${resetUser.id}/reset-password`, {
+        temporaryPassword,
+      });
+      toast("CR password reset; existing sessions were revoked.");
+      setResetUser(null);
+      load();
+    } catch (error) {
+      toast(messageOf(error), "error");
     }
   };
   const toggle = async (u) => {
@@ -64,9 +84,21 @@ export function UsersPage() {
                 {u.role} · {u.active ? "Active" : "Disabled"}
               </small>
             </div>
-            <button className="secondary" onClick={() => toggle(u)}>
-              {u.active ? "Disable" : "Enable"}
-            </button>
+            <div className="user-actions">
+              {u.role === "CR" && (
+                <button className="secondary" onClick={() => setResetUser(u)}>
+                  <KeyRound /> Reset password
+                </button>
+              )}
+              <button
+                className="secondary"
+                onClick={() => toggle(u)}
+                disabled={u.id === user.id && u.active}
+                title={u.id === user.id && u.active ? "You cannot disable your own active account." : ""}
+              >
+                {u.id === user.id && u.active ? "Current account" : u.active ? "Disable" : "Enable"}
+              </button>
+            </div>
           </article>
         ))}
       </div>
@@ -93,9 +125,28 @@ export function UsersPage() {
           </label>
           <label>
             Temporary password
-            <input name="password" type="password" minLength="8" required />
+            <input name="password" type="password" minLength="10" required />
+            <small>10+ characters with uppercase, lowercase, number, and symbol.</small>
           </label>
           <button className="primary">Create account</button>
+        </form>
+      </Dialog>
+      <Dialog
+        open={!!resetUser}
+        title={resetUser ? `Reset password · ${resetUser.name}` : "Reset password"}
+        onClose={() => setResetUser(null)}
+      >
+        <form className="form-stack" onSubmit={resetPassword}>
+          <p>The CR will be signed out everywhere and required to replace this temporary password.</p>
+          <label>
+            Temporary password
+            <input name="temporaryPassword" type="password" minLength="10" required />
+          </label>
+          <label>
+            Confirm temporary password
+            <input name="confirmation" type="password" minLength="10" required />
+          </label>
+          <button className="primary">Reset CR password</button>
         </form>
       </Dialog>
     </div>

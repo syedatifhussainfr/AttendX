@@ -4,11 +4,13 @@ import {
   BookOpen,
   CalendarDays,
   Database,
+  DatabaseBackup,
   ClipboardCheck,
   Clock3,
   FileClock,
   GraduationCap,
   LayoutDashboard,
+  KeyRound,
   LogOut,
   Menu,
   Settings,
@@ -22,6 +24,7 @@ const baseLinks = [
   ["/", "Overview", LayoutDashboard],
   ["/history", "Attendance history", FileClock],
   ["/students", "Students", GraduationCap],
+  ["/change-password", "Change password", KeyRound],
 ];
 const adminLinks = [
   ["/subjects", "Subjects", BookOpen],
@@ -29,6 +32,7 @@ const adminLinks = [
   ["/users", "Users & CR access", Users],
   ["/audit", "Audit logs", ShieldCheck],
   ["/database", "Database", Database],
+  ["/backups", "Backup & restore", DatabaseBackup],
   ["/settings", "Settings", Settings],
 ];
 export function Layout() {

@@ -7,10 +7,10 @@ AttendX is a working attendance-management foundation for EIILM Kolkata. It repl
 | Version | Status | Purpose |
 | ------- | ------ | ------- |
 | **V1.0.0** | Released | Stable attendance workflow, administration, CSV onboarding, exports, audit history, and the EIILM glass interface. |
-| **V1.1.0** | In development — not released | Reliability and administration upgrade: safe backup/restore, reviewed student imports, safer sessions, password management, and accountable corrections. |
+| **V1.1.0** | Implemented locally — not released | Reliability and administration upgrade: safe backup/restore, reviewed student imports, safer sessions, password management, and accountable corrections. |
 | **V1.2.0** | Planned | Reports, faculty management, academic calendar, semester/section foundations, and richer dashboard insights. |
 
-The `v1.0.0` tag is the reproducible stable baseline. V1.1 development happens separately and must not be treated as a production release until its migration, data-preservation, authorization, and regression checks pass.
+The [`v1.0.0` GitHub release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.0.0) is the reproducible stable baseline. V1.1 development happens separately and must not be treated as a production release until its migration, data-preservation, authorization, and regression checks pass.
 
 ## V1.0.0 — stable release
 
@@ -36,9 +36,9 @@ The `v1.0.0` tag is the reproducible stable baseline. V1.1 development happens s
 - Numeric student rolls are normalized (`1` becomes `01`) and listed in natural numeric order.
 - The ADMIN database browser is read-only and never exposes password hashes or arbitrary SQL execution.
 
-## V1.1.0 — current development scope (unreleased)
+## V1.1.0 — current local branch (unreleased)
 
-V1.1 is a safety-focused upgrade built on the V1.0 architecture. It will ship only after the existing SQLite data and all 78 imported students are verified intact.
+V1.1 is a safety-focused upgrade built on the V1.0 architecture. Priorities 1–5 below are implemented on the local `v1.1.0` branch but have deliberately not been pushed, tagged, or released. The existing SQLite database was backed up before migration and all 78 imported students were verified intact afterward.
 
 1. **Backup and restore:** consistent timestamped SQLite backups, ADMIN-only download and guarded restore, automatic pre-restore backup, CLI backup support, validation, and audit logging.
 2. **Student import reconciliation:** preview additions, name changes, unchanged rows, duplicates, invalid rows, and missing students before a single transactional apply; optionally deactivate missing students and download an error CSV.
@@ -57,6 +57,17 @@ An ADMIN may enable or disable other accounts but can never disable the account 
 - Dashboard warnings for open sessions, attendance completion, recent corrections, backup freshness, and students below the configured threshold.
 
 These items remain deliberately unimplemented until the V1.1 safety work is complete; there are no non-working placeholder controls for them.
+
+### Using the V1.1 features
+
+- **Backup:** ADMIN → **Backup & restore** → **Create backup**, or run `npm run backup`. Managed files are stored in `server/backups` and excluded from Git.
+- **Restore:** upload a SQLite backup, enter the signed-in ADMIN password, and type `RESTORE ATTENDX`. AttendX validates the file, creates a pre-restore safety backup, restores it, and stops the API. Run `npm run dev` again afterward.
+- **Reviewed import:** ADMIN → **Students** → **Import CSV**. AttendX understands quoted fields, normalizes numeric rolls, and displays additions, name changes, unchanged rows, duplicates, invalid rows, and missing students before applying anything. Choose whether missing students stay active or are deactivated.
+- **Session conflicts:** starting an identical open session is blocked. An overlapping/open-session warning requires a second explicit action and records the override as an extra or replacement class.
+- **Reopen:** only ADMIN can reopen a closed session, and a reason is mandatory. Reopening and re-closing are audited.
+- **Passwords:** every account can use **Change password**. New/reset accounts must replace their temporary password; a password change revokes previous tokens. ADMIN can reset CR passwords but cannot view passwords.
+- **Corrections:** a reason is mandatory. The roll grid marks edited records and preserves original status, current status, reason, administrator/CR, and correction time.
+- **Self-lockout protection:** the current ADMIN account cannot be disabled, even by calling the API directly. Other accounts can still be enabled or disabled.
 
 ## Attendance rule
 
@@ -113,10 +124,10 @@ npm run create-admin -- --name "System Administrator" --email "admin@example.com
 
 | Role  | Email                 | Password    |
 | ----- | --------------------- | ----------- |
-| ADMIN | `admin@attendx.local` | `Admin@123` |
-| CR    | `cr@attendx.local`    | `CR@12345`  |
+| ADMIN | `admin@attendx.local` | `Admin@12345` |
+| CR    | `cr@attendx.local`    | `CR@123456`   |
 
-These credentials are for local development only. Change them before using real student information. Passwords stored in the database are bcrypt hashes, never plaintext.
+These credentials apply only when those accounts are first created by the V1.1 seed. Seeded accounts must change the temporary password after login. Existing accounts and passwords are never overwritten by another seed. Passwords stored in the database are bcrypt hashes, never plaintext.
 
 ## PostgreSQL / Supabase setup
 
@@ -136,12 +147,22 @@ npm run seed
 npm run dev
 ```
 
-Sequelize creates the V1 tables and constraints. For production evolution, replace `sequelize.sync()` with versioned migrations before changing a live schema; the service and route layers do not need to change.
+AttendX creates the base tables and then applies versioned, idempotent migrations recorded in `app_migrations`. The V1.1 SQLite web backup/restore page is intentionally unavailable for PostgreSQL. Use the provider's managed backup tools or `pg_dump`/`pg_restore`, for example:
+
+```powershell
+pg_dump --format=custom --file=attendx.backup $env:DATABASE_URL
+pg_restore --clean --if-exists --dbname=$env:DATABASE_URL attendx.backup
+```
+
+Run PostgreSQL restoration only during a maintenance window and take a provider snapshot first.
 
 ## Useful commands
 
 ```powershell
 npm run dev       # frontend + backend
+npm run backup    # safe timestamped SQLite backup
+npm run create-admin    # create a clean permanent ADMIN account
+npm run normalize-rolls # repair numeric rolls imported by an older build
 npm test          # backend business-rule tests
 npm run build     # production frontend build
 npm run seed      # subjects, timetable, settings and local test accounts (no students)
