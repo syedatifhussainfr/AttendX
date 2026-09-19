@@ -128,17 +128,60 @@ async function createAdminPlus() {
   console.log(`\nADMIN++ created successfully: ${user.email}`);
 }
 
+async function revokeAdminPlus() {
+  const admins = await User.findAll({
+    where: { role: "ADMIN", adminPlus: true },
+    order: [["name", "ASC"]],
+  });
+  if (!admins.length) throw new Error("No ADMIN++ accounts were found.");
+  console.log("\nExisting ADMIN++ accounts:");
+  admins.forEach((admin, index) =>
+    console.log(`  [${index + 1}] ${admin.name} <${admin.email}>`),
+  );
+  const selection = Number(await ask("Select account number: "));
+  const user = admins[selection - 1];
+  if (!user) throw new Error("Invalid ADMIN++ selection.");
+  const password = await askPassword(`Password for ${user.email}: `);
+  if (!(await bcrypt.compare(password, user.passwordHash)))
+    throw new Error("Password verification failed.");
+  console.log(
+    "\nThis removes protected Users and Database access but keeps the account as a normal ADMIN.",
+  );
+  if (admins.length === 1)
+    console.log(
+      "Warning: this is the final ADMIN++ account. Protected browser tools will be unavailable until another account is promoted.",
+    );
+  const confirmation = await ask('Type "REVOKE ADMIN++" to continue: ');
+  if (confirmation !== "REVOKE ADMIN++")
+    throw new Error("Confirmation did not match. No changes were made.");
+  await sequelize.transaction(async (transaction) => {
+    await user.update(
+      {
+        adminPlus: false,
+        phoneNumber: null,
+        tokenVersion: (user.tokenVersion || 0) + 1,
+      },
+      { transaction },
+    );
+  });
+  await revokeUserSessions(user.id);
+  console.log(`\nADMIN++ revoked for ${user.email}.`);
+  console.log("The account remains an ADMIN. Existing sessions were revoked.");
+}
+
 try {
   await initDatabase();
   console.log("\nAttendX ADMIN++ management");
   console.log("  [1] Promote an existing ADMIN");
   console.log("  [2] Create a new ADMIN++");
+  console.log("  [3] Revoke ADMIN++ from an account");
   console.log("  [0] Cancel");
   const action = await ask("Choose an option: ");
   if (action === "1") await promoteExistingAdmin();
   else if (action === "2") await createAdminPlus();
+  else if (action === "3") await revokeAdminPlus();
   else if (action === "0") console.log("Cancelled. No changes were made.");
-  else throw new Error("Choose 0, 1, or 2.");
+  else throw new Error("Choose 0, 1, 2, or 3.");
 } catch (error) {
   const message = error.issues?.map((issue) => issue.message).join(" ") || error.message;
   console.error(`\nADMIN++ setup failed: ${message}`);
