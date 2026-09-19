@@ -66,6 +66,7 @@ These items remain deliberately unimplemented until the V1.1 safety work is comp
 - **Session conflicts:** starting an identical open session is blocked. An overlapping/open-session warning requires a second explicit action and records the override as an extra or replacement class.
 - **Reopen:** only ADMIN can reopen a closed session, and a reason is mandatory. Reopening and re-closing are audited.
 - **Passwords:** every account can use **Change password**. New/reset accounts must replace their temporary password; a password change revokes previous tokens. ADMIN can reset CR passwords but cannot view passwords.
+- **Security navigation:** voluntary password changes show a confirmation dialog with a per-account **Don't show again** preference. Forced temporary-password changes cannot be skipped. A slim progress bar confirms every page transition.
 - **Corrections:** a reason is mandatory. The roll grid marks edited records and preserves original status, current status, reason, administrator/CR, and correction time.
 - **Self-lockout protection:** the current ADMIN account cannot be disabled, even by calling the API directly. Other accounts can still be enabled or disabled.
 

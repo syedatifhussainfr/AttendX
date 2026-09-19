@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../state/AuthContext.jsx";
+import { Dialog } from "./Dialog.jsx";
 const baseLinks = [
   ["/", "Overview", LayoutDashboard],
   ["/history", "Attendance history", FileClock],
@@ -38,10 +39,30 @@ const adminLinks = [
 export function Layout() {
   const { user, logout } = useAuth(),
     navigate = useNavigate(),
-    [open, setOpen] = useState(false);
+    [open, setOpen] = useState(false),
+    [passwordPrompt, setPasswordPrompt] = useState(false),
+    [skipPasswordPrompt, setSkipPasswordPrompt] = useState(false);
+  const passwordPromptKey = `attendx_skip_password_prompt_${user.id}`;
   const doLogout = () => {
     logout();
     navigate("/login");
+  };
+  const handleNavigation = (event, to) => {
+    setOpen(false);
+    if (
+      to === "/change-password" &&
+      localStorage.getItem(passwordPromptKey) !== "true"
+    ) {
+      event.preventDefault();
+      setSkipPasswordPrompt(false);
+      setPasswordPrompt(true);
+    }
+  };
+  const continueToPassword = () => {
+    if (skipPasswordPrompt)
+      localStorage.setItem(passwordPromptKey, "true");
+    setPasswordPrompt(false);
+    navigate("/change-password");
   };
   return (
     <div className="app-shell">
@@ -66,7 +87,7 @@ export function Layout() {
               key={to}
               to={to}
               end={to === "/"}
-              onClick={() => setOpen(false)}
+              onClick={(event) => handleNavigation(event, to)}
             >
               <Icon />
               {label}
@@ -110,6 +131,41 @@ export function Layout() {
         </header>
         <Outlet />
       </main>
+      <Dialog
+        open={passwordPrompt}
+        title="Open account security?"
+        onClose={() => setPasswordPrompt(false)}
+      >
+        <div className="password-nav-prompt">
+          <span className="prompt-security-icon"><KeyRound /></span>
+          <div>
+            <h3>Change your AttendX password</h3>
+            <p>
+              You’ll need your current password. After a successful change,
+              AttendX revokes existing sessions and asks you to sign in again.
+            </p>
+          </div>
+          <label className="remember-choice">
+            <input
+              type="checkbox"
+              checked={skipPasswordPrompt}
+              onChange={(event) => setSkipPasswordPrompt(event.target.checked)}
+            />
+            <span>
+              Don’t show this confirmation again
+              <small>You can still open Change password from the sidebar.</small>
+            </span>
+          </label>
+          <div className="dialog-actions">
+            <button className="secondary" onClick={() => setPasswordPrompt(false)}>
+              Stay here
+            </button>
+            <button className="primary" onClick={continueToPassword}>
+              Continue to security <KeyRound />
+            </button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }

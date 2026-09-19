@@ -16,6 +16,30 @@
 }
 
 /* V1.1 reliability surfaces */
+.route-progress {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 9999;
+  height: 3px;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.route-progress i {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #d96e2d, #f2ab72);
+  box-shadow: 0 0 12px rgba(224, 117, 49, 0.72);
+}
+
+.route-progress.loading,
+.route-progress.finishing { opacity: 1; }
+.route-progress.loading i { width: 28%; transition: width 0.12s ease-out; }
+.route-progress.finishing i { width: 100%; transition: width 0.42s cubic-bezier(0.2, 0.7, 0.2, 1); }
+
 .user-actions {
   display: flex;
   flex-wrap: wrap;
@@ -48,6 +72,44 @@ button:disabled {
   color: var(--ink);
   line-height: 1.55;
 }
+
+.password-nav-prompt {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.85rem 1rem;
+}
+
+.prompt-security-icon {
+  display: grid;
+  place-items: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  color: #c2622c;
+  border: 1px solid rgba(203, 100, 44, 0.24);
+  background: rgba(222, 116, 47, 0.1);
+}
+
+.prompt-security-icon svg { width: 1.2rem; }
+.password-nav-prompt h3 { margin: 0 0 0.3rem; font-size: 1rem; }
+.password-nav-prompt p { margin: 0; color: var(--muted); line-height: 1.55; }
+
+.remember-choice {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.85rem;
+  border: 1px solid rgba(20, 48, 70, 0.1);
+  background: rgba(255, 255, 255, 0.34);
+  cursor: pointer;
+}
+
+.remember-choice input { width: 1rem; height: 1rem; margin-top: 0.12rem; accent-color: #0b3a63; }
+.remember-choice span { display: grid; gap: 0.12rem; font-size: 0.8rem; font-weight: 700; }
+.remember-choice small { color: var(--muted); font-size: 0.68rem; font-weight: 400; }
+.password-nav-prompt .dialog-actions { grid-column: 1 / -1; }
+.password-nav-prompt .dialog-actions button { display: inline-flex; align-items: center; gap: 0.45rem; }
+.password-nav-prompt .dialog-actions svg { width: 1rem; }
 
 .import-review {
   display: grid;

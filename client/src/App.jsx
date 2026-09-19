@@ -1,4 +1,5 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./state/AuthContext.jsx";
 import { Layout } from "./components/Layout.jsx";
 import { Login } from "./pages/Login.jsx";
@@ -23,10 +24,32 @@ function Protected({ children, admin, allowPasswordChange = false }) {
   if (admin && user.role !== "ADMIN") return <Navigate to="/" replace />;
   return children;
 }
+
+function RouteProgress() {
+  const { pathname } = useLocation();
+  const [state, setState] = useState("idle");
+  useEffect(() => {
+    setState("loading");
+    const finishing = setTimeout(() => setState("finishing"), 60);
+    const finished = setTimeout(() => setState("idle"), 520);
+    return () => {
+      clearTimeout(finishing);
+      clearTimeout(finished);
+    };
+  }, [pathname]);
+  return (
+    <div className={`route-progress ${state}`} aria-hidden="true">
+      <i />
+    </div>
+  );
+}
+
 export function App() {
   const { user } = useAuth();
   return (
-    <Routes>
+    <>
+      <RouteProgress />
+      <Routes>
       <Route
         path="/login"
         element={user ? <Navigate to={user.mustChangePassword ? "/change-password" : "/"} /> : <Login />}
@@ -104,6 +127,7 @@ export function App() {
         />
       </Route>
       <Route path="*" element={<Navigate to="/" />} />
-    </Routes>
+      </Routes>
+    </>
   );
 }
