@@ -17,14 +17,12 @@ import { ChangePassword } from "./pages/ChangePassword.jsx";
 import { BackupsPage } from "./pages/Backups.jsx";
 import { LogoutPage } from "./pages/Logout.jsx";
 
-function Protected({ children, admin, adminPlus, allowPasswordChange = false }) {
-  const { user } = useAuth();
+function Protected({ children, permission, allowPasswordChange = false }) {
+  const { user, can } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
   if (user.mustChangePassword && !allowPasswordChange)
     return <Navigate to="/change-password" replace />;
-  if (admin && user.role !== "ADMIN") return <Navigate to="/" replace />;
-  if (adminPlus && (user.role !== "ADMIN" || !user.adminPlus))
-    return <Navigate to="/" replace />;
+  if (permission && !can(permission)) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -97,7 +95,7 @@ export function App() {
           <Route
             path="subjects"
             element={
-              <Protected admin>
+              <Protected permission="subjects.view">
                 <Subjects />
               </Protected>
             }
@@ -105,7 +103,7 @@ export function App() {
           <Route
             path="timetable"
             element={
-              <Protected admin>
+              <Protected permission="timetable.view">
                 <Timetable />
               </Protected>
             }
@@ -113,7 +111,7 @@ export function App() {
           <Route
             path="users"
             element={
-              <Protected admin>
+              <Protected permission="users.view">
                 <UsersPage />
               </Protected>
             }
@@ -121,7 +119,7 @@ export function App() {
           <Route
             path="audit"
             element={
-              <Protected admin>
+              <Protected permission="audit.view">
                 <Audit />
               </Protected>
             }
@@ -129,7 +127,7 @@ export function App() {
           <Route
             path="database"
             element={
-              <Protected admin>
+              <Protected permission="database.view">
                 <DatabasePage />
               </Protected>
             }
@@ -137,7 +135,7 @@ export function App() {
           <Route
             path="backups"
             element={
-              <Protected admin>
+              <Protected permission="backups.view">
                 <BackupsPage />
               </Protected>
             }
@@ -145,7 +143,7 @@ export function App() {
           <Route
             path="settings"
             element={
-              <Protected admin>
+              <Protected permission="settings.view">
                 <SettingsPage />
               </Protected>
             }

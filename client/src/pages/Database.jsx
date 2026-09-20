@@ -114,7 +114,7 @@ export function DatabasePage() {
   const [loading, setLoading] = useState(true);
   const toast = useToast();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, can } = useAuth();
 
   useEffect(() => {
     api
@@ -140,7 +140,7 @@ export function DatabasePage() {
       Object.keys(row).forEach((key) => names.add(key));
     return [...names];
   }, [result]);
-  const visibleManagementAreas = user.adminPlus
+  const visibleManagementAreas = can("users.manageSessions")
     ? managementAreas
     : managementAreas.filter((area) => !area.tables.includes("auth_sessions"));
   const selectedManagement = visibleManagementAreas.find((area) =>

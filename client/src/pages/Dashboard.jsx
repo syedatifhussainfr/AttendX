@@ -11,6 +11,7 @@ import {
 import { api, messageOf } from "../api.js";
 import { Dialog } from "../components/Dialog.jsx";
 import { useToast } from "../state/ToastContext.jsx";
+import { useAuth } from "../state/AuthContext.jsx";
 const prettyTime = (value) => {
   if (!value) return "—";
   const [h, m] = value.split(":").map(Number);
@@ -27,12 +28,15 @@ export function Dashboard() {
     [pendingStart, setPendingStart] = useState(null),
     [saving, setSaving] = useState(false),
     navigate = useNavigate(),
-    toast = useToast();
+    toast = useToast(),
+    { can } = useAuth();
   const load = async () => {
     try {
       const [d, s] = await Promise.all([
         api.get("/attendance/dashboard"),
-        api.get("/admin/subjects"),
+        can("subjects.view")
+          ? api.get("/admin/subjects")
+          : Promise.resolve({ data: [] }),
       ]);
       setData(d.data);
       setSubjects(s.data.filter((x) => x.active));
@@ -97,10 +101,12 @@ export function Dashboard() {
           <h1>Good {new Date().getHours() < 12 ? "morning" : "afternoon"}</h1>
           <p>{date}</p>
         </div>
-        <button className="primary" onClick={() => setOpen(true)}>
-          <Play />
-          Start attendance
-        </button>
+        {can("attendance.open") && (
+          <button className="primary" onClick={() => setOpen(true)}>
+            <Play />
+            Start attendance
+          </button>
+        )}
       </div>
       <section className="lecture-hero">
         <div>

@@ -55,9 +55,15 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const can = (permission) =>
+    Boolean(user?.permissions?.includes(permission));
+
   return (
     <AuthContext.Provider
-      value={useMemo(() => ({ user, ready, login, logout }), [user, ready])}
+      value={useMemo(
+        () => ({ user, ready, login, logout, can }),
+        [user, ready],
+      )}
     >
       {children}
     </AuthContext.Provider>

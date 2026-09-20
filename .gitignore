@@ -2,6 +2,10 @@ node_modules/
 dist/
 outputs/
 .env
+config/config.yml
+config/*.broken-*
+config/*.repaired-*
+config/*.replaced-*
 server/data/*.sqlite
 server/data/*.sqlite-*
 server/backups/*.sqlite

@@ -17,7 +17,7 @@ export function Students() {
     [deleteStudent, setDeleteStudent] = useState(null),
     [deleting, setDeleting] = useState(false),
     toast = useToast(),
-    { user } = useAuth();
+    { can } = useAuth();
   const load = async () => {
     try {
       setRows((await api.get("/admin/students", { params: { q } })).data);
@@ -112,17 +112,21 @@ export function Students() {
           <h1>Students</h1>
           <p>{rows.length} records · QR-ready identity fields included</p>
         </div>
-        {user.role === "ADMIN" && (
+        {(can("students.import") || can("students.create")) && (
           <div className="button-row">
-            <label className="secondary file-button">
-              <FileUp />
-              Import CSV
-              <input type="file" accept=".csv,text/csv" onChange={readCsv} />
-            </label>
-            <button className="primary" onClick={() => setCreate(true)}>
-              <Plus />
-              Add student
-            </button>
+            {can("students.import") && (
+              <label className="secondary file-button">
+                <FileUp />
+                Import CSV
+                <input type="file" accept=".csv,text/csv" onChange={readCsv} />
+              </label>
+            )}
+            {can("students.create") && (
+              <button className="primary" onClick={() => setCreate(true)}>
+                <Plus />
+                Add student
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -149,8 +153,8 @@ export function Students() {
             {rows.map((s) => (
               <tr
                 key={s.id}
-                onClick={() => user.role === "ADMIN" && setSelected(s)}
-                className={user.role === "ADMIN" ? "clickable" : ""}
+                onClick={() => can("students.update") && setSelected(s)}
+                className={can("students.update") ? "clickable" : ""}
               >
                 <td>
                   <span className="roll-chip">{s.rollNumber}</span>
@@ -217,7 +221,7 @@ export function Students() {
             </>
           )}
           <div className="dialog-actions full">
-            {selected && user.adminPlus && (
+            {selected && can("students.delete") && (
               <button
                 type="button"
                 className="danger-outline"

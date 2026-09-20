@@ -11,7 +11,7 @@ export function Subjects() {
     [deleteSubject, setDeleteSubject] = useState(null),
     [deleting, setDeleting] = useState(false),
     toast = useToast(),
-    { user } = useAuth();
+    { can } = useAuth();
   const load = () =>
     api
       .get("/admin/subjects")
@@ -63,17 +63,19 @@ export function Subjects() {
           <h1>Subjects</h1>
           <p>Subjects available for scheduled and replacement lectures.</p>
         </div>
-        <button className="primary" onClick={() => setAdding(true)}>
-          <Plus />
-          Add subject
-        </button>
+        {can("subjects.manage") && (
+          <button className="primary" onClick={() => setAdding(true)}>
+            <Plus />
+            Add subject
+          </button>
+        )}
       </div>
       <div className="subject-grid">
         {rows.map((s) => (
           <button
             className="subject-card"
             key={s.id}
-            onClick={() => setEdit(s)}
+            onClick={() => can("subjects.manage") && setEdit(s)}
           >
             <span>{s.code}</span>
             <strong>{s.name}</strong>
@@ -108,7 +110,7 @@ export function Subjects() {
             </label>
           )}
           <div className="dialog-actions">
-            {edit && user.adminPlus && (
+            {edit && can("subjects.delete") && (
               <button
                 type="button"
                 className="danger-outline"

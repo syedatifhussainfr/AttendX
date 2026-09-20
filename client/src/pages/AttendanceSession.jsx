@@ -25,7 +25,7 @@ export function AttendanceSessionPage() {
   const { id } = useParams(),
     navigate = useNavigate(),
     toast = useToast(),
-    { user } = useAuth(),
+    { can } = useAuth(),
     inputRef = useRef(),
     [data, setData] = useState(null),
     [roll, setRoll] = useState(""),
@@ -177,22 +177,22 @@ export function AttendanceSessionPage() {
           )}
         </div>
         <div className="session-actions">
-          <button className="secondary" onClick={() => download(false)}>
+          {can("reports.export") && <button className="secondary" onClick={() => download(false)}>
             <Download />
             Machine data
-          </button>
-          {s.status === "CLOSED" && (
+          </button>}
+          {s.status === "CLOSED" && can("reports.export") && (
             <button className="primary" onClick={() => download(true)}>
               <Download /> Review report
             </button>
           )}
-          {s.status === "OPEN" && (
+          {s.status === "OPEN" && can("attendance.close") && (
             <button className="danger-outline" onClick={() => setClosing(true)}>
               <Lock />
               Review & close
             </button>
           )}
-          {s.status === "CLOSED" && user.role === "ADMIN" && (
+          {s.status === "CLOSED" && can("attendance.reopen") && (
             <button
               className="danger-outline"
               onClick={() => setReopening(true)}
@@ -254,7 +254,7 @@ export function AttendanceSessionPage() {
           <strong>{fmt(now)}</strong>
         </div>
       </div>
-      {s.status === "OPEN" && (
+      {s.status === "OPEN" && can("attendance.mark") && (
         <section className="mark-console">
           <form onSubmit={mark}>
             <label>Rapid roll entry</label>
@@ -350,7 +350,8 @@ export function AttendanceSessionPage() {
               </div>
             )}
           </div>
-          {(s.status === "OPEN" || user.role === "ADMIN") && (
+          {((s.status === "OPEN" && can("attendance.correctOpen")) ||
+            (s.status === "CLOSED" && can("attendance.correctClosed"))) && (
             <form onSubmit={correct} className="form-stack">
               <label>
                 Set attendance status

@@ -3,6 +3,7 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { api, messageOf } from "../api.js";
 import { Dialog } from "../components/Dialog.jsx";
 import { useToast } from "../state/ToastContext.jsx";
+import { useAuth } from "../state/AuthContext.jsx";
 const days = [
   "Monday",
   "Tuesday",
@@ -17,7 +18,8 @@ export function Timetable() {
     [subjects, setSubjects] = useState([]),
     [edit, setEdit] = useState(null),
     [open, setOpen] = useState(false),
-    toast = useToast();
+    toast = useToast(),
+    { can } = useAuth();
   const load = async () => {
     try {
       const [r, s] = await Promise.all([
@@ -73,10 +75,12 @@ export function Timetable() {
           <h1>Timetable</h1>
           <p>Editable schedule used only as a smart suggestion.</p>
         </div>
-        <button className="primary" onClick={() => setOpen(true)}>
-          <Plus />
-          Add lecture
-        </button>
+        {can("timetable.manage") && (
+          <button className="primary" onClick={() => setOpen(true)}>
+            <Plus />
+            Add lecture
+          </button>
+        )}
       </div>
       <div className="week-grid">
         {days.slice(0, 6).map((day, i) => (
@@ -94,7 +98,7 @@ export function Timetable() {
                   </time>
                   <strong>{r.Subject.name}</strong>
                   <small>{r.faculty || "Faculty not assigned"}</small>
-                  <div>
+                  {can("timetable.manage") && <div>
                     <button
                       onClick={() => {
                         setEdit(r);
@@ -106,7 +110,7 @@ export function Timetable() {
                     <button onClick={() => remove(r)}>
                       <Trash2 />
                     </button>
-                  </div>
+                  </div>}
                 </article>
               ))}
             {!rows.some((r) => r.dayOfWeek === i + 1) && (

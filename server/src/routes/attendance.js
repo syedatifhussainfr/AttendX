@@ -3,7 +3,8 @@ import { Op } from "sequelize";
 import { DateTime } from "luxon";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
-import { requireAuth, requireRole } from "../middleware/auth.js";
+import { requireAuth, requirePermission } from "../middleware/auth.js";
+import { hasPermission } from "../policy/policyService.js";
 import {
   AttendanceSession,
   AttendanceRecord,
@@ -71,7 +72,7 @@ function exportHeaders(res, filename) {
   res.setHeader("Cache-Control", "private, no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
 }
-router.get("/dashboard", async (req, res) => {
+router.get("/dashboard", requirePermission("dashboard.view"), async (req, res) => {
   const now = DateTime.now().setZone(config.timezone),
     dayOfWeek = now.weekday;
   const [timetable, sessions, activeStudentCount] = await Promise.all([
@@ -111,7 +112,7 @@ router.get("/dashboard", async (req, res) => {
     })),
   });
 });
-router.post("/sessions", async (req, res) => {
+router.post("/sessions", requirePermission("attendance.open"), async (req, res) => {
   const input = z
     .object({
       subjectId: z.number().int(),
@@ -142,7 +143,7 @@ router.post("/sessions", async (req, res) => {
     }),
   );
 });
-router.get("/sessions", async (req, res) => {
+router.get("/sessions", requirePermission("attendance.view"), async (req, res) => {
   const where = {};
   if (req.query.from || req.query.to)
     where.sessionDate = {
@@ -166,7 +167,7 @@ router.get("/sessions", async (req, res) => {
     })),
   );
 });
-router.get("/sessions/:id", async (req, res) => {
+router.get("/sessions/:id", requirePermission("attendance.view"), async (req, res) => {
   const session = await getSessionDetail(req.params.id);
   const students = await Student.findAll({ where: { active: true } });
   students.sort(compareRollNumbers);
@@ -177,7 +178,10 @@ router.get("/sessions/:id", async (req, res) => {
     summary: summarize(session.AttendanceRecords),
   });
 });
-router.post("/sessions/:id/mark", async (req, res, next) => {
+router.post(
+  "/sessions/:id/mark",
+  requirePermission("attendance.mark"),
+  async (req, res, next) => {
   try {
     const input = z
       .object({ rollNumber: z.string().trim().min(1).max(20) })
@@ -196,7 +200,8 @@ router.post("/sessions/:id/mark", async (req, res, next) => {
         .json({ message: error.message, existing: error.existing });
     next(error);
   }
-});
+  },
+);
 router.patch("/sessions/:id/students/:studentId", async (req, res) => {
   const input = z
     .object({
@@ -207,11 +212,19 @@ router.patch("/sessions/:id/students/:studentId", async (req, res) => {
   const session = await AttendanceSession.findByPk(req.params.id);
   if (!session)
     return res.status(404).json({ message: "Attendance session not found." });
-  const allow = req.user.role === "ADMIN" || session?.status === "OPEN";
+  const requiredPermission =
+    session.status === "OPEN"
+      ? "attendance.correctOpen"
+      : "attendance.correctClosed";
+  const allow = hasPermission(req.user, requiredPermission);
   if (!allow)
     return res
       .status(403)
-      .json({ message: "Only ADMIN can correct a closed session." });
+      .json({
+        code: "PERMISSION_REQUIRED",
+        permission: requiredPermission,
+        message: `Permission ${requiredPermission} is required for this correction.`,
+      });
   res.json(
     await markAttendance({
       sessionId: req.params.id,
@@ -223,12 +236,15 @@ router.patch("/sessions/:id/students/:studentId", async (req, res) => {
     }),
   );
 });
-router.post("/sessions/:id/close", async (req, res) =>
+router.post("/sessions/:id/close", requirePermission("attendance.close"), async (req, res) =>
   res.json(
     await closeSession({ sessionId: req.params.id, userId: req.user.id }),
   ),
 );
-router.post("/sessions/:id/reopen", requireRole("ADMIN"), async (req, res) => {
+router.post(
+  "/sessions/:id/reopen",
+  requirePermission("attendance.reopen"),
+  async (req, res) => {
   const { reason } = z
     .object({ reason: z.string().trim().min(3).max(250) })
     .parse(req.body);
@@ -239,22 +255,36 @@ router.post("/sessions/:id/reopen", requireRole("ADMIN"), async (req, res) => {
       reason,
     }),
   );
-});
-router.get("/export/review", exportLimiter, async (req, res) => {
+  },
+);
+router.get(
+  "/export/review",
+  requirePermission("reports.export"),
+  exportLimiter,
+  async (req, res) => {
   const filters = exportFiltersSchema.parse(req.query);
   const { workbook, sessions } = await buildAttendanceReviewWorkbook(filters);
   exportHeaders(res, attendanceExportFilename(filters, sessions));
   await workbook.xlsx.write(res);
   res.end();
-});
-router.get("/export", exportLimiter, async (req, res) => {
+  },
+);
+router.get(
+  "/export",
+  requirePermission("reports.export"),
+  exportLimiter,
+  async (req, res) => {
   const filters = exportFiltersSchema.parse(req.query);
   const { workbook, sessions } = await buildAttendanceWorkbook(filters);
   exportHeaders(res, attendanceExportFilename(filters, sessions, true));
   await workbook.xlsx.write(res);
   res.end();
-});
-router.get("/analytics/students/:id", async (req, res) => {
+  },
+);
+router.get(
+  "/analytics/students/:id",
+  requirePermission("reports.view"),
+  async (req, res) => {
   const student = await Student.findByPk(req.params.id);
   if (!student) return res.status(404).json({ message: "Student not found." });
   const records = await AttendanceRecord.findAll({
@@ -269,5 +299,6 @@ router.get("/analytics/students/:id", async (req, res) => {
     order: [[AttendanceSession, "sessionDate", "DESC"]],
   });
   res.json({ student, summary: summarize(records), records });
-});
+  },
+);
 export default router;

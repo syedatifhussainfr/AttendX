@@ -6,7 +6,7 @@ import {
   requireAdminElevation,
   requireAdminPlus,
   requireAuth,
-  requireRole,
+  requirePermission,
 } from "../middleware/auth.js";
 import {
   sequelize,
@@ -38,7 +38,7 @@ import {
 
 const router = Router();
 router.use(requireAuth);
-router.get("/students", async (req, res) => {
+router.get("/students", requirePermission("students.view"), async (req, res) => {
   const q = req.query.q || "";
   const students = await Student.findAll({
     where: q
@@ -52,7 +52,7 @@ router.get("/students", async (req, res) => {
   });
   res.json(students.sort(compareRollNumbers));
 });
-router.post("/students", requireRole("ADMIN"), async (req, res) => {
+router.post("/students", requirePermission("students.create"), async (req, res) => {
   const data = z
     .object({
       rollNumber: z.string().trim().min(1).max(20),
@@ -64,7 +64,7 @@ router.post("/students", requireRole("ADMIN"), async (req, res) => {
   data.rollNumber = normalizeRollNumber(data.rollNumber);
   res.status(201).json(await Student.create(data));
 });
-router.patch("/students/:id", requireRole("ADMIN"), async (req, res) => {
+router.patch("/students/:id", requirePermission("students.update"), async (req, res) => {
   const row = await Student.findByPk(req.params.id);
   if (!row) return res.status(404).json({ message: "Student not found." });
   const data = z
@@ -82,6 +82,7 @@ router.patch("/students/:id", requireRole("ADMIN"), async (req, res) => {
 });
 router.delete(
   "/students/:id",
+  requirePermission("students.delete"),
   requireAdminPlus,
   requireAdminElevation,
   async (req, res) => {
@@ -130,7 +131,7 @@ const importRowsSchema = z
   .max(1000);
 router.post(
   "/students/import/preview",
-  requireRole("ADMIN"),
+  requirePermission("students.import"),
   async (req, res) => {
     const rows = importRowsSchema.parse(req.body.rows);
     res.json(await reconcileStudentRows(rows));
@@ -138,7 +139,7 @@ router.post(
 );
 router.post(
   "/students/import/apply",
-  requireRole("ADMIN"),
+  requirePermission("students.import"),
   async (req, res) => {
     const data = z
       .object({
@@ -156,10 +157,10 @@ router.post(
     );
   },
 );
-router.get("/subjects", async (req, res) =>
+router.get("/subjects", requirePermission("subjects.view"), async (req, res) =>
   res.json(await Subject.findAll({ order: [["name", "ASC"]] })),
 );
-router.post("/subjects", requireRole("ADMIN"), async (req, res) =>
+router.post("/subjects", requirePermission("subjects.manage"), async (req, res) =>
   res.status(201).json(
     await Subject.create(
       z
@@ -171,7 +172,7 @@ router.post("/subjects", requireRole("ADMIN"), async (req, res) =>
     ),
   ),
 );
-router.patch("/subjects/:id", requireRole("ADMIN"), async (req, res) => {
+router.patch("/subjects/:id", requirePermission("subjects.manage"), async (req, res) => {
   const row = await Subject.findByPk(req.params.id);
   if (!row) return res.status(404).json({ message: "Subject not found." });
   await row.update(
@@ -187,6 +188,7 @@ router.patch("/subjects/:id", requireRole("ADMIN"), async (req, res) => {
 });
 router.delete(
   "/subjects/:id",
+  requirePermission("subjects.delete"),
   requireAdminPlus,
   requireAdminElevation,
   async (req, res) => {
@@ -227,7 +229,7 @@ router.delete(
     res.status(204).end();
   },
 );
-router.get("/timetable", async (req, res) =>
+router.get("/timetable", requirePermission("timetable.view"), async (req, res) =>
   res.json(
     await Timetable.findAll({
       include: [Subject],
@@ -238,7 +240,7 @@ router.get("/timetable", async (req, res) =>
     }),
   ),
 );
-router.post("/timetable", requireRole("ADMIN"), async (req, res) => {
+router.post("/timetable", requirePermission("timetable.manage"), async (req, res) => {
   const data = z
     .object({
       dayOfWeek: z.number().int().min(1).max(7),
@@ -252,7 +254,7 @@ router.post("/timetable", requireRole("ADMIN"), async (req, res) => {
     .status(201)
     .json(await Timetable.create({ ...data, SubjectId: data.subjectId }));
 });
-router.patch("/timetable/:id", requireRole("ADMIN"), async (req, res) => {
+router.patch("/timetable/:id", requirePermission("timetable.manage"), async (req, res) => {
   const row = await Timetable.findByPk(req.params.id);
   if (!row) return res.status(404).json({ message: "Entry not found." });
   const data = z
@@ -277,19 +279,19 @@ router.patch("/timetable/:id", requireRole("ADMIN"), async (req, res) => {
   });
   res.json(row);
 });
-router.delete("/timetable/:id", requireRole("ADMIN"), async (req, res) => {
+router.delete("/timetable/:id", requirePermission("timetable.manage"), async (req, res) => {
   const row = await Timetable.findByPk(req.params.id);
   if (!row) return res.status(404).json({ message: "Entry not found." });
   await row.destroy();
   res.status(204).end();
 });
-router.get("/settings", async (req, res) => {
+router.get("/settings", requirePermission("settings.view"), async (req, res) => {
   const rows = await Setting.findAll();
   res.json(
     Object.fromEntries(rows.map((row) => [row.key, JSON.parse(row.value)])),
   );
 });
-router.put("/settings", requireRole("ADMIN"), async (req, res) => {
+router.put("/settings", requirePermission("settings.manage"), async (req, res) => {
   const data = z
     .object({
       lateThresholdMinutes: z.number().int().min(1).max(120),
@@ -304,7 +306,7 @@ router.put("/settings", requireRole("ADMIN"), async (req, res) => {
     await Setting.upsert({ key, value: JSON.stringify(value) });
   res.json(data);
 });
-router.get("/users", requireRole("ADMIN"), async (req, res) => {
+router.get("/users", requirePermission("users.view"), async (req, res) => {
   const rows = await User.findAll({
     attributes: { exclude: ["passwordHash"] },
     order: [
@@ -320,7 +322,7 @@ router.get("/users", requireRole("ADMIN"), async (req, res) => {
     }),
   );
 });
-router.post("/users", requireRole("ADMIN"), async (req, res) => {
+router.post("/users", requirePermission("users.create"), async (req, res) => {
   const data = z
     .object({
       name: z.string().min(2),
@@ -353,7 +355,7 @@ router.post("/users", requireRole("ADMIN"), async (req, res) => {
   });
   res.status(201).json(publicUser(created));
 });
-router.patch("/users/:id", requireRole("ADMIN"), async (req, res) => {
+router.patch("/users/:id", requirePermission("users.update"), async (req, res) => {
   const row = await User.findByPk(req.params.id);
   if (!row) return res.status(404).json({ message: "User not found." });
   const data = z
@@ -409,7 +411,7 @@ router.patch("/users/:id", requireRole("ADMIN"), async (req, res) => {
 });
 router.post(
   "/users/:id/reset-password",
-  requireRole("ADMIN"),
+  requirePermission("users.resetCrPassword"),
   async (req, res) => {
     const row = await User.findByPk(req.params.id);
     if (!row) return res.status(404).json({ message: "User not found." });
@@ -448,6 +450,7 @@ router.post(
 );
 router.get(
   "/users/:id/sessions",
+  requirePermission("users.manageSessions"),
   requireAdminPlus,
   requireAdminElevation,
   async (req, res) => {
@@ -461,6 +464,7 @@ router.get(
 );
 router.delete(
   "/users/:userId/sessions/:sessionId",
+  requirePermission("users.manageSessions"),
   requireAdminPlus,
   requireAdminElevation,
   async (req, res) => {
@@ -480,6 +484,7 @@ router.delete(
 );
 router.post(
   "/users/:id/revoke-sessions",
+  requirePermission("users.manageSessions"),
   requireAdminPlus,
   requireAdminElevation,
   async (req, res) => {
@@ -505,6 +510,7 @@ router.post(
 );
 router.delete(
   "/users/:id",
+  requirePermission("users.delete"),
   requireAdminPlus,
   requireAdminElevation,
   async (req, res) => {
@@ -563,7 +569,7 @@ router.delete(
     res.status(204).end();
   },
 );
-router.get("/audit-logs", requireRole("ADMIN"), async (req, res) =>
+router.get("/audit-logs", requirePermission("audit.view"), async (req, res) =>
   res.json(
     await AuditLog.findAll({
       limit: 300,
@@ -604,7 +610,7 @@ const databaseTables = {
   app_migrations: { model: AppMigration, order: [["appliedAt", "DESC"]] },
 };
 
-router.get("/database/overview", requireRole("ADMIN"), async (req, res) => {
+router.get("/database/overview", requirePermission("database.view"), async (req, res) => {
   const entries = await Promise.all(
     Object.entries(databaseTables).map(async ([name, definition]) => [
       name,
@@ -620,7 +626,7 @@ router.get("/database/overview", requireRole("ADMIN"), async (req, res) => {
 
 router.get(
   "/database/tables/:table",
-  requireRole("ADMIN"),
+  requirePermission("database.view"),
   async (req, res) => {
     const definition = databaseTables[req.params.table];
     if (!definition)

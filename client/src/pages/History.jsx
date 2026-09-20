@@ -4,16 +4,20 @@ import { ArrowRight, Download, Filter } from "lucide-react";
 import { api, messageOf } from "../api.js";
 import { useToast } from "../state/ToastContext.jsx";
 import { downloadAttendanceExport } from "../utils/download.js";
+import { useAuth } from "../state/AuthContext.jsx";
 export function History() {
   const [rows, setRows] = useState([]),
     [subjects, setSubjects] = useState([]),
     toast = useToast(),
-    nav = useNavigate();
+    nav = useNavigate(),
+    { can } = useAuth();
   const load = async (params = {}) => {
     try {
       const [r, s] = await Promise.all([
         api.get("/attendance/sessions", { params }),
-        api.get("/admin/subjects"),
+        can("subjects.view")
+          ? api.get("/admin/subjects")
+          : Promise.resolve({ data: [] }),
       ]);
       setRows(r.data);
       setSubjects(s.data);
@@ -74,22 +78,22 @@ export function History() {
           <Filter />
           Apply
         </button>
-        <button
+        {can("reports.export") && <button
           type="button"
           className="secondary"
           onClick={(e) => exportRange(e, false)}
         >
           <Download />
           Machine data
-        </button>
-        <button
+        </button>}
+        {can("reports.export") && <button
           type="button"
           className="primary"
           onClick={(e) => exportRange(e, true)}
         >
           <Download />
           Review report
-        </button>
+        </button>}
       </form>
       <section className="panel table-panel">
         <table>

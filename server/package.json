@@ -1,6 +1,6 @@
 {
   "name": "attendx-server",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "type": "module",
   "scripts": {
     "dev": "node --watch-path=src src/index.js",
@@ -12,6 +12,7 @@
     "demo-attendance": "node src/cli/generateDemoAttendance.js",
     "normalize-rolls": "node src/cli/normalizeRolls.js",
     "verify-data": "node src/cli/verifyData.js",
+    "config-check": "node src/cli/configCheck.js",
     "test": "cross-env NODE_ENV=test node --test --test-concurrency=1"
   },
   "dependencies": {
@@ -28,6 +29,7 @@
     "pg": "^8.16.0",
     "sequelize": "^6.37.7",
     "sqlite3": "^5.1.7",
+    "yaml": "^2.8.1",
     "zod": "^3.25.67"
   },
   "devDependencies": {

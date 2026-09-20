@@ -2,7 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { requireAuth, requireRole } from "../middleware/auth.js";
+import { requireAuth, requirePermission } from "../middleware/auth.js";
 import { User, AuditLog } from "../db/index.js";
 import {
   backupPath,
@@ -17,10 +17,12 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 100 * 1024 * 1024, files: 1 },
 });
-router.use(requireAuth, requireRole("ADMIN"));
+router.use(requireAuth);
 
-router.get("/", async (req, res) => res.json(await listBackups()));
-router.post("/", async (req, res) => {
+router.get("/", requirePermission("backups.view"), async (req, res) =>
+  res.json(await listBackups()),
+);
+router.post("/", requirePermission("backups.create"), async (req, res) => {
   const backup = await createBackup({ label: "manual" });
   await AuditLog.create({
     entityType: "DATABASE",
@@ -31,14 +33,22 @@ router.post("/", async (req, res) => {
   });
   res.status(201).json(backup);
 });
-router.get("/:filename/download", async (req, res, next) => {
+router.get(
+  "/:filename/download",
+  requirePermission("backups.download"),
+  async (req, res, next) => {
   try {
     res.download(backupPath(req.params.filename), req.params.filename);
   } catch (error) {
     next(error);
   }
-});
-router.post("/restore", upload.single("backup"), async (req, res) => {
+  },
+);
+router.post(
+  "/restore",
+  requirePermission("backups.restore"),
+  upload.single("backup"),
+  async (req, res) => {
   const data = z
     .object({
       password: z.string().min(1),
@@ -65,6 +75,7 @@ router.post("/restore", upload.single("backup"), async (req, res) => {
     ...result,
   });
   if (process.env.NODE_ENV !== "test") setTimeout(() => process.exit(0), 750);
-});
+  },
+);
 
 export default router;

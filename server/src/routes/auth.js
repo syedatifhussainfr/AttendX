@@ -6,6 +6,7 @@ import { User } from "../db/index.js";
 import { config } from "../config.js";
 import { requireAuth } from "../middleware/auth.js";
 import { passwordSchema, publicUser } from "../utils/password.js";
+import { permissionsForUser } from "../policy/policyService.js";
 import {
   createAuthSession,
   issueAdminElevationToken,
@@ -97,7 +98,7 @@ function authResponse(res, result) {
   return res.json({
     accessToken: result.accessToken,
     expiresIn: result.expiresIn,
-    user: result.user,
+    user: { ...result.user, permissions: permissionsForUser(result.user) },
   });
 }
 
@@ -158,7 +159,20 @@ router.post("/logout", async (req, res) => {
   res.status(204).end();
 });
 
-router.get("/me", requireAuth, (req, res) => res.json(publicUser(req.user)));
+router.get("/me", requireAuth, (req, res) =>
+  res.json({
+    ...publicUser(req.user),
+    permissions: permissionsForUser(req.user),
+  }),
+);
+
+router.get("/capabilities", requireAuth, (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.json({
+    role: req.user.adminPlus ? "ADMIN_PLUS" : req.user.role,
+    permissions: permissionsForUser(req.user),
+  });
+});
 
 router.post("/elevate", requireAuth, elevationLimiter, async (req, res) => {
   if (req.user.role !== "ADMIN" || !req.user.adminPlus)

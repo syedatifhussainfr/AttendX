@@ -31,7 +31,7 @@ export function UsersPage() {
     [sessionsLoading, setSessionsLoading] = useState(false),
     [sessionsBusy, setSessionsBusy] = useState(""),
     toast = useToast(),
-    { user } = useAuth();
+    { user, can } = useAuth();
   const load = () =>
     api
       .get("/admin/users")
@@ -168,10 +168,12 @@ export function UsersPage() {
             control require Admin++.
           </p>
         </div>
-        <button className="primary" onClick={() => setOpen(true)}>
-          <Plus />
-          Add account
-        </button>
+        {can("users.create") && (
+          <button className="primary" onClick={() => setOpen(true)}>
+            <Plus />
+            Add account
+          </button>
+        )}
       </div>
       <div className="user-grid">
         {rows.map((u) => (
@@ -188,7 +190,7 @@ export function UsersPage() {
               </small>
             </div>
             <div className="user-actions">
-              {user.adminPlus && (
+              {can("users.manageSessions") && (
                 <button
                   className="secondary"
                   onClick={() => setSessionAccessUser(u)}
@@ -196,12 +198,12 @@ export function UsersPage() {
                   <MonitorSmartphone /> Sessions
                 </button>
               )}
-              {u.role === "CR" && (
+              {u.role === "CR" && can("users.resetCrPassword") && (
                 <button className="secondary" onClick={() => setResetUser(u)}>
                   <KeyRound /> Reset password
                 </button>
               )}
-              <button
+              {can("users.update") && <button
                 className="secondary"
                 onClick={() => toggle(u)}
                 disabled={
@@ -221,8 +223,8 @@ export function UsersPage() {
                   : u.active
                     ? "Disable"
                     : "Enable"}
-              </button>
-              {user.adminPlus && u.id !== user.id && (
+              </button>}
+              {can("users.delete") && u.id !== user.id && (
                 <button
                   className="danger-outline"
                   onClick={() => setDeleteUser(u)}

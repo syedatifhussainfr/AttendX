@@ -3,6 +3,7 @@ import { ArchiveRestore, DatabaseBackup, Download, Plus } from "lucide-react";
 import { api, messageOf } from "../api.js";
 import { Dialog } from "../components/Dialog.jsx";
 import { useToast } from "../state/ToastContext.jsx";
+import { useAuth } from "../state/AuthContext.jsx";
 
 const sizeOf = (bytes) =>
   bytes < 1024 * 1024
@@ -14,6 +15,7 @@ export function BackupsPage() {
   const [busy, setBusy] = useState(false);
   const [restoreOpen, setRestoreOpen] = useState(false);
   const toast = useToast();
+  const { can } = useAuth();
   const load = async () => {
     try {
       setRows((await api.get("/admin/backups")).data);
@@ -77,12 +79,12 @@ export function BackupsPage() {
           </p>
         </div>
         <div className="button-row">
-          <button className="secondary" onClick={() => setRestoreOpen(true)}>
+          {can("backups.restore") && <button className="secondary" onClick={() => setRestoreOpen(true)}>
             <ArchiveRestore /> Restore
-          </button>
-          <button className="primary" onClick={create} disabled={busy}>
+          </button>}
+          {can("backups.create") && <button className="primary" onClick={create} disabled={busy}>
             <Plus /> {busy ? "Creating…" : "Create backup"}
-          </button>
+          </button>}
         </div>
       </div>
       <section className="panel table-panel">
@@ -112,9 +114,9 @@ export function BackupsPage() {
                   <td>{new Date(row.createdAt).toLocaleString("en-IN")}</td>
                   <td>{sizeOf(row.size)}</td>
                   <td>
-                    <button className="secondary" onClick={() => download(row)}>
+                    {can("backups.download") && <button className="secondary" onClick={() => download(row)}>
                       <Download /> Download
-                    </button>
+                    </button>}
                   </td>
                 </tr>
               ))}

@@ -4,14 +4,14 @@
 
 AttendX replaces slow roll calls with a controlled attendance workflow for class representatives, administrators, and service operators. It combines timetable-aware session creation, server-authoritative attendance rules, accountable corrections, human-readable reports, backup tooling, and tiered administration in one responsive application.
 
-![Version](https://img.shields.io/badge/version-1.1.5-0a4a7f)
+![Version](https://img.shields.io/badge/version-1.1.6-0a4a7f)
 ![Status](https://img.shields.io/badge/status-release%20candidate-e87524)
 ![Runtime](https://img.shields.io/badge/node-20%2B-43853d)
 ![Database](https://img.shields.io/badge/database-SQLite%20%7C%20PostgreSQL-315b7d)
 
 ## Product position
 
-AttendX is designed for a managed-service model: an operator deploys and maintains an isolated instance for an institution, configures its academic data, protects backups, and manages privileged access. Version 1.1.5 is single-institution per deployment. A shared multi-tenant control plane, billing, and institution self-provisioning are future product work and are not falsely represented as existing features.
+AttendX is designed for a managed-service model: an operator deploys and maintains an isolated instance for an institution, configures its academic data, protects backups, and manages privileged access. Version 1.1.6 is single-institution per deployment. A shared multi-tenant control plane, billing, and institution self-provisioning are future product work and are not falsely represented as existing features.
 
 Brand assets, institution name, class name, academic session, subjects, timetable, and administrator accounts are deployment configuration—not hard-coded product identity.
 
@@ -20,14 +20,14 @@ Brand assets, institution name, class name, academic session, subjects, timetabl
 | Version | Status | Summary |
 | --- | --- | --- |
 | `v1.0.0` | Released baseline | Core attendance workflow, basic administration, CSV onboarding, exports, and audit history. |
-| `v1.1.0`–`v1.1.5` | Local release candidate | Reliability, reporting, secure sessions, responsive UX, Admin++ controls, database visibility, and operational tooling. |
+| `v1.1.0`–`v1.1.6` | Local release candidate | Reliability, reporting, secure sessions, responsive UX, Admin++ controls, database visibility, self-healing permissions, and operational tooling. |
 | `v1.2.0` | Planned | Faculty, programme/semester/section modelling, academic calendar, alerting, and service-management foundations. |
 
-The published [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.0.0) remains the stable comparison point. V1.1.5 should stay unreleased until the final checklist in this document is completed on the deployment database.
+The published [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.0.0) remains the stable comparison point. V1.1.6 should stay unreleased until the final checklist in this document is completed on the deployment database.
 
-## V1.0 compared with V1.1.5
+## V1.0 compared with V1.1.6
 
-| Area | V1.0 | V1.1.5 |
+| Area | V1.0 | V1.1.6 |
 | --- | --- | --- |
 | Authentication | JWT login | Short-lived in-memory access tokens plus rotating, hashed refresh sessions in `HttpOnly`, `SameSite=Strict` cookies |
 | Logout | Client sign-out | Server-side session revocation, trusted-origin validation, popup flow, and dedicated `/logout` route |
@@ -42,6 +42,7 @@ The published [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/re
 | Backups | Manual file handling | Managed SQLite snapshots, validation, guarded restore, pre-restore backup, download, and audit logging |
 | Development workflow | Concurrent npm scripts | Colored unified console, scoped API watcher, strict ports, and clean Windows shutdown |
 | Responsive UI | Basic responsiveness | Persistent/resizable desktop sidebar, mobile drawer scroll lock, route progress, and confirmation flows |
+| Permission policy | Fixed role checks | Explicit CR/ADMIN/ADMIN++ capability matrix with startup repair, protected ceilings, dependency repair, and backend enforcement |
 
 ## V1.1 patch history
 
@@ -101,6 +102,20 @@ The published [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/re
 - Colored cross-platform development console with strict ports and clean shutdown.
 - Repeatable `npm run verify-data` integrity report.
 - Product-oriented documentation and V1.0-to-V1.1 comparison.
+
+### V1.1.6 — self-healing permission configuration
+
+- Complete capability matrix for CR, ADMIN, and ADMIN++ in `config/config.yml`.
+- Backend authorization uses named permissions instead of scattered role checks.
+- Frontend routes, navigation, and management actions follow server-issued capabilities.
+- Missing `default.yml`, `config.example.yml`, or `config.yml` files are regenerated automatically.
+- Malformed YAML is preserved with a timestamp and replaced with secure defaults.
+- Missing keys and invalid value types are repaired; unknown keys are removed.
+- Valid operator choices remain unchanged during normalization.
+- Permission dependencies are repaired automatically, such as enabling view access when management is enabled.
+- Privilege ceilings prevent CR/ADMIN from receiving Admin++ deletion or session-control authority.
+- Read-only in-memory defaults keep startup safe if the configuration directory cannot be written.
+- `npm run config-check` validates and reports the effective policy before deployment.
 
 ## Permission model
 
@@ -198,6 +213,31 @@ After signing in:
 
 ## Configuration
 
+### Permission configuration
+
+AttendX creates and validates three files in `config/` whenever the API starts or `npm run config-check` runs:
+
+| File | Purpose |
+| --- | --- |
+| `default.yml` | Generated secure baseline; automatically restored if changed, broken, or deleted. |
+| `config.example.yml` | Generated complete reference containing every supported capability. |
+| `config.yml` | Local deployment policy. It is ignored by Git and preserves valid `true`/`false` changes. |
+
+Edit only `config/config.yml`, run the validator, and restart AttendX:
+
+```bash
+npm run config-check
+npm run dev
+```
+
+Each role has a complete independent permission matrix. Missing files are recreated, malformed files are preserved as timestamped `.broken-*` copies, and structurally invalid files are preserved as `.repaired-*` copies before normalization. Missing keys use secure defaults, unknown keys are removed, invalid types are replaced, and required permission dependencies are restored.
+
+Permanent deletion, other-user session control, and Admin++ modification remain protected security boundaries. Configuration may disable these capabilities for Admin++, but cannot grant them to CR or ordinary ADMIN. Self-disable, self-delete, last-active-Admin++, secret-redaction, elevation, and audit safeguards are enforced in code and are not YAML switches.
+
+Secrets never belong in YAML. Keep JWT, database, SMTP, and provider credentials in environment variables.
+
+### Environment configuration
+
 Important values in `server/.env`:
 
 ```dotenv
@@ -241,6 +281,7 @@ Production requirements:
 | `npm run admin-pp` | Promote an ADMIN, create Admin++, or revoke Admin++ authority. |
 | `npm run backup` | Create and validate a timestamped SQLite snapshot. |
 | `npm run verify-data` | Run read-only integrity, foreign-key, duplicate-roll, administrator, and count checks. |
+| `npm run config-check` | Repair and validate YAML policy files, then print effective permission counts. |
 | `npm run demo-attendance -- 12` | Create deterministic closed sessions for existing students after a backup. |
 | `npm run normalize-rolls` | Normalize numeric rolls imported by older builds. |
 | `npm run seed` | Populate local development accounts and academic configuration; never students. |
@@ -322,10 +363,11 @@ Credited attendance percentage is `PRESENT / classes conducted × 100`. Physical
 - Destructive deletion is refused when historical relationships require deactivation instead.
 - Self-disable, self-delete, and last-active-Admin++ protections prevent avoidable lockout.
 
-## Final V1.1.5 verification checklist
+## Final V1.1.6 verification checklist
 
 - [x] Create a fresh validated backup of the deployment database.
 - [x] Run `npm run verify-data` and retain the output with the release record.
+- [x] Run `npm run config-check` with the self-healing policy validated.
 - [x] Run `npm test` with every test passing.
 - [x] Run `npm run build` successfully.
 - [ ] Sign in as CR and complete one attendance session.
@@ -339,10 +381,11 @@ Credited attendance percentage is `PRESENT / classes conducted × 100`. Physical
 
 ### Automated verification record — 20 September 2026
 
-- Validated backup: `attendx-cli-2026-09-20T07-35-27-394Z.sqlite` (`131,072` bytes).
+- Validated V1.1.6 backup: `attendx-cli-2026-09-20T08-08-35-173Z.sqlite` (`131,072` bytes).
 - Data: 3 users, 2 active administrators, 1 active Admin++, 78 students (all active), 12 subjects, and 20 timetable entries.
 - Integrity: SQLite `integrity_check` passed, foreign-key check passed, and duplicate roll-number count was zero.
-- Regression suite: 22 of 22 server tests passed.
+- Permission policy: YAML parsing, structural repair, protected ceilings, and effective-role resolution passed.
+- Regression suite: 26 of 26 server tests passed, including four self-healing policy cases.
 - Frontend: Vite production build completed successfully with 1,668 modules transformed.
 - Attendance sessions/records were both zero at verification time; no test attendance was written to the deployment database.
 
@@ -363,4 +406,4 @@ Planned product work includes:
 
 ## Important scope statement
 
-V1.1.5 is suitable for controlled pilot evaluation and service-operated deployment after the final checklist passes. It is not yet a self-service multi-tenant SaaS platform. Each institution should receive an isolated deployment and database until tenant isolation, provisioning, billing, and operator tooling are deliberately implemented and independently reviewed.
+V1.1.6 is suitable for controlled pilot evaluation and service-operated deployment after the final checklist passes. It is not yet a self-service multi-tenant SaaS platform. Each institution should receive an isolated deployment and database until tenant isolation, provisioning, billing, and operator tooling are deliberately implemented and independently reviewed.

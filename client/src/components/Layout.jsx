@@ -24,19 +24,19 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../state/AuthContext.jsx";
 import { Dialog } from "./Dialog.jsx";
 const baseLinks = [
-  ["/", "Overview", LayoutDashboard],
-  ["/history", "Attendance history", FileClock],
-  ["/students", "Students", GraduationCap],
-  ["/change-password", "Change password", KeyRound],
+  ["/", "Overview", LayoutDashboard, "dashboard.view"],
+  ["/history", "Attendance history", FileClock, "attendance.view"],
+  ["/students", "Students", GraduationCap, "students.view"],
+  ["/change-password", "Change password", KeyRound, null],
 ];
 const adminLinks = [
-  ["/users", "Users & CR access", Users],
-  ["/database", "Database", Database],
-  ["/subjects", "Subjects", BookOpen],
-  ["/timetable", "Timetable", CalendarDays],
-  ["/audit", "Audit logs", ShieldCheck],
-  ["/backups", "Backup & restore", DatabaseBackup],
-  ["/settings", "Settings", Settings],
+  ["/users", "Users & CR access", Users, "users.view"],
+  ["/database", "Database", Database, "database.view"],
+  ["/subjects", "Subjects", BookOpen, "subjects.view"],
+  ["/timetable", "Timetable", CalendarDays, "timetable.view"],
+  ["/audit", "Audit logs", ShieldCheck, "audit.view"],
+  ["/backups", "Backup & restore", DatabaseBackup, "backups.view"],
+  ["/settings", "Settings", Settings, "settings.view"],
 ];
 const SIDEBAR_MIN = 214;
 const SIDEBAR_MAX = 340;
@@ -44,7 +44,7 @@ const clampSidebarWidth = (value) =>
   Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, Number(value) || 238));
 
 export function Layout() {
-  const { user, logout } = useAuth(),
+  const { user, logout, can } = useAuth(),
     navigate = useNavigate(),
     [open, setOpen] = useState(false),
     [passwordPrompt, setPasswordPrompt] = useState(false),
@@ -178,7 +178,7 @@ export function Layout() {
         </div>
         <nav>
           <p>Workspace</p>
-          {baseLinks.map(([to, label, Icon]) => (
+          {baseLinks.filter(([, , , permission]) => !permission || can(permission)).map(([to, label, Icon]) => (
             <NavLink
               key={to}
               to={to}
@@ -189,10 +189,10 @@ export function Layout() {
               {label}
             </NavLink>
           ))}
-          {user.role === "ADMIN" && (
+          {adminLinks.some(([, , , permission]) => can(permission)) && (
             <>
               <p>Administration</p>
-              {adminLinks.map(([to, label, Icon]) => (
+              {adminLinks.filter(([, , , permission]) => can(permission)).map(([to, label, Icon]) => (
                 <NavLink
                   key={to}
                   to={to}

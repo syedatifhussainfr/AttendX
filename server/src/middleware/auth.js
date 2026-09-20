@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { config } from "../config.js";
 import { validateAccessSession } from "../services/authSessionService.js";
+import { hasPermission } from "../policy/policyService.js";
 
 export async function requireAuth(req, res, next) {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, "");
@@ -36,14 +37,15 @@ export async function requireAuth(req, res, next) {
     return next(error);
   }
 }
-export const requireRole =
-  (...roles) =>
-  (req, res, next) =>
-    roles.includes(req.user.role)
+export const requirePermission =
+  (capability) => (req, res, next) =>
+    hasPermission(req.user, capability)
       ? next()
-      : res
-          .status(403)
-          .json({ message: "You do not have permission for this action." });
+      : res.status(403).json({
+          code: "PERMISSION_REQUIRED",
+          permission: capability,
+          message: `Permission ${capability} is required for this action.`,
+        });
 
 export function requireAdminPlus(req, res, next) {
   if (req.user.role === "ADMIN" && req.user.adminPlus) return next();

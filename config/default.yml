@@ -1,0 +1,145 @@
+# AttendX secure permission defaults. This file is automatically restored.
+# Re-run npm run config-check after editing.
+version: 1
+permissions:
+  CR:
+    dashboard:
+      view: true
+    attendance:
+      view: true
+      open: true
+      mark: true
+      close: true
+      correctOpen: true
+      correctClosed: false
+      reopen: false
+    students:
+      view: true
+      create: false
+      update: false
+      import: false
+      delete: false
+    subjects:
+      view: true
+      manage: false
+      delete: false
+    timetable:
+      view: true
+      manage: false
+    reports:
+      view: true
+      export: true
+    settings:
+      view: false
+      manage: false
+    users:
+      view: false
+      create: false
+      update: false
+      resetCrPassword: false
+      delete: false
+      manageSessions: false
+      modifyAdminPlus: false
+    database:
+      view: false
+    audit:
+      view: false
+    backups:
+      view: false
+      create: false
+      download: false
+      restore: false
+  ADMIN:
+    dashboard:
+      view: true
+    attendance:
+      view: true
+      open: true
+      mark: true
+      close: true
+      correctOpen: true
+      correctClosed: true
+      reopen: true
+    students:
+      view: true
+      create: true
+      update: true
+      import: true
+      delete: false
+    subjects:
+      view: true
+      manage: true
+      delete: false
+    timetable:
+      view: true
+      manage: true
+    reports:
+      view: true
+      export: true
+    settings:
+      view: true
+      manage: true
+    users:
+      view: true
+      create: true
+      update: true
+      resetCrPassword: true
+      delete: false
+      manageSessions: false
+      modifyAdminPlus: false
+    database:
+      view: true
+    audit:
+      view: true
+    backups:
+      view: true
+      create: true
+      download: true
+      restore: true
+  ADMIN_PLUS:
+    dashboard:
+      view: true
+    attendance:
+      view: true
+      open: true
+      mark: true
+      close: true
+      correctOpen: true
+      correctClosed: true
+      reopen: true
+    students:
+      view: true
+      create: true
+      update: true
+      import: true
+      delete: true
+    subjects:
+      view: true
+      manage: true
+      delete: true
+    timetable:
+      view: true
+      manage: true
+    reports:
+      view: true
+      export: true
+    settings:
+      view: true
+      manage: true
+    users:
+      view: true
+      create: true
+      update: true
+      resetCrPassword: true
+      delete: true
+      manageSessions: true
+      modifyAdminPlus: true
+    database:
+      view: true
+    audit:
+      view: true
+    backups:
+      view: true
+      create: true
+      download: true
+      restore: true

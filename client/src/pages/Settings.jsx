@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { Save, TimerReset } from "lucide-react";
 import { api, messageOf } from "../api.js";
 import { useToast } from "../state/ToastContext.jsx";
+import { useAuth } from "../state/AuthContext.jsx";
 export function SettingsPage() {
   const [data, setData] = useState(null),
     [saving, setSaving] = useState(false),
-    toast = useToast();
+    toast = useToast(),
+    { can } = useAuth();
   useEffect(() => {
     api
       .get("/admin/settings")
@@ -62,6 +64,7 @@ export function SettingsPage() {
               min="1"
               max="120"
               defaultValue={data.lateThresholdMinutes}
+              disabled={!can("settings.manage")}
               required
             />
             <small>
@@ -74,6 +77,7 @@ export function SettingsPage() {
               name="crCanCorrectRecent"
               type="checkbox"
               defaultChecked={data.crCanCorrectRecent}
+              disabled={!can("settings.manage")}
             />
             <span>Allow CR correction during active sessions</span>
           </label>
@@ -90,33 +94,35 @@ export function SettingsPage() {
             <input
               name="institutionName"
               defaultValue={data.institutionName}
+              disabled={!can("settings.manage")}
               required
             />
           </label>
           <label>
             Class / section
-            <input name="className" defaultValue={data.className} required />
+            <input name="className" defaultValue={data.className} disabled={!can("settings.manage")} required />
           </label>
           <label>
             Academic session
             <input
               name="academicSession"
               defaultValue={data.academicSession}
+              disabled={!can("settings.manage")}
               required
             />
           </label>
           <label>
             Timezone
-            <select name="timezone" defaultValue={data.timezone}>
+            <select name="timezone" defaultValue={data.timezone} disabled={!can("settings.manage")}>
               <option>Asia/Kolkata</option>
             </select>
           </label>
         </section>
         <div className="settings-save">
-          <button className="primary" disabled={saving}>
+          {can("settings.manage") && <button className="primary" disabled={saving}>
             <Save />
             {saving ? "Saving…" : "Save settings"}
-          </button>
+          </button>}
         </div>
       </form>
     </div>
