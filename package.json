@@ -2,12 +2,13 @@
   "name": "attendx-v1",
   "private": true,
   "version": "1.1.0",
+  "type": "module",
   "workspaces": [
     "client",
     "server"
   ],
   "scripts": {
-    "dev": "concurrently -n API,WEB -c blue,cyan \"npm run dev -w server\" \"npm run dev -w client\"",
+    "dev": "node scripts/dev.js",
     "build": "npm run build -w client",
     "seed": "npm run seed -w server",
     "create-admin": "npm run create-admin -w server --",
