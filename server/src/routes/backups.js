@@ -49,7 +49,9 @@ router.post("/restore", upload.single("backup"), async (req, res) => {
     return res.status(400).json({ message: "Choose a SQLite backup file." });
   const user = await User.findByPk(req.user.id);
   if (!(await bcrypt.compare(data.password, user.passwordHash)))
-    return res.status(400).json({ message: "Administrator password is incorrect." });
+    return res
+      .status(400)
+      .json({ message: "Administrator password is incorrect." });
   const staged = await stageUploadedBackup(req.file.buffer);
   const result = await restoreStagedBackup({
     stagedPath: staged.stagedPath,
@@ -57,7 +59,8 @@ router.post("/restore", upload.single("backup"), async (req, res) => {
     sourceName: req.file.originalname,
   });
   res.json({
-    message: "Database restored. The API will stop so it can be restarted safely.",
+    message:
+      "Database restored. The API will stop so it can be restarted safely.",
     validation: staged.validation,
     ...result,
   });

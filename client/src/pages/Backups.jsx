@@ -21,7 +21,9 @@ export function BackupsPage() {
       toast(messageOf(error), "error");
     }
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
   const create = async () => {
     setBusy(true);
     try {
@@ -69,7 +71,10 @@ export function BackupsPage() {
         <div>
           <span className="eyebrow">DATA PROTECTION</span>
           <h1>Backup & restore</h1>
-          <p>ADMIN-only, integrity-checked SQLite snapshots. PostgreSQL uses pg_dump/pg_restore.</p>
+          <p>
+            ADMIN-only, integrity-checked SQLite snapshots. PostgreSQL uses
+            pg_dump/pg_restore.
+          </p>
         </div>
         <div className="button-row">
           <button className="secondary" onClick={() => setRestoreOpen(true)}>
@@ -82,34 +87,76 @@ export function BackupsPage() {
       </div>
       <section className="panel table-panel">
         <div className="panel-title">
-          <div><h2>Available backups</h2><p>Stored outside the live database directory.</p></div>
+          <div>
+            <h2>Available backups</h2>
+            <p>Stored outside the live database directory.</p>
+          </div>
           <DatabaseBackup />
         </div>
         {rows.length ? (
           <table>
-            <thead><tr><th>Filename</th><th>Created</th><th>Size</th><th /></tr></thead>
+            <thead>
+              <tr>
+                <th>Filename</th>
+                <th>Created</th>
+                <th>Size</th>
+                <th />
+              </tr>
+            </thead>
             <tbody>
               {rows.map((row) => (
                 <tr key={row.filename}>
-                  <td><code>{row.filename}</code></td>
+                  <td>
+                    <code>{row.filename}</code>
+                  </td>
                   <td>{new Date(row.createdAt).toLocaleString("en-IN")}</td>
                   <td>{sizeOf(row.size)}</td>
-                  <td><button className="secondary" onClick={() => download(row)}><Download /> Download</button></td>
+                  <td>
+                    <button className="secondary" onClick={() => download(row)}>
+                      <Download /> Download
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        ) : <div className="empty">No managed backup exists yet. Create one before risky changes.</div>}
+        ) : (
+          <div className="empty">
+            No managed backup exists yet. Create one before risky changes.
+          </div>
+        )}
       </section>
-      <Dialog open={restoreOpen} title="Restore SQLite database" onClose={() => !busy && setRestoreOpen(false)}>
+      <Dialog
+        open={restoreOpen}
+        title="Restore SQLite database"
+        onClose={() => !busy && setRestoreOpen(false)}
+      >
         <form className="form-stack" onSubmit={restore}>
           <div className="danger-note">
-            Restoration replaces the current database. AttendX creates a safety backup first, validates the upload, then stops the API so you can restart it safely.
+            Restoration replaces the current database. AttendX creates a safety
+            backup first, validates the upload, then stops the API so you can
+            restart it safely.
           </div>
-          <label>SQLite backup file<input name="backup" type="file" accept=".sqlite,.db,application/x-sqlite3" required /></label>
-          <label>Your ADMIN password<input name="password" type="password" required /></label>
-          <label>Type <code>RESTORE ATTENDX</code><input name="confirmation" autoComplete="off" required /></label>
-          <button className="danger" disabled={busy}>{busy ? "Validating and restoring…" : "Restore and stop API"}</button>
+          <label>
+            SQLite backup file
+            <input
+              name="backup"
+              type="file"
+              accept=".sqlite,.db,application/x-sqlite3"
+              required
+            />
+          </label>
+          <label>
+            Your ADMIN password
+            <input name="password" type="password" required />
+          </label>
+          <label>
+            Type <code>RESTORE ATTENDX</code>
+            <input name="confirmation" autoComplete="off" required />
+          </label>
+          <button className="danger" disabled={busy}>
+            {busy ? "Validating and restoring…" : "Restore and stop API"}
+          </button>
         </form>
       </Dialog>
     </div>

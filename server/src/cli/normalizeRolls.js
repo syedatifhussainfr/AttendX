@@ -30,7 +30,8 @@ try {
   });
 
   console.log(`Normalized ${changes.length} roll number(s).`);
-  for (const { oldRoll, newRoll } of changes) console.log(`  ${oldRoll} -> ${newRoll}`);
+  for (const { oldRoll, newRoll } of changes)
+    console.log(`  ${oldRoll} -> ${newRoll}`);
 } catch (error) {
   console.error(`Could not normalize roll numbers: ${error.message}`);
   process.exitCode = 1;

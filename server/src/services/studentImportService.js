@@ -1,6 +1,9 @@
 import { Op } from "sequelize";
 import { sequelize, Student, AuditLog } from "../db/index.js";
-import { compareRollNumbers, normalizeRollNumber } from "../utils/rollNumber.js";
+import {
+  compareRollNumbers,
+  normalizeRollNumber,
+} from "../utils/rollNumber.js";
 
 const cleanText = (value) => (typeof value === "string" ? value.trim() : "");
 
@@ -10,8 +13,11 @@ export async function reconcileStudentRows(rawRows, { transaction } = {}) {
     const name = cleanText(raw.name);
     const errors = [];
     if (!rollNumber || rollNumber.length > 20)
-      errors.push("Roll number is required and must be 20 characters or fewer.");
-    if (name.length < 2) errors.push("Name must contain at least 2 characters.");
+      errors.push(
+        "Roll number is required and must be 20 characters or fewer.",
+      );
+    if (name.length < 2)
+      errors.push("Name must contain at least 2 characters.");
     return { rowNumber: raw.rowNumber || index + 2, rollNumber, name, errors };
   });
   const counts = new Map();
@@ -36,7 +42,9 @@ export async function reconcileStudentRows(rawRows, { transaction } = {}) {
     (row) => !row.errors.length && !duplicateSet.has(row.rollNumber),
   );
   const existing = await Student.findAll({ transaction });
-  const byRoll = new Map(existing.map((student) => [student.rollNumber, student]));
+  const byRoll = new Map(
+    existing.map((student) => [student.rollNumber, student]),
+  );
   const incomingRolls = new Set(validRows.map((row) => row.rollNumber));
   const newStudents = [];
   const nameChanges = [];
@@ -59,7 +67,9 @@ export async function reconcileStudentRows(rawRows, { transaction } = {}) {
       });
   }
   const missingStudents = existing
-    .filter((student) => student.active && !incomingRolls.has(student.rollNumber))
+    .filter(
+      (student) => student.active && !incomingRolls.has(student.rollNumber),
+    )
     .map((student) => ({
       id: student.id,
       rollNumber: student.rollNumber,
@@ -93,7 +103,9 @@ export async function applyStudentImport({ rawRows, missingAction, userId }) {
   return sequelize.transaction(async (transaction) => {
     const review = await reconcileStudentRows(rawRows, { transaction });
     if (!review.canApply) {
-      const error = new Error("Resolve duplicate or invalid CSV rows before importing.");
+      const error = new Error(
+        "Resolve duplicate or invalid CSV rows before importing.",
+      );
       error.status = 400;
       error.details = review;
       throw error;
@@ -109,7 +121,10 @@ export async function applyStudentImport({ rawRows, missingAction, userId }) {
           entityType: "STUDENT",
           entityId: student.id,
           action: "STUDENT_IMPORTED",
-          newValue: JSON.stringify({ rollNumber: student.rollNumber, name: student.name }),
+          newValue: JSON.stringify({
+            rollNumber: student.rollNumber,
+            name: student.name,
+          }),
           UserId: userId,
           StudentId: student.id,
         },
@@ -127,9 +142,15 @@ export async function applyStudentImport({ rawRows, missingAction, userId }) {
           {
             entityType: "STUDENT",
             entityId: student.id,
-            action: student.name !== oldValue.name ? "STUDENT_IMPORT_UPDATED" : "STUDENT_REACTIVATED",
+            action:
+              student.name !== oldValue.name
+                ? "STUDENT_IMPORT_UPDATED"
+                : "STUDENT_REACTIVATED",
             oldValue: JSON.stringify(oldValue),
-            newValue: JSON.stringify({ name: student.name, active: student.active }),
+            newValue: JSON.stringify({
+              name: student.name,
+              active: student.active,
+            }),
             UserId: userId,
             StudentId: student.id,
           },

@@ -8,8 +8,7 @@ import {
 } from "../db/index.js";
 import { getSessionDetail } from "./attendanceService.js";
 
-const overlaps = (startA, endA, startB, endB) =>
-  startA < endB && endA > startB;
+const overlaps = (startA, endA, startB, endB) => startA < endB && endA > startB;
 
 export async function inspectSessionConflicts({
   sessionDate,
@@ -26,12 +25,16 @@ export async function inspectSessionConflicts({
   });
   const subjects = sessions.length
     ? await Subject.findAll({
-        where: { id: [...new Set(sessions.map((session) => session.SubjectId))] },
+        where: {
+          id: [...new Set(sessions.map((session) => session.SubjectId))],
+        },
         attributes: ["id", "name"],
         transaction,
       })
     : [];
-  const subjectNames = new Map(subjects.map((subject) => [subject.id, subject.name]));
+  const subjectNames = new Map(
+    subjects.map((subject) => [subject.id, subject.name]),
+  );
   for (const session of sessions)
     session.setDataValue("subjectName", subjectNames.get(session.SubjectId));
   const duplicate = sessions.find(
@@ -92,7 +95,9 @@ export async function openAttendanceSession({ input, userId, now }) {
       transaction,
     });
     if (conflicts.duplicate) {
-      const error = new Error("An identical attendance session is already open.");
+      const error = new Error(
+        "An identical attendance session is already open.",
+      );
       error.status = 409;
       error.code = "DUPLICATE_OPEN_SESSION";
       error.details = { sessionId: conflicts.duplicate.id };

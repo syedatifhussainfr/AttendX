@@ -150,7 +150,12 @@ export async function markAttendance({
   });
 }
 
-export async function reopenSession({ sessionId, userId, reason, now = new Date() }) {
+export async function reopenSession({
+  sessionId,
+  userId,
+  reason,
+  now = new Date(),
+}) {
   return sequelize.transaction(async (transaction) => {
     const session = await AttendanceSession.findByPk(sessionId, {
       transaction,

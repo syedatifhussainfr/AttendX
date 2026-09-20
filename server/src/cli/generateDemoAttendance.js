@@ -14,19 +14,27 @@ import { config } from "../config.js";
 const DEMO_REASON = "AttendX generated demo attendance";
 const requestedSessions = Number.parseInt(process.argv[2] || "12", 10);
 
-if (!Number.isInteger(requestedSessions) || requestedSessions < 1 || requestedSessions > 60) {
+if (
+  !Number.isInteger(requestedSessions) ||
+  requestedSessions < 1 ||
+  requestedSessions > 60
+) {
   console.error("Session count must be an integer from 1 to 60.");
   process.exit(1);
 }
 
 function pseudoRandom(studentId, sessionIndex, salt = 0) {
-  const value = Math.sin(studentId * 12.9898 + sessionIndex * 78.233 + salt) * 43758.5453;
+  const value =
+    Math.sin(studentId * 12.9898 + sessionIndex * 78.233 + salt) * 43758.5453;
   return value - Math.floor(value);
 }
 
 function demoDates(count) {
   const dates = [];
-  let cursor = DateTime.now().setZone(config.timezone).startOf("day").minus({ days: 1 });
+  let cursor = DateTime.now()
+    .setZone(config.timezone)
+    .startOf("day")
+    .minus({ days: 1 });
   while (dates.length < count) {
     if (cursor.weekday <= 5) dates.push(cursor);
     cursor = cursor.minus({ days: 1 });
@@ -45,10 +53,12 @@ function statusFor(studentId, sessionIndex) {
 
 function markedTime(date, status, studentId, sessionIndex) {
   const sessionStart = date.set({ hour: 10, minute: 0 });
-  if (status === "ABSENT") return sessionStart.plus({ hours: 1, minutes: 5 }).toJSDate();
-  const offset = status === "PRESENT"
-    ? Math.floor(pseudoRandom(studentId, sessionIndex, 1) * 14) - 3
-    : 16 + Math.floor(pseudoRandom(studentId, sessionIndex, 2) * 25);
+  if (status === "ABSENT")
+    return sessionStart.plus({ hours: 1, minutes: 5 }).toJSDate();
+  const offset =
+    status === "PRESENT"
+      ? Math.floor(pseudoRandom(studentId, sessionIndex, 1) * 14) - 3
+      : 16 + Math.floor(pseudoRandom(studentId, sessionIndex, 2) * 25);
   return sessionStart.plus({ minutes: offset }).toJSDate();
 }
 
@@ -57,13 +67,28 @@ try {
   const [students, subjects, user, existingDemoSessions] = await Promise.all([
     Student.findAll({ where: { active: true }, order: [["id", "ASC"]] }),
     Subject.findAll({ where: { active: true }, order: [["id", "ASC"]] }),
-    User.findOne({ where: { active: true }, order: [["role", "ASC"], ["id", "ASC"]] }),
+    User.findOne({
+      where: { active: true },
+      order: [
+        ["role", "ASC"],
+        ["id", "ASC"],
+      ],
+    }),
     AttendanceSession.count({ where: { reason: DEMO_REASON } }),
   ]);
 
-  if (!students.length) throw new Error("No active students exist. Import students before generating demo attendance.");
-  if (!subjects.length) throw new Error("No active subjects exist. Seed subjects before generating demo attendance.");
-  if (!user) throw new Error("No active ADMIN or CR account exists to own the demo records.");
+  if (!students.length)
+    throw new Error(
+      "No active students exist. Import students before generating demo attendance.",
+    );
+  if (!subjects.length)
+    throw new Error(
+      "No active subjects exist. Seed subjects before generating demo attendance.",
+    );
+  if (!user)
+    throw new Error(
+      "No active ADMIN or CR account exists to own the demo records.",
+    );
   if (existingDemoSessions) {
     throw new Error(
       `${existingDemoSessions} generated demo session(s) already exist. Restore the clean backup before generating another set.`,
@@ -135,8 +160,12 @@ try {
   });
 
   console.log(`Generated ${requestedSessions} closed attendance sessions.`);
-  console.log(`Used ${students.length} existing students and ${subjects.length} active subjects.`);
-  console.log(`Created ${requestedSessions * students.length} records: ${totals.PRESENT} present, ${totals.LATE} late, ${totals.ABSENT} absent.`);
+  console.log(
+    `Used ${students.length} existing students and ${subjects.length} active subjects.`,
+  );
+  console.log(
+    `Created ${requestedSessions * students.length} records: ${totals.PRESENT} present, ${totals.LATE} late, ${totals.ABSENT} absent.`,
+  );
   console.log("No students or users were created.");
 } catch (error) {
   console.error(error.message);

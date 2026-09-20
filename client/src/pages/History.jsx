@@ -34,7 +34,9 @@ export function History() {
     );
     try {
       const filename = await downloadAttendanceExport({ review, params });
-      toast(`${review ? "Review report" : "Machine data"} downloaded as ${filename}.`);
+      toast(
+        `${review ? "Review report" : "Machine data"} downloaded as ${filename}.`,
+      );
     } catch (x) {
       toast(messageOf(x), "error");
     }
@@ -72,11 +74,19 @@ export function History() {
           <Filter />
           Apply
         </button>
-        <button type="button" className="secondary" onClick={(e) => exportRange(e, false)}>
+        <button
+          type="button"
+          className="secondary"
+          onClick={(e) => exportRange(e, false)}
+        >
           <Download />
           Machine data
         </button>
-        <button type="button" className="primary" onClick={(e) => exportRange(e, true)}>
+        <button
+          type="button"
+          className="primary"
+          onClick={(e) => exportRange(e, true)}
+        >
           <Download />
           Review report
         </button>

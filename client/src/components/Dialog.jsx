@@ -11,7 +11,8 @@ export function Dialog({ open, title, children, onClose, actions }) {
   useEffect(() => {
     if (!open) return undefined;
     if (openDialogCount === 0) {
-      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      const scrollbarWidth =
+        window.innerWidth - document.documentElement.clientWidth;
       savedPageStyles = {
         bodyOverflow: document.body.style.overflow,
         bodyPaddingRight: document.body.style.paddingRight,

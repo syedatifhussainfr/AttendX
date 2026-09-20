@@ -117,7 +117,9 @@ export function AttendanceSessionPage() {
         review,
         params: { sessionId: id },
       });
-      toast(`${review ? "Review report" : "Machine data"} downloaded as ${filename}.`);
+      toast(
+        `${review ? "Review report" : "Machine data"} downloaded as ${filename}.`,
+      );
     } catch (e) {
       toast(messageOf(e), "error");
     }
@@ -191,7 +193,10 @@ export function AttendanceSessionPage() {
             </button>
           )}
           {s.status === "CLOSED" && user.role === "ADMIN" && (
-            <button className="danger-outline" onClick={() => setReopening(true)}>
+            <button
+              className="danger-outline"
+              onClick={() => setReopening(true)}
+            >
               <Lock /> Reopen with reason
             </button>
           )}
@@ -333,9 +338,15 @@ export function AttendanceSessionPage() {
             {records.get(selected?.id)?.correctedAt && (
               <div className="correction-note">
                 <b>Corrected</b>
-                <span>{records.get(selected.id).correctedFromStatus} → {records.get(selected.id).status}</span>
+                <span>
+                  {records.get(selected.id).correctedFromStatus} →{" "}
+                  {records.get(selected.id).status}
+                </span>
                 <span>{records.get(selected.id).correctionReason}</span>
-                <small>By {records.get(selected.id).correctedBy?.name || "Unknown"} · {fmt(records.get(selected.id).correctedAt)}</small>
+                <small>
+                  By {records.get(selected.id).correctedBy?.name || "Unknown"} ·{" "}
+                  {fmt(records.get(selected.id).correctedAt)}
+                </small>
               </div>
             )}
           </div>
@@ -368,11 +379,29 @@ export function AttendanceSessionPage() {
           )}
         </div>
       </Dialog>
-      <Dialog open={reopening} title="Reopen closed session" onClose={() => setReopening(false)}>
+      <Dialog
+        open={reopening}
+        title="Reopen closed session"
+        onClose={() => setReopening(false)}
+      >
         <form className="form-stack" onSubmit={reopen}>
-          <div className="danger-note">Reopening permits corrections again. The reason, administrator, and time are permanently audited.</div>
-          <label>Reason for reopening<input name="reason" minLength="3" maxLength="250" required placeholder="Explain why this closed session must change" /></label>
-          <button className="danger" disabled={busy}>{busy ? "Reopening…" : "Reopen session"}</button>
+          <div className="danger-note">
+            Reopening permits corrections again. The reason, administrator, and
+            time are permanently audited.
+          </div>
+          <label>
+            Reason for reopening
+            <input
+              name="reason"
+              minLength="3"
+              maxLength="250"
+              required
+              placeholder="Explain why this closed session must change"
+            />
+          </label>
+          <button className="danger" disabled={busy}>
+            {busy ? "Reopening…" : "Reopen session"}
+          </button>
         </form>
       </Dialog>
       <Dialog

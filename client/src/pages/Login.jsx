@@ -22,7 +22,11 @@ export function Login() {
   return (
     <div className="login-page">
       <div className="login-story">
-        <img className="login-mark" src="/brand/eiilm.png" alt="EIILM Kolkata" />
+        <img
+          className="login-mark"
+          src="/brand/eiilm.png"
+          alt="EIILM Kolkata"
+        />
         <div>
           <span className="eyebrow">EIILM KOLKATA · ACADEMIC OPERATIONS</span>
           <h1>
