@@ -177,6 +177,36 @@ test("secure browser sessions rotate, reject stale access, and revoke on logout"
   await agent.post("/api/auth/logout").expect(204);
 });
 
+test("logout rejects cross-site requests and revokes only after trusted confirmation", async () => {
+  const agent = request.agent(app);
+  const login = await agent
+    .post("/api/auth/login")
+    .send({ email: sessionUser.email, password: "SessionTest@123" })
+    .expect(200);
+  const accessToken = login.body.accessToken;
+  const rejected = await agent
+    .post("/api/auth/logout")
+    .set("Origin", "https://untrusted.example")
+    .set("Sec-Fetch-Site", "cross-site")
+    .expect(403);
+  assert.equal(rejected.body.code, "UNTRUSTED_ORIGIN");
+  await request(app)
+    .get("/api/auth/me")
+    .set("Authorization", `Bearer ${accessToken}`)
+    .expect(200);
+
+  const loggedOut = await agent
+    .post("/api/auth/logout")
+    .set("Origin", "http://localhost:5173")
+    .set("Sec-Fetch-Site", "same-origin")
+    .expect(204);
+  assert.match(loggedOut.headers["set-cookie"][0], /attendx_refresh=;/);
+  await request(app)
+    .get("/api/auth/me")
+    .set("Authorization", `Bearer ${accessToken}`)
+    .expect(401);
+});
+
 test("backup creation produces a valid, downloadable SQLite snapshot", async () => {
   const created = await backup.createBackup({ label: "test" });
   assert.ok(created.size > 0);

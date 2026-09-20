@@ -3764,6 +3764,190 @@ body.sidebar-resizing * {
   width: 15px;
 }
 
+.logout-route-page {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 75% 18%, rgba(140, 190, 211, 0.42), transparent 28%),
+    linear-gradient(138deg, #082b4d 0 46%, #e5edf0 46.2%, #f4f6f6 100%);
+}
+
+.logout-route-page::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: 520px;
+  height: 520px;
+  top: -290px;
+  left: 25%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  box-shadow: 0 0 0 72px rgba(255, 255, 255, 0.022);
+  pointer-events: none;
+}
+
+.logout-route-card {
+  width: min(100%, 570px);
+  padding: clamp(25px, 5vw, 42px);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 20px;
+  background: rgba(249, 251, 252, 0.72);
+  box-shadow:
+    0 30px 85px rgba(4, 32, 53, 0.22),
+    inset 0 1px rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(28px) saturate(135%);
+}
+
+.logout-route-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 34px;
+}
+
+.logout-route-brand img {
+  width: 46px;
+  height: 46px;
+  padding: 5px;
+  border: 1px solid rgba(24, 67, 97, 0.1);
+  border-radius: 11px;
+  background: #fff;
+}
+
+.logout-route-brand div {
+  display: grid;
+}
+
+.logout-route-brand strong {
+  color: #12344e;
+  font-family: "Manrope", sans-serif;
+  font-size: 17px;
+}
+
+.logout-route-brand span {
+  color: #718493;
+  font-size: 10px;
+}
+
+.logout-route-icon {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 20px;
+  color: #a43e35;
+  border: 1px solid rgba(169, 64, 53, 0.15);
+  border-radius: 14px;
+  background: rgba(255, 235, 231, 0.72);
+}
+
+.logout-route-icon svg {
+  width: 21px;
+}
+
+.logout-route-card h1 {
+  margin: 7px 0 10px;
+  color: #0c2c47;
+  font-size: clamp(27px, 5vw, 38px);
+  letter-spacing: -1.25px;
+}
+
+.logout-route-card > p {
+  max-width: 490px;
+  margin: 0 0 25px;
+  color: #627787;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.logout-route-session {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(26, 72, 103, 0.1);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.54);
+}
+
+.logout-route-session > svg {
+  width: 19px;
+  color: #55758c;
+}
+
+.logout-route-session > svg:last-child {
+  color: #23805d;
+}
+
+.logout-route-session div {
+  min-width: 0;
+  display: grid;
+}
+
+.logout-route-session strong {
+  color: #18384f;
+  font-size: 13px;
+}
+
+.logout-route-session span {
+  overflow: hidden;
+  color: #788a97;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logout-route-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.logout-route-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.logout-route-actions button svg {
+  width: 15px;
+}
+
+@media (max-width: 600px) {
+  .logout-route-page {
+    padding: 12px;
+    background:
+      radial-gradient(circle at 82% 8%, rgba(133, 186, 209, 0.35), transparent 32%),
+      linear-gradient(155deg, #082b4d 0 28%, #e7eef1 28.2%, #f4f6f6 100%);
+  }
+
+  .logout-route-card {
+    padding: 24px 20px;
+    border-radius: 16px;
+  }
+
+  .logout-route-brand {
+    margin-bottom: 28px;
+  }
+
+  .logout-route-actions {
+    flex-direction: column-reverse;
+  }
+
+  .logout-route-actions button {
+    width: 100%;
+  }
+}
+
 .admin-plus-lock {
   min-height: calc(100vh - 90px);
   display: grid;

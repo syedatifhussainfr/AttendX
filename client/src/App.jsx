@@ -15,6 +15,7 @@ import { SettingsPage } from "./pages/Settings.jsx";
 import { DatabasePage } from "./pages/Database.jsx";
 import { ChangePassword } from "./pages/ChangePassword.jsx";
 import { BackupsPage } from "./pages/Backups.jsx";
+import { LogoutPage } from "./pages/Logout.jsx";
 import { AdminPlusGate } from "./components/AdminPlusGate.jsx";
 
 function Protected({ children, admin, adminPlus, allowPasswordChange = false }) {
@@ -72,6 +73,14 @@ export function App() {
           element={
             <Protected allowPasswordChange>
               <ChangePassword />
+            </Protected>
+          }
+        />
+        <Route
+          path="/logout"
+          element={
+            <Protected allowPasswordChange>
+              <LogoutPage />
             </Protected>
           }
         />

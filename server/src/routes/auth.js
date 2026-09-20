@@ -81,6 +81,17 @@ function clearRefreshCookie(res) {
   res.clearCookie(REFRESH_COOKIE, options);
 }
 
+function trustedRequestOrigin(req) {
+  if (req.get("sec-fetch-site") === "cross-site") return false;
+  const origin = req.get("origin");
+  if (!origin) return true;
+  try {
+    return new URL(origin).origin === new URL(config.clientUrl).origin;
+  } catch {
+    return false;
+  }
+}
+
 function authResponse(res, result) {
   res.setHeader("Cache-Control", "no-store");
   return res.json({
@@ -136,8 +147,14 @@ router.post("/login", loginLimiter, async (req, res) => {
 });
 
 router.post("/logout", async (req, res) => {
-  await revokeRefreshSession(readCookie(req, REFRESH_COOKIE));
+  if (!trustedRequestOrigin(req))
+    return res.status(403).json({
+      code: "UNTRUSTED_ORIGIN",
+      message: "The sign-out request did not come from AttendX.",
+    });
+  res.setHeader("Cache-Control", "no-store");
   clearRefreshCookie(res);
+  await revokeRefreshSession(readCookie(req, REFRESH_COOKIE));
   res.status(204).end();
 });
 
