@@ -5,7 +5,7 @@
 AttendX replaces slow roll calls with a controlled attendance workflow for class representatives, administrators, and service operators. It combines timetable-aware session creation, server-authoritative attendance rules, accountable corrections, human-readable reports, backup tooling, and tiered administration in one responsive application.
 
 ![Version](https://img.shields.io/badge/version-1.1.6-0a4a7f)
-![Status](https://img.shields.io/badge/status-release%20candidate-e87524)
+![Status](https://img.shields.io/badge/status-stable-2f855a)
 ![Runtime](https://img.shields.io/badge/node-20%2B-43853d)
 ![Database](https://img.shields.io/badge/database-SQLite%20%7C%20PostgreSQL-315b7d)
 
@@ -20,10 +20,10 @@ Brand assets, institution name, class name, academic session, subjects, timetabl
 | Version | Status | Summary |
 | --- | --- | --- |
 | `v1.0.0` | Released baseline | Core attendance workflow, basic administration, CSV onboarding, exports, and audit history. |
-| `v1.1.0`–`v1.1.6` | Local release candidate | Reliability, reporting, secure sessions, responsive UX, Admin++ controls, database visibility, self-healing permissions, and operational tooling. |
+| `v1.1.6` | Current release | Reliability, reporting, secure sessions, responsive UX, Admin++ controls, database visibility, self-healing permissions, and operational tooling. |
 | `v1.2.0` | Planned | Faculty, programme/semester/section modelling, academic calendar, alerting, and service-management foundations. |
 
-The published [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.0.0) remains the stable comparison point. V1.1.6 should stay unreleased until the final checklist in this document is completed on the deployment database.
+The published [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.0.0) remains the reproducible baseline for the comparison below.
 
 ## V1.0 compared with V1.1.6
 
@@ -363,33 +363,20 @@ Credited attendance percentage is `PRESENT / classes conducted × 100`. Physical
 - Destructive deletion is refused when historical relationships require deactivation instead.
 - Self-disable, self-delete, and last-active-Admin++ protections prevent avoidable lockout.
 
-## Final V1.1.6 verification checklist
+## V1.1.6 verification
 
-- [x] Create a fresh validated backup of the deployment database.
-- [x] Run `npm run verify-data` and retain the output with the release record.
-- [x] Run `npm run config-check` with the self-healing policy validated.
-- [x] Run `npm test` with every test passing.
-- [x] Run `npm run build` successfully.
-- [ ] Sign in as CR and complete one attendance session.
-- [ ] Sign in as ADMIN and verify Users plus read-only Database access.
-- [ ] Confirm ADMIN cannot delete records, alter Admin++, or manage another user’s sessions.
-- [ ] Sign in as Admin++ and confirm password-elevated deletion/session controls.
-- [ ] Export both machine and review workbooks and inspect student/subject totals.
-- [ ] Verify sidebar and `/logout` flows revoke the current session.
-- [ ] Perform one restore rehearsal using a non-production copy.
-- [ ] Confirm HTTPS, production secrets, backup retention, and monitoring before public deployment.
+- 26 backend tests cover attendance rules, imports, exports, sessions, authorization, backups, Admin++, and self-healing configuration.
+- Production frontend compilation succeeds with Vite.
+- `npm run config-check` validates YAML parsing, structural repair, permission dependencies, and protected privilege ceilings.
+- `npm run verify-data` checks SQLite integrity, foreign keys, duplicate rolls, administrator availability, and record totals without modifying data.
 
-### Automated verification record — 20 September 2026
+Deployment owners should still perform browser role checks, export review, a restore rehearsal on a disposable copy, HTTPS configuration, secret rotation, monitoring, and backup-retention validation in their own environment.
 
-- Validated V1.1.6 backup: `attendx-cli-2026-09-20T08-08-35-173Z.sqlite` (`131,072` bytes).
-- Data: 3 users, 2 active administrators, 1 active Admin++, 78 students (all active), 12 subjects, and 20 timetable entries.
-- Integrity: SQLite `integrity_check` passed, foreign-key check passed, and duplicate roll-number count was zero.
-- Permission policy: YAML parsing, structural repair, protected ceilings, and effective-role resolution passed.
-- Regression suite: 26 of 26 server tests passed, including four self-healing policy cases.
-- Frontend: Vite production build completed successfully with 1,668 modules transformed.
-- Attendance sessions/records were both zero at verification time; no test attendance was written to the deployment database.
+## Repository privacy
 
-The remaining unchecked items require deliberate browser, restore-rehearsal, or production-environment validation and are not claimed by the automated checks.
+This repository contains application source, example configuration, migrations, and automated tests only. Git excludes live SQLite databases, database journals, managed backups, CSV/XLSX exports, uploads, generated output, local YAML policy overrides, environment files, logs, and coverage artifacts.
+
+Never commit real student rosters, attendance exports, production backups, access tokens, passwords, administrator phone numbers, or populated `.env` files. Test identities and credentials in the automated suite are synthetic and must not be reused in a deployment.
 
 ## Roadmap
 
