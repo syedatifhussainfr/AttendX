@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,7 +13,6 @@ const ansi = {
   dim: "\u001b[2m",
   blue: "\u001b[34m",
   cyan: "\u001b[36m",
-  green: "\u001b[32m",
   yellow: "\u001b[33m",
   red: "\u001b[31m",
   white: "\u001b[37m",
@@ -78,7 +77,7 @@ function run(label, cwd, args) {
     process.stderr.write(
       `${paint(`[${label}]`, ansi.bold, ansi.red)} Failed to start: ${error.message}\n`,
     );
-    void shutdown(1);
+    shutdown(1);
   });
   child.on("exit", (code, signal) => {
     if (stopping) return;
@@ -86,42 +85,34 @@ function run(label, cwd, args) {
     process.stderr.write(
       `${paint(`[${label}]`, ansi.bold, ansi.red)} Development process exited with ${reason}.\n`,
     );
-    void shutdown(code || 1);
+    shutdown(code || 1);
   });
 }
 
 function stopChild(child) {
-  if (!child.pid || child.exitCode !== null) return Promise.resolve();
+  if (!child.pid || child.exitCode !== null) return;
   if (process.platform !== "win32") {
     child.kill("SIGTERM");
-    return Promise.resolve();
+    return;
   }
-  return new Promise((resolve) => {
-    const killer = spawn(
-      "taskkill",
-      ["/pid", String(child.pid), "/T", "/F"],
-      { stdio: "ignore", windowsHide: true },
-    );
-    killer.on("error", resolve);
-    killer.on("exit", resolve);
+  spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
+    stdio: "ignore",
+    windowsHide: true,
   });
 }
 
-async function shutdown(exitCode = 0) {
+function shutdown(exitCode = 0) {
   if (stopping) return;
   stopping = true;
   process.stdout.write(
-    `\n${paint("◆ Stopping AttendX development servers…", ansi.bold, ansi.yellow)}\n`,
+    `\n${paint("◆ Closing AttendX development servers cleanly…", ansi.bold, ansi.yellow)}\n`,
   );
-  await Promise.all(children.map(({ child }) => stopChild(child)));
-  process.stdout.write(
-    `${paint("✓ AttendX stopped cleanly.", ansi.bold, ansi.green)}\n`,
-  );
+  for (const { child } of children) stopChild(child);
   process.exit(exitCode);
 }
 
-process.on("SIGINT", () => void shutdown(0));
-process.on("SIGTERM", () => void shutdown(0));
+process.on("SIGINT", () => shutdown(0));
+process.on("SIGTERM", () => shutdown(0));
 
 writeWelcome();
 run("API", join(root, "server"), ["--watch-path=src", "src/index.js"]);
