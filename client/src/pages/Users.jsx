@@ -10,7 +10,7 @@ import {
   Trash2,
   UserRound,
 } from "lucide-react";
-import { api, messageOf } from "../api.js";
+import { api, messageOf, setAdminElevation } from "../api.js";
 import { Dialog } from "../components/Dialog.jsx";
 import {
   deviceName,
@@ -25,6 +25,8 @@ export function UsersPage() {
     [deleteUser, setDeleteUser] = useState(null),
     [deleting, setDeleting] = useState(false),
     [sessionsUser, setSessionsUser] = useState(null),
+    [sessionAccessUser, setSessionAccessUser] = useState(null),
+    [elevatingSessions, setElevatingSessions] = useState(false),
     [sessions, setSessions] = useState([]),
     [sessionsLoading, setSessionsLoading] = useState(false),
     [sessionsBusy, setSessionsBusy] = useState(""),
@@ -78,9 +80,13 @@ export function UsersPage() {
       toast(messageOf(e), "error");
     }
   };
-  const remove = async () => {
+  const remove = async (event) => {
+    event.preventDefault();
     setDeleting(true);
     try {
+      const password = new FormData(event.currentTarget).get("password");
+      const { data } = await api.post("/auth/elevate", { password });
+      setAdminElevation(data.elevationToken, data.expiresInSeconds);
       await api.delete(`/admin/users/${deleteUser.id}`);
       toast("User account permanently deleted.");
       setDeleteUser(null);
@@ -89,6 +95,22 @@ export function UsersPage() {
       toast(messageOf(error), "error");
     } finally {
       setDeleting(false);
+    }
+  };
+  const unlockSessions = async (event) => {
+    event.preventDefault();
+    setElevatingSessions(true);
+    try {
+      const password = new FormData(event.currentTarget).get("password");
+      const { data } = await api.post("/auth/elevate", { password });
+      setAdminElevation(data.elevationToken, data.expiresInSeconds);
+      const account = sessionAccessUser;
+      setSessionAccessUser(null);
+      await openSessions(account);
+    } catch (error) {
+      toast(messageOf(error), "error");
+    } finally {
+      setElevatingSessions(false);
     }
   };
   const openSessions = async (account) => {
@@ -137,9 +159,14 @@ export function UsersPage() {
     <div className="page">
       <div className="page-intro">
         <div>
-          <span className="eyebrow">ADMIN++ · ACCESS CONTROL</span>
+          <span className="eyebrow">
+            {user.adminPlus ? "ADMIN++ · ACCESS CONTROL" : "ADMIN · USER MANAGEMENT"}
+          </span>
           <h1>Users & CR access</h1>
-          <p>Passwords are hashed; only role and access state are visible.</p>
+          <p>
+            Create and manage accounts. Permanent deletion and device-session
+            control require Admin++.
+          </p>
         </div>
         <button className="primary" onClick={() => setOpen(true)}>
           <Plus />
@@ -161,9 +188,14 @@ export function UsersPage() {
               </small>
             </div>
             <div className="user-actions">
-              <button className="secondary" onClick={() => openSessions(u)}>
-                <MonitorSmartphone /> Sessions
-              </button>
+              {user.adminPlus && (
+                <button
+                  className="secondary"
+                  onClick={() => setSessionAccessUser(u)}
+                >
+                  <MonitorSmartphone /> Sessions
+                </button>
+              )}
               {u.role === "CR" && (
                 <button className="secondary" onClick={() => setResetUser(u)}>
                   <KeyRound /> Reset password
@@ -172,10 +204,15 @@ export function UsersPage() {
               <button
                 className="secondary"
                 onClick={() => toggle(u)}
-                disabled={u.id === user.id && u.active}
+                disabled={
+                  (u.id === user.id && u.active) ||
+                  (u.adminPlus && !user.adminPlus)
+                }
                 title={
                   u.id === user.id && u.active
                     ? "You cannot disable your own active account."
+                    : u.adminPlus && !user.adminPlus
+                      ? "Only Admin++ can change an Admin++ account."
                     : ""
                 }
               >
@@ -185,7 +222,7 @@ export function UsersPage() {
                     ? "Disable"
                     : "Enable"}
               </button>
-              {u.id !== user.id && (
+              {user.adminPlus && u.id !== user.id && (
                 <button
                   className="danger-outline"
                   onClick={() => setDeleteUser(u)}
@@ -233,14 +270,24 @@ export function UsersPage() {
         title={deleteUser ? `Delete ${deleteUser.name}?` : "Delete user"}
         onClose={() => !deleting && setDeleteUser(null)}
       >
-        <div className="form-stack">
+        <form className="form-stack" onSubmit={remove}>
           <div className="danger-note">
             This permanently removes the account. AttendX will block deletion
             if the user owns attendance or audit history; disable the account
             instead in that case.
           </div>
+          <label>
+            Confirm your Admin++ password
+            <input
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+            />
+          </label>
           <div className="dialog-actions">
             <button
+              type="button"
               className="secondary"
               onClick={() => setDeleteUser(null)}
               disabled={deleting}
@@ -249,13 +296,52 @@ export function UsersPage() {
             </button>
             <button
               className="danger logout-confirm-button"
-              onClick={remove}
               disabled={deleting}
             >
               <Trash2 /> {deleting ? "Deleting…" : "Delete permanently"}
             </button>
           </div>
-        </div>
+        </form>
+      </Dialog>
+      <Dialog
+        open={!!sessionAccessUser}
+        title={
+          sessionAccessUser
+            ? `Unlock sessions · ${sessionAccessUser.name}`
+            : "Unlock sessions"
+        }
+        onClose={() => !elevatingSessions && setSessionAccessUser(null)}
+      >
+        <form className="form-stack" onSubmit={unlockSessions}>
+          <p>
+            Device-session access is restricted to Admin++. Confirm your
+            password to continue.
+          </p>
+          <label>
+            Current Admin++ password
+            <input
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              autoFocus
+            />
+          </label>
+          <div className="dialog-actions">
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => setSessionAccessUser(null)}
+              disabled={elevatingSessions}
+            >
+              Cancel
+            </button>
+            <button className="primary" disabled={elevatingSessions}>
+              <ShieldCheck />
+              {elevatingSessions ? "Verifying…" : "Open sessions"}
+            </button>
+          </div>
+        </form>
       </Dialog>
       <Dialog
         open={!!sessionsUser}

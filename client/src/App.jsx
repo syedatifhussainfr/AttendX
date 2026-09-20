@@ -16,7 +16,6 @@ import { DatabasePage } from "./pages/Database.jsx";
 import { ChangePassword } from "./pages/ChangePassword.jsx";
 import { BackupsPage } from "./pages/Backups.jsx";
 import { LogoutPage } from "./pages/Logout.jsx";
-import { AdminPlusGate } from "./components/AdminPlusGate.jsx";
 
 function Protected({ children, admin, adminPlus, allowPasswordChange = false }) {
   const { user } = useAuth();
@@ -114,10 +113,8 @@ export function App() {
           <Route
             path="users"
             element={
-              <Protected adminPlus>
-                <AdminPlusGate>
-                  <UsersPage />
-                </AdminPlusGate>
+              <Protected admin>
+                <UsersPage />
               </Protected>
             }
           />
@@ -132,10 +129,8 @@ export function App() {
           <Route
             path="database"
             element={
-              <Protected adminPlus>
-                <AdminPlusGate>
-                  <DatabasePage />
-                </AdminPlusGate>
+              <Protected admin>
+                <DatabasePage />
               </Protected>
             }
           />

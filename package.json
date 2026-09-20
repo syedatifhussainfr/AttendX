@@ -1,7 +1,7 @@
 {
   "name": "attendx-v1",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.1.5",
   "type": "module",
   "workspaces": [
     "client",
@@ -16,6 +16,7 @@
     "backup": "npm run backup -w server",
     "demo-attendance": "npm run demo-attendance -w server --",
     "normalize-rolls": "npm run normalize-rolls -w server",
+    "verify-data": "npm run verify-data -w server",
     "test": "npm test -w server",
     "start": "npm start -w server"
   },

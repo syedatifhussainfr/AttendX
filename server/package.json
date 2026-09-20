@@ -1,6 +1,6 @@
 {
   "name": "attendx-server",
-  "version": "1.1.0",
+  "version": "1.1.5",
   "type": "module",
   "scripts": {
     "dev": "node --watch-path=src src/index.js",
@@ -11,6 +11,7 @@
     "backup": "node src/cli/backup.js",
     "demo-attendance": "node src/cli/generateDemoAttendance.js",
     "normalize-rolls": "node src/cli/normalizeRolls.js",
+    "verify-data": "node src/cli/verifyData.js",
     "test": "cross-env NODE_ENV=test node --test --test-concurrency=1"
   },
   "dependencies": {

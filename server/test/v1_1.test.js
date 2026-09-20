@@ -22,10 +22,12 @@ const attendance = await import("../src/services/attendanceService.js");
 const authSessions = await import("../src/services/authSessionService.js");
 
 let admin;
+let normalAdmin;
 let cr;
 let sessionUser;
 let subject;
 let adminToken;
+let normalAdminToken;
 let crToken;
 let adminElevationToken;
 
@@ -45,6 +47,12 @@ before(async () => {
     passwordHash: await bcrypt.hash("CRTestPass@123", 4),
     role: "CR",
   });
+  normalAdmin = await db.User.create({
+    name: "Standard Admin Test",
+    email: "standard-admin-v11@test.local",
+    passwordHash: await bcrypt.hash("StandardAdmin@123", 4),
+    role: "ADMIN",
+  });
   sessionUser = await db.User.create({
     name: "Session Test",
     email: "session-v11@test.local",
@@ -52,6 +60,11 @@ before(async () => {
     role: "CR",
   });
   adminToken = (await authSessions.createAuthSession(admin, { userAgent: "Admin test browser" })).accessToken;
+  normalAdminToken = (
+    await authSessions.createAuthSession(normalAdmin, {
+      userAgent: "Standard admin test browser",
+    })
+  ).accessToken;
   crToken = (await authSessions.createAuthSession(cr, { userAgent: "CR test browser" })).accessToken;
   const elevation = await request(app)
     .post("/api/auth/elevate")
@@ -368,11 +381,27 @@ test("review export is authenticated, validated and securely named", async () =>
     .expect("Content-Disposition", 'attachment; filename="attendance_2026-09-18.xlsx"');
 });
 
-test("Admin++ management requires password elevation and deletes only safe accounts", async () => {
+test("ADMIN manages accounts while Admin++ elevation protects destructive actions", async () => {
   await request(app)
     .get("/api/admin/users")
-    .set("Authorization", `Bearer ${adminToken}`)
-    .expect(403);
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .expect(200)
+    .expect((response) => {
+      const elevated = response.body.find((row) => row.id === admin.id);
+      assert.equal(elevated.phoneNumber, null);
+    });
+  await request(app)
+    .get("/api/admin/database/overview")
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .expect(200);
+  await request(app)
+    .get("/api/admin/database/tables/users")
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .expect(200)
+    .expect((response) => {
+      assert.equal("passwordHash" in response.body.rows[0], false);
+      assert.equal("phoneNumber" in response.body.rows[0], false);
+    });
   await request(app)
     .post("/api/auth/elevate")
     .set("Authorization", `Bearer ${adminToken}`)
@@ -390,8 +419,7 @@ test("Admin++ management requires password elevation and deletes only safe accou
     .expect(200);
   const created = await request(app)
     .post("/api/admin/users")
-    .set("Authorization", `Bearer ${adminToken}`)
-    .set("X-Admin-Elevation", adminElevationToken)
+    .set("Authorization", `Bearer ${normalAdminToken}`)
     .send({
       name: "Disposable User",
       email: "disposable@test.local",
@@ -400,11 +428,29 @@ test("Admin++ management requires password elevation and deletes only safe accou
     })
     .expect(201);
   await request(app)
+    .patch(`/api/admin/users/${created.body.id}`)
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .send({ active: false })
+    .expect(200);
+  await request(app)
+    .delete(`/api/admin/users/${created.body.id}`)
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .expect(403);
+  await request(app)
+    .delete(`/api/admin/users/${created.body.id}`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .expect(403);
+  await request(app)
     .delete(`/api/admin/users/${created.body.id}`)
     .set("Authorization", `Bearer ${adminToken}`)
     .set("X-Admin-Elevation", adminElevationToken)
     .expect(204);
   assert.equal(await db.User.findByPk(created.body.id), null);
+  await request(app)
+    .patch(`/api/admin/users/${admin.id}`)
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .send({ active: false })
+    .expect(403);
   await request(app)
     .delete(`/api/admin/users/${admin.id}`)
     .set("Authorization", `Bearer ${adminToken}`)
@@ -471,6 +517,10 @@ test("Admin++ can review and revoke another user's login sessions", async () => 
   const second = await authSessions.createAuthSession(managedUser, {
     userAgent: "Managed device two",
   });
+  await request(app)
+    .get(`/api/admin/users/${managedUser.id}/sessions`)
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .expect(403);
   const listed = await request(app)
     .get(`/api/admin/users/${managedUser.id}/sessions`)
     .set("Authorization", `Bearer ${adminToken}`)
@@ -504,16 +554,14 @@ test("Admin++ can review and revoke another user's login sessions", async () => 
 
 test("ADMIN cannot disable their own account but can disable another account", async () => {
   await request(app)
-    .patch(`/api/admin/users/${admin.id}`)
-    .set("Authorization", `Bearer ${adminToken}`)
-    .set("X-Admin-Elevation", adminElevationToken)
+    .patch(`/api/admin/users/${normalAdmin.id}`)
+    .set("Authorization", `Bearer ${normalAdminToken}`)
     .send({ active: false })
     .expect(409);
-  assert.equal((await db.User.findByPk(admin.id)).active, true);
+  assert.equal((await db.User.findByPk(normalAdmin.id)).active, true);
   await request(app)
     .patch(`/api/admin/users/${cr.id}`)
-    .set("Authorization", `Bearer ${adminToken}`)
-    .set("X-Admin-Elevation", adminElevationToken)
+    .set("Authorization", `Bearer ${normalAdminToken}`)
     .send({ active: false })
     .expect(200);
   assert.equal((await db.User.findByPk(cr.id)).active, false);

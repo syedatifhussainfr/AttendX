@@ -1,218 +1,366 @@
 # AttendX
 
-AttendX is a working attendance-management foundation for EIILM Kolkata. It replaces full-class roll call with rapid roll-number entry, preserves `PRESENT`, `LATE`, and `ABSENT` as distinct states, and gives administrators control of students, subjects, the weekly routine, user access, settings, history, exports, and audit logs.
+> A service-operated attendance platform for educational institutions.
 
-## Version status
+AttendX replaces slow roll calls with a controlled attendance workflow for class representatives, administrators, and service operators. It combines timetable-aware session creation, server-authoritative attendance rules, accountable corrections, human-readable reports, backup tooling, and tiered administration in one responsive application.
 
-| Version | Status | Purpose |
-| ------- | ------ | ------- |
-| **V1.0.0** | Released | Stable attendance workflow, administration, CSV onboarding, exports, audit history, and the EIILM glass interface. |
-| **V1.1.0** | Implemented locally — not released | Reliability and administration upgrade: safe backup/restore, reviewed student imports, safer sessions, password management, and accountable corrections. |
-| **V1.2.0** | Planned | Reports, faculty management, academic calendar, semester/section foundations, and richer dashboard insights. |
+![Version](https://img.shields.io/badge/version-1.1.5-0a4a7f)
+![Status](https://img.shields.io/badge/status-release%20candidate-e87524)
+![Runtime](https://img.shields.io/badge/node-20%2B-43853d)
+![Database](https://img.shields.io/badge/database-SQLite%20%7C%20PostgreSQL-315b7d)
 
-The [`v1.0.0` GitHub release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.0.0) is the reproducible stable baseline. V1.1 development happens separately and must not be treated as a production release until its migration, data-preservation, authorization, and regression checks pass.
+## Product position
 
-## V1.0.0 — stable release
+AttendX is designed for a managed-service model: an operator deploys and maintains an isolated instance for an institution, configures its academic data, protects backups, and manages privileged access. Version 1.1.5 is single-institution per deployment. A shared multi-tenant control plane, billing, and institution self-provisioning are future product work and are not falsely represented as existing features.
 
-- JWT authentication, bcrypt password hashing, protected routes, and `ADMIN` / `CR` permissions.
-- CSV/manual student onboarding with normalized roll numbers and no dummy-student seeding.
-- Timetable-aware CR dashboard. Its suggested lecture is never forced.
-- Scheduled, replacement, and extra attendance sessions with an optional adjustment reason.
-- Server-authoritative marking. Fast roll entry clears and refocuses after every submission.
-- Live roll grid, search, counts, missing-roll list, duplicate rejection, review, and confirmed closure.
-- Closure atomically marks every remaining student `ABSENT` and locks normal editing.
-- ADMIN correction of closed history with a permanent audit trail.
-- Student-ready relational schema, including nullable unique `card_token` and `photo_url` fields.
-- CSV student import with a browser-side preview. Format: `rollNumber,name`.
-- Excel `.xlsx` export for one session or a filtered date range / subject.
-- SQLite zero-setup development mode and PostgreSQL/Supabase mode through the same Sequelize models and services.
-- Responsive React interface using the supplied EIILM brand assets.
+Brand assets, institution name, class name, academic session, subjects, timetable, and administrator accounts are deployment configuration—not hard-coded product identity.
 
-### V1.0 data behavior
+## Release status
 
-- The local SQLite file lives at `server/data/attendx.sqlite` and is intentionally excluded from Git.
-- `npm run seed` is idempotent and never creates dummy students.
-- `npm run create-admin` creates a clean administrator account without student or attendance data.
-- Numeric student rolls are normalized (`1` becomes `01`) and listed in natural numeric order.
-- The Admin++ database browser is read-only and never exposes password hashes or arbitrary SQL execution. Account management uses validated, audited controls instead of raw table edits.
+| Version | Status | Summary |
+| --- | --- | --- |
+| `v1.0.0` | Released baseline | Core attendance workflow, basic administration, CSV onboarding, exports, and audit history. |
+| `v1.1.0`–`v1.1.5` | Local release candidate | Reliability, reporting, secure sessions, responsive UX, Admin++ controls, database visibility, and operational tooling. |
+| `v1.2.0` | Planned | Faculty, programme/semester/section modelling, academic calendar, alerting, and service-management foundations. |
 
-## V1.1.0 — current local branch (unreleased)
+The published [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.0.0) remains the stable comparison point. V1.1.5 should stay unreleased until the final checklist in this document is completed on the deployment database.
 
-V1.1 is a safety-focused upgrade built on the V1.0 architecture. Priorities 1–5 below are implemented on the local `v1.1.0` branch but have deliberately not been pushed, tagged, or released. The existing SQLite database was backed up before migration and all 78 imported students were verified intact afterward.
+## V1.0 compared with V1.1.5
 
-1. **Backup and restore:** consistent timestamped SQLite backups, ADMIN-only download and guarded restore, automatic pre-restore backup, CLI backup support, validation, and audit logging.
-2. **Student import reconciliation:** preview additions, name changes, unchanged rows, duplicates, invalid rows, and missing students before a single transactional apply; optionally deactivate missing students and download an error CSV.
-3. **Attendance session safety:** duplicate/open-session and overlap protection, explicit overlap confirmation, opener/closer tracking, actual versus scheduled subject, ADMIN-only reopening with a reason, and race-safe marking/closure.
-4. **Password management:** self-service password changes, current-password verification, stronger passwords, ADMIN reset for CR accounts, forced temporary-password change, session invalidation, login rate limiting, and secure HTTP headers.
-5. **Attendance corrections:** mandatory reasons, immutable before/after history, correction metadata, ADMIN correction for any session, and CR correction only while a session is active.
+| Area | V1.0 | V1.1.5 |
+| --- | --- | --- |
+| Authentication | JWT login | Short-lived in-memory access tokens plus rotating, hashed refresh sessions in `HttpOnly`, `SameSite=Strict` cookies |
+| Logout | Client sign-out | Server-side session revocation, trusted-origin validation, popup flow, and dedicated `/logout` route |
+| Passwords | Hashed passwords | Strong-password policy, forced temporary-password replacement, self-service changes, CR resets, and session invalidation |
+| Administration | `ADMIN` / `CR` | `CR`, `ADMIN`, and elevated `ADMIN++` authority with five-minute password elevation for destructive tools |
+| User management | Basic account controls | ADMIN account management; ADMIN++ permanent deletion and per-user device-session control |
+| Database visibility | Local SQLite file | ADMIN/ADMIN++ read-only browser with redacted credentials and validated management links |
+| Student import | Direct CSV import | Preview and reconciliation for additions, changes, duplicates, invalid rows, and missing students |
+| Attendance safety | Standard session flow | Duplicate/overlap detection, opener/closer ownership, reopen reasons, and race-safe operations |
+| Corrections | Basic edits | Mandatory reason, before/after state, actor, time, and permanent audit history |
+| Reporting | Basic export | Machine export and organized review workbook with overall and subject-level student percentages |
+| Backups | Manual file handling | Managed SQLite snapshots, validation, guarded restore, pre-restore backup, download, and audit logging |
+| Development workflow | Concurrent npm scripts | Colored unified console, scoped API watcher, strict ports, and clean Windows shutdown |
+| Responsive UI | Basic responsiveness | Persistent/resizable desktop sidebar, mobile drawer scroll lock, route progress, and confirmation flows |
 
-An ADMIN may enable or disable other accounts but can never disable the account they are currently signed in with. This rule is enforced by the API and reflected in the interface so a UI bypass cannot cause self-lockout.
+## V1.1 patch history
 
-### Planned for V1.2.0
+### V1.1.0 — data safety foundation
 
-- Student, class, subject, and monthly reports with threshold views and filtered Excel exports.
-- Faculty records with scheduled and replacement faculty history.
-- Academic holidays, closures, cancellations, and special working days.
-- Academic session, semester, course/class, and section foundations with safe default-section migration.
-- Dashboard warnings for open sessions, attendance completion, recent corrections, backup freshness, and students below the configured threshold.
+- Versioned, idempotent database migrations recorded in `app_migrations`.
+- Managed SQLite backup/download/restore with validation and automatic pre-restore snapshot.
+- Transactional CSV reconciliation and optional deactivation of missing students.
+- Duplicate and overlapping attendance-session protection.
+- Reason-backed reopening and correction audit history.
+- Stronger password lifecycle and temporary-password enforcement.
 
-These items remain deliberately unimplemented until the V1.1 safety work is complete; there are no non-working placeholder controls for them.
+### V1.1.1 — reporting and test-data operations
 
-### Using the V1.1 features
+- Human-review `.xlsx` workbook in addition to machine-oriented export.
+- Per-student identity, roll number, class totals, subject totals, attended counts, rounded percentage, and precise percentage.
+- Secure, validated export filters and predictable `attendance_YYYY-MM-DD.xlsx` naming.
+- Backup-aware demo-attendance generator that uses existing students and never creates dummy student records.
+- Roll-number normalization utility for data imported by older versions.
 
-- **Backup:** ADMIN → **Backup & restore** → **Create backup**, or run `npm run backup`. Managed files are stored in `server/backups` and excluded from Git.
-- **Restore:** upload a SQLite backup, enter the signed-in ADMIN password, and type `RESTORE ATTENDX`. AttendX validates the file, creates a pre-restore safety backup, restores it, and stops the API. Run `npm run dev` again afterward.
-- **Temporary attendance data:** after creating a backup, run `npm run demo-attendance -- 12` to generate 12 closed sessions for the existing active students. It never creates students or users and refuses to create a second demo set until the clean backup is restored.
-- **Reviewed import:** ADMIN → **Students** → **Import CSV**. AttendX understands quoted fields, normalizes numeric rolls, and displays additions, name changes, unchanged rows, duplicates, invalid rows, and missing students before applying anything. Choose whether missing students stay active or are deactivated.
-- **Session conflicts:** starting an identical open session is blocked. An overlapping/open-session warning requires a second explicit action and records the override as an extra or replacement class.
-- **Reopen:** only ADMIN can reopen a closed session, and a reason is mandatory. Reopening and re-closing are audited.
-- **Secure exports:** authenticated users can download raw machine data from `GET /api/attendance/export` or an organized human-review workbook from `GET /api/attendance/export/review`. Both accept validated `from`, `to`, `subjectId`, and `sessionId` filters. Review reports use closed sessions only. They identify every student by roll number and full name, show every session status, and calculate overall plus subject-level held classes, recorded classes, attended counts, rounded percentages, precise percentages, and class totals.
-- **Passwords:** every account can use **Change password**. New/reset accounts must replace their temporary password; a password change revokes previous tokens. ADMIN can reset CR passwords but cannot view passwords.
-- **Device sessions:** browser access tokens are short-lived and kept only in memory. A rotating high-entropy refresh token is stored as a hash in the database and sent only through an `HttpOnly`, `SameSite=Strict` cookie. **Change password** lists active devices, supports individual revocation and **Sign out all other devices**, and password changes, account deactivation, password resets, database restores, refresh-token reuse, and explicit logout revoke server-side sessions.
-- **Security navigation:** voluntary password changes show a confirmation dialog with a per-account **Don't show again** preference. Forced temporary-password changes cannot be skipped. A slim progress bar confirms every page transition.
-- **Corrections:** a reason is mandatory. The roll grid marks edited records and preserves original status, current status, reason, administrator/CR, and correction time.
-- **Self-lockout protection:** the current ADMIN account cannot be disabled, even by calling the API directly. Other accounts can still be enabled or disabled.
-- **Admin++ protected management:** run `npm run admin-pp` to promote an existing ADMIN, create a new Admin++, or revoke Admin++ back to normal ADMIN. The CLI verifies the account password, requires explicit confirmation for revocation, clears the privileged mobile number when revoked, revokes existing sessions after privilege changes, and uses the configurable `ADMIN_PHONE_COUNTRY_CODE` and `ADMIN_PHONE_LOCAL_DIGITS` settings. Browser access to Users and Database requires Admin++ plus a fresh password confirmation that expires after five minutes and is never written to browser storage.
-- **Safe account deletion:** Admin++ can permanently delete an unused account after confirmation. AttendX blocks self-deletion, deletion of the last active Admin++, and deletion of accounts attached to attendance or audit history; those accounts must be disabled instead.
+### V1.1.2 — secure browser sessions
 
-## Attendance rule
+- High-entropy rotating refresh tokens stored only as hashes.
+- Short-lived access tokens stored only in memory.
+- Active-device list, individual revocation, and revoke-all-other-devices.
+- Refresh-token reuse detection and global account-session invalidation.
+- Protection against SQLite authentication writes causing refresh-time lockouts.
+- Password changes, resets, account disabling, restores, and logout revoke affected sessions.
 
-The default late threshold is 15 minutes and is configurable by ADMIN. The value is copied onto a session when it opens so a later setting change cannot rewrite history.
+### V1.1.3 — responsive product interface
 
-For a lecture starting at 09:30:
+- Reworked glass interface with restrained branded background treatment.
+- Persistent desktop sidebar visibility and bounded resizing.
+- Scrollable mobile navigation with background scroll lock.
+- Route progress indicator and consistent confirmation dialogs.
+- Improved login, password, attendance, dashboard, and report interactions.
+- Dedicated `/logout` page while preserving the quick sidebar confirmation dialog.
 
-- `09:30:00` through `09:44:59`: `PRESENT`, `attendance_credit = true`.
-- `09:45:00` onward: `LATE`, `attendance_credit = false`.
-- Still unmarked when the session closes: `ABSENT`, `attendance_credit = false`.
+### V1.1.4 — Admin++ and protected data operations
 
-Attendance percentage is `PRESENT / classes conducted × 100`. A physical appearance is `PRESENT + LATE`; a late arrival never increases the credited percentage and is never rewritten as absent.
+- CLI promotion, creation, and revocation of Admin++ authority.
+- Configurable administrator mobile-number validation.
+- Five-minute in-memory password elevation for destructive browser actions.
+- Safe permanent deletion for unused users, students, and subjects.
+- Deletion blocked when audit, timetable, attendance, self-lockout, or last-Admin++ rules require preservation.
+- Per-user device-session inspection and revocation for Admin++.
+- Read-only database browser that never exposes password hashes, token hashes, arbitrary SQL, or editable raw cells.
 
-## Windows setup from zero (SQLite — recommended first run)
+### V1.1.5 — role hierarchy and release operations
 
-Prerequisites: Node.js 20+ (Node 24 is supported), npm, and PowerShell. PostgreSQL is not required for the first run.
+- ADMIN access restored to Users and Database without granting destructive authority.
+- ADMIN can create accounts, reset CR passwords, and enable or disable ordinary managed accounts.
+- ADMIN cannot modify Admin++ accounts, permanently delete protected data, or control another user’s sessions.
+- ADMIN++ retains password-confirmed deletion and privileged session controls.
+- Trusted-origin logout endpoint and separate URL/button logout experiences.
+- Scoped API watcher prevents dependency or sync-client changes from restarting the backend.
+- Colored cross-platform development console with strict ports and clean shutdown.
+- Repeatable `npm run verify-data` integrity report.
+- Product-oriented documentation and V1.0-to-V1.1 comparison.
 
-```powershell
-cd "C:\Users\v4t3r\OneDrive\Desktop\PROJECTS\AttendX\AttendX - V1"
-Copy-Item ".\server\.env.example" ".\server\.env"
-npm install
-npm run seed
-npm run dev
-```
+## Permission model
 
-Open `http://localhost:5173`. The API runs at `http://localhost:4000`; its health check is `http://localhost:4000/api/health`.
+| Capability | CR | ADMIN | ADMIN++ |
+| --- | :---: | :---: | :---: |
+| View dashboard, students, history, and reports | ✓ | ✓ | ✓ |
+| Open and close attendance sessions | ✓ | ✓ | ✓ |
+| Correct an active session where policy permits | ✓ | ✓ | ✓ |
+| Correct/reopen closed attendance with a reason | — | ✓ | ✓ |
+| Manage students, subjects, timetable, and settings | — | ✓ | ✓ |
+| Create users and reset CR passwords | — | ✓ | ✓ |
+| Enable/disable ordinary managed accounts | — | ✓ | ✓ |
+| View the redacted, read-only database browser | — | ✓ | ✓ |
+| Modify an Admin++ account | — | — | ✓ |
+| Inspect/revoke another user’s browser sessions | — | — | ✓ |
+| Permanently delete eligible users/students/subjects | — | — | ✓ |
+| Promote or revoke Admin++ | — | — | CLI only |
 
-The SQLite database is created at `server/data/attendx.sqlite`. Running `npm run seed` again is safe: it does not duplicate the seeded records.
+Raw database records remain read-only for both ADMIN and ADMIN++. Data changes go through validated API workflows so authorization, relationships, and audit rules cannot be bypassed.
 
-## Clean installation without dummy students
-
-`npm run seed` creates the initial subjects, timetable, settings, and local test accounts, but it does not create students. For a clean installation with only your own ADMIN account:
-
-```powershell
-cd "C:\Users\v4t3r\OneDrive\Desktop\PROJECTS\AttendX\AttendX - V1"
-Copy-Item ".\server\.env.example" ".\server\.env"
-npm install
-npm run create-admin
-```
-
-The command asks for the administrator's name, email, password, and password confirmation. Password input is hidden. It creates the database schema, the ADMIN account, and essential system settings only. It does not add dummy students, subjects, timetable entries, or attendance records.
-
-Then run `npm run dev`, sign in as the new ADMIN, and import the real student CSV from **Students → Import CSV**. Configure Subjects and Timetable from their respective ADMIN pages.
-
-Numeric roll numbers are normalized during import (`1` becomes `01`) and displayed in natural numeric order. To repair roll numbers imported by an older AttendX build, run `npm run normalize-rolls` once while the server is stopped.
-
-For automation, arguments are also supported, although putting a password directly on the command line can leave it in shell history:
-
-```powershell
-npm run create-admin -- --name "System Administrator" --email "admin@example.com" --password "ChangeThisPassword"
-```
-
-### Test accounts
-
-| Role  | Email                 | Password    |
-| ----- | --------------------- | ----------- |
-| ADMIN | `admin@attendx.local` | `Admin@12345` |
-| CR    | `cr@attendx.local`    | `CR@123456`   |
-
-These credentials apply only when those accounts are first created by the V1.1 seed. Seeded accounts must change the temporary password after login. Existing accounts and passwords are never overwritten by another seed. Passwords stored in the database are bcrypt hashes, never plaintext.
-
-## PostgreSQL / Supabase setup
-
-Create a PostgreSQL database, then edit `server/.env`:
-
-```dotenv
-DB_DIALECT=postgres
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/attendx
-DB_SSL=false
-JWT_SECRET=use-a-long-random-production-secret
-```
-
-For a hosted Supabase connection, use its PostgreSQL connection string and normally set `DB_SSL=true`. Then run:
-
-```powershell
-npm run seed
-npm run dev
-```
-
-AttendX creates the base tables and then applies versioned, idempotent migrations recorded in `app_migrations`. The V1.1 SQLite web backup/restore page is intentionally unavailable for PostgreSQL. Use the provider's managed backup tools or `pg_dump`/`pg_restore`, for example:
-
-```powershell
-pg_dump --format=custom --file=attendx.backup $env:DATABASE_URL
-pg_restore --clean --if-exists --dbname=$env:DATABASE_URL attendx.backup
-```
-
-Run PostgreSQL restoration only during a maintenance window and take a provider snapshot first.
-
-## Useful commands
-
-```powershell
-npm run dev       # frontend + backend
-npm run backup    # safe timestamped SQLite backup
-npm run demo-attendance -- 12 # temporary sessions/records for analytics testing
-npm run create-admin    # create a clean permanent ADMIN account
-npm run admin-pp        # promote, create, or revoke ADMIN++ access
-npm run normalize-rolls # repair numeric rolls imported by an older build
-npm test          # backend business-rule tests
-npm run build     # production frontend build
-npm run seed      # subjects, timetable, settings and local test accounts (no students)
-npm start         # backend without watch mode
-```
-
-## Verification walkthrough
-
-1. Sign in as CR, confirm today's routine, and choose **Start attendance**.
-2. Accept the suggested subject or select the class actually being conducted.
-3. Enter `01` and press Enter. The API assigns status from its own timestamp.
-4. Enter more rolls; entering `01` again returns its existing state and creates no duplicate.
-5. For deterministic late-boundary testing run `npm test`; the test explicitly checks `09:44:59` versus `09:45:00`. In the UI, a session whose scheduled start is already 15+ minutes ago produces `LATE` with zero credit.
-6. Review the roll grid and the **Missing** strip, then choose **Review & close**.
-7. Confirm closure; all unmarked active students become `ABSENT` in one transaction.
-8. Open Attendance History, view totals, and export the session to `.xlsx`.
-9. Sign in as ADMIN to edit the timetable/settings, correct closed records with a reason, and inspect Audit Logs.
-
-## Project structure
+## Architecture
 
 ```text
-AttendX - V1/
-├── client/                 React + Vite UI
-│   ├── public/brand/       Supplied EIILM assets
-│   └── src/                pages, layout, state and API client
+AttendX/
+├── client/                  React 19 + Vite interface
+│   ├── public/brand/        Replaceable deployment brand assets
+│   └── src/                 Pages, layout, auth state, and API client
 ├── server/
-│   ├── src/db/             Sequelize schema and idempotent seed
-│   ├── src/middleware/     authentication, authorization, errors
-│   ├── src/routes/         focused API route modules
-│   └── src/services/       attendance rules and Excel export
+│   ├── src/cli/             Admin, backup, demo, normalization, verification tools
+│   ├── src/db/              Sequelize models, migrations, and development seed
+│   ├── src/middleware/      Authentication, authorization, and error handling
+│   ├── src/routes/          Auth, attendance, administration, and backup APIs
+│   └── src/services/        Session, attendance, import, export, and backup rules
+├── scripts/dev.js           Unified local development runner
 └── README.md
 ```
 
-## V2 plan (intentionally deferred)
+### Technology
 
-Camera scanning, card design, PWA/offline mode, official-register workbook layout, and full XLSX student import are not half-implemented placeholders in V1. The next QR version should generate a random, revocable `card_token`; it must not encode a roll number or sensitive personal information. A lost card can then have its token revoked and replaced. A scanner will resolve the token to a student and call the existing `markAttendance(...)` service, preserving the exact same timing, duplicate, credit, and audit rules.
+- React 19, React Router, Vite, and Lucide icons.
+- Node.js, Express 5, Sequelize, and Zod.
+- SQLite for portable deployments; PostgreSQL/Supabase for managed hosting.
+- ExcelJS for machine and human-review workbooks.
+- bcrypt for password hashing and signed JWT access/elevation tokens.
 
-## Troubleshooting
+## Quick start
 
-- **`npm install` fails on `sqlite3`:** install current Node.js LTS and the Visual Studio C++ build tools, then retry. Node 20/22 LTS usually has a matching prebuilt binary.
-- **Port already in use:** change `PORT` in `server/.env` and the `/api` proxy target in `client/vite.config.js` together.
-- **Login fails after editing the database:** rerun `npm run seed`, then use the exact test credentials above.
-- **PostgreSQL SSL error:** hosted services commonly require `DB_SSL=true`; local PostgreSQL commonly uses `false`.
-- **Times look wrong:** keep `timezone` set to `Asia/Kolkata`. Attendance classification is performed on the server, not from the browser clock.
-- **Reset local data:** stop the servers, preserve or remove only `server/data/attendx.sqlite`, then run `npm run create-admin` or `npm run seed` and import the roster CSV.
+### Requirements
+
+- Node.js 20 or newer.
+- npm 10 or newer.
+- PowerShell, Bash, or another standard terminal.
+- PostgreSQL is optional; SQLite is the default.
+
+### Recommended clean installation
+
+```bash
+git clone https://github.com/syedatifhussainfr/AttendX.git
+cd AttendX
+npm install
+```
+
+Create the server configuration:
+
+```powershell
+Copy-Item server/.env.example server/.env
+```
+
+On Bash-compatible shells:
+
+```bash
+cp server/.env.example server/.env
+```
+
+Create the first permanent administrator without dummy students or attendance:
+
+```bash
+npm run create-admin
+npm run dev
+```
+
+Open `http://localhost:5173`. The API health endpoint is `http://localhost:4000/api/health`.
+
+After signing in:
+
+1. Update institution, academic-session, class, timezone, and attendance settings.
+2. Configure subjects and the weekly timetable.
+3. Import the real roster from **Students → Import CSV**.
+4. Create the CR and any additional administrator accounts.
+5. Take the first backup before recording attendance.
+
+### Development seed
+
+`npm run seed` is intended only for local evaluation. It creates bundled development accounts, subjects, timetable entries, and settings; it never creates students or attendance records. Production/service deployments should use `npm run create-admin` and configure their own academic data.
+
+## Configuration
+
+Important values in `server/.env`:
+
+```dotenv
+PORT=4000
+CLIENT_URL=http://localhost:5173
+JWT_SECRET=replace-with-a-long-random-production-secret
+
+DB_DIALECT=sqlite
+SQLITE_PATH=./data/attendx.sqlite
+BACKUP_DIR=./backups
+
+ADMIN_PHONE_COUNTRY_CODE=+91
+ADMIN_PHONE_LOCAL_DIGITS=10
+```
+
+For PostgreSQL:
+
+```dotenv
+DB_DIALECT=postgres
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE
+DB_SSL=true
+```
+
+Production requirements:
+
+- Use HTTPS and a unique high-entropy `JWT_SECRET` of at least 32 characters.
+- Set `CLIENT_URL` to the exact public application origin.
+- Store database and backup volumes outside ephemeral application storage.
+- Restrict database/network access to the service operator.
+- Use provider snapshots or `pg_dump`/`pg_restore` for PostgreSQL.
+- Keep one tested off-machine backup according to the customer’s retention agreement.
+
+## Commands
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start API and web app in the unified colored development console. |
+| `npm run build` | Produce the production frontend bundle. |
+| `npm test` | Run backend business, authorization, session, export, and integrity tests. |
+| `npm run create-admin` | Create a clean permanent ADMIN account and essential settings. |
+| `npm run admin-pp` | Promote an ADMIN, create Admin++, or revoke Admin++ authority. |
+| `npm run backup` | Create and validate a timestamped SQLite snapshot. |
+| `npm run verify-data` | Run read-only integrity, foreign-key, duplicate-roll, administrator, and count checks. |
+| `npm run demo-attendance -- 12` | Create deterministic closed sessions for existing students after a backup. |
+| `npm run normalize-rolls` | Normalize numeric rolls imported by older builds. |
+| `npm run seed` | Populate local development accounts and academic configuration; never students. |
+| `npm start` | Start only the backend without watch mode. |
+
+## Operational workflows
+
+### Create or promote Admin++
+
+```bash
+npm run admin-pp
+```
+
+Choose the CLI action, select or create the administrator, verify the account password, provide the configured mobile number, and confirm. Privilege changes revoke existing sessions so the account must sign in again. Admin++ can also be revoked back to ordinary ADMIN from the same command.
+
+### Import students
+
+Use a UTF-8 CSV with headers:
+
+```csv
+rollNumber,name
+01,Student One
+02,Student Two
+```
+
+The preview separates new, changed, unchanged, invalid, duplicate, and missing rows. Nothing is written until an administrator confirms the reconciliation. Numeric rolls are normalized (`1` becomes `01`) and naturally sorted.
+
+### Backup and restore
+
+Create a backup from **Backup & restore** or:
+
+```bash
+npm run backup
+```
+
+Restoration requires an ADMIN password plus the exact confirmation phrase. AttendX validates the upload, creates a pre-restore snapshot, restores the database, revokes sessions, and stops the API. Restart the service only after the restore response completes.
+
+### Verify live data
+
+Stop write-heavy maintenance jobs, then run:
+
+```bash
+npm run backup
+npm run verify-data
+```
+
+A release-ready SQLite database must pass `PRAGMA integrity_check`, have zero foreign-key violations, contain no duplicate roll numbers, and retain at least one active ADMIN. Admin++ is recommended for service operation but is reported as a warning rather than corrupting otherwise-valid data.
+
+### Reports
+
+- **Machine data:** normalized workbook for downstream processing.
+- **Review report:** human-readable workbook containing student identity, rolls, session status, total held/recorded/attended classes, overall percentages, and subject-level metrics.
+- Filters support date range, subject, or individual attendance session.
+- Review exports include closed sessions only so unfinished classes do not distort percentages.
+
+## Attendance rules
+
+The default late threshold is 15 minutes and is configurable. Its value is copied into each attendance session when opened, so later configuration changes cannot rewrite history.
+
+For a class beginning at `09:30` with a 15-minute threshold:
+
+- `09:30:00`–`09:44:59`: `PRESENT`, attendance credit granted.
+- `09:45:00` onward: `LATE`, no attendance credit.
+- Unmarked when the session closes: `ABSENT`, no attendance credit.
+
+Credited attendance percentage is `PRESENT / classes conducted × 100`. Physical appearance may be reported as `PRESENT + LATE`, but a late arrival never increases credited attendance.
+
+## Security model
+
+- Passwords are bcrypt hashes and are never returned by the API.
+- Access tokens are short-lived and memory-only.
+- Refresh tokens are high entropy, rotated, sent only as secure cookies, and stored only as hashes.
+- Reusing a rotated refresh token revokes the account’s sessions.
+- Login and Admin++ password elevation are rate limited.
+- Helmet security headers and exact-origin credentialed CORS are enabled.
+- Logout is POST-only, checks request origin, clears the cookie, and revokes the database session.
+- Admin++ elevation is password-confirmed, memory-only, tied to the current session, and expires after five minutes.
+- Database browsing redacts password, refresh-token, token-history, and IP-hash material.
+- Destructive deletion is refused when historical relationships require deactivation instead.
+- Self-disable, self-delete, and last-active-Admin++ protections prevent avoidable lockout.
+
+## Final V1.1.5 verification checklist
+
+- [x] Create a fresh validated backup of the deployment database.
+- [x] Run `npm run verify-data` and retain the output with the release record.
+- [x] Run `npm test` with every test passing.
+- [x] Run `npm run build` successfully.
+- [ ] Sign in as CR and complete one attendance session.
+- [ ] Sign in as ADMIN and verify Users plus read-only Database access.
+- [ ] Confirm ADMIN cannot delete records, alter Admin++, or manage another user’s sessions.
+- [ ] Sign in as Admin++ and confirm password-elevated deletion/session controls.
+- [ ] Export both machine and review workbooks and inspect student/subject totals.
+- [ ] Verify sidebar and `/logout` flows revoke the current session.
+- [ ] Perform one restore rehearsal using a non-production copy.
+- [ ] Confirm HTTPS, production secrets, backup retention, and monitoring before public deployment.
+
+### Automated verification record — 20 September 2026
+
+- Validated backup: `attendx-cli-2026-09-20T07-35-27-394Z.sqlite` (`131,072` bytes).
+- Data: 3 users, 2 active administrators, 1 active Admin++, 78 students (all active), 12 subjects, and 20 timetable entries.
+- Integrity: SQLite `integrity_check` passed, foreign-key check passed, and duplicate roll-number count was zero.
+- Regression suite: 22 of 22 server tests passed.
+- Frontend: Vite production build completed successfully with 1,668 modules transformed.
+- Attendance sessions/records were both zero at verification time; no test attendance was written to the deployment database.
+
+The remaining unchecked items require deliberate browser, restore-rehearsal, or production-environment validation and are not claimed by the automated checks.
+
+## Roadmap
+
+Planned product work includes:
+
+- Institution onboarding and operator control plane.
+- Programme, semester, class, section, and academic-year modelling.
+- Faculty accounts and substitution history.
+- Holidays, closures, cancelled lectures, and special working days.
+- Attendance thresholds, alerts, and scheduled customer reports.
+- Customer-specific branding and domain configuration.
+- Multi-tenant isolation, subscriptions, billing, and support operations.
+- QR/card attendance using random revocable tokens rather than personal data.
+
+## Important scope statement
+
+V1.1.5 is suitable for controlled pilot evaluation and service-operated deployment after the final checklist passes. It is not yet a self-service multi-tenant SaaS platform. Each institution should receive an isolated deployment and database until tenant isolation, provisioning, billing, and operator tooling are deliberately implemented and independently reviewed.

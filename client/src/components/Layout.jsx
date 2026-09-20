@@ -30,15 +30,13 @@ const baseLinks = [
   ["/change-password", "Change password", KeyRound],
 ];
 const adminLinks = [
+  ["/users", "Users & CR access", Users],
+  ["/database", "Database", Database],
   ["/subjects", "Subjects", BookOpen],
   ["/timetable", "Timetable", CalendarDays],
   ["/audit", "Audit logs", ShieldCheck],
   ["/backups", "Backup & restore", DatabaseBackup],
   ["/settings", "Settings", Settings],
-];
-const adminPlusLinks = [
-  ["/users", "Users & CR access", Users],
-  ["/database", "Database", Database],
 ];
 const SIDEBAR_MIN = 214;
 const SIDEBAR_MAX = 340;
@@ -204,17 +202,6 @@ export function Layout() {
                   {label}
                 </NavLink>
               ))}
-              {user.adminPlus &&
-                adminPlusLinks.map(([to, label, Icon]) => (
-                  <NavLink
-                    key={to}
-                    to={to}
-                    onClick={() => setOpen(false)}
-                  >
-                    <Icon />
-                    {label}
-                  </NavLink>
-                ))}
             </>
           )}
         </nav>

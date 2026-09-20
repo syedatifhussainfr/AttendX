@@ -304,18 +304,23 @@ router.put("/settings", requireRole("ADMIN"), async (req, res) => {
     await Setting.upsert({ key, value: JSON.stringify(value) });
   res.json(data);
 });
-router.get("/users", requireAdminPlus, requireAdminElevation, async (req, res) =>
+router.get("/users", requireRole("ADMIN"), async (req, res) => {
+  const rows = await User.findAll({
+    attributes: { exclude: ["passwordHash"] },
+    order: [
+      ["role", "ASC"],
+      ["name", "ASC"],
+    ],
+  });
   res.json(
-    await User.findAll({
-      attributes: { exclude: ["passwordHash"] },
-      order: [
-        ["role", "ASC"],
-        ["name", "ASC"],
-      ],
+    rows.map((row) => {
+      const visible = publicUser(row);
+      if (!req.user.adminPlus) visible.phoneNumber = null;
+      return visible;
     }),
-  ),
-);
-router.post("/users", requireAdminPlus, requireAdminElevation, async (req, res) => {
+  );
+});
+router.post("/users", requireRole("ADMIN"), async (req, res) => {
   const data = z
     .object({
       name: z.string().min(2),
@@ -348,7 +353,7 @@ router.post("/users", requireAdminPlus, requireAdminElevation, async (req, res) 
   });
   res.status(201).json(publicUser(created));
 });
-router.patch("/users/:id", requireAdminPlus, requireAdminElevation, async (req, res) => {
+router.patch("/users/:id", requireRole("ADMIN"), async (req, res) => {
   const row = await User.findByPk(req.params.id);
   if (!row) return res.status(404).json({ message: "User not found." });
   const data = z
@@ -358,6 +363,11 @@ router.patch("/users/:id", requireAdminPlus, requireAdminElevation, async (req, 
       active: z.boolean().optional(),
     })
     .parse(req.body);
+  if (row.adminPlus && !req.user.adminPlus)
+    return res.status(403).json({
+      code: "ADMIN_PLUS_REQUIRED",
+      message: "Only Admin++ can change an Admin++ account.",
+    });
   if (row.id === req.user.id && data.active === false)
     return res.status(409).json({
       code: "SELF_DISABLE_BLOCKED",
@@ -369,6 +379,15 @@ router.patch("/users/:id", requireAdminPlus, requireAdminElevation, async (req, 
       code: "SELF_ROLE_CHANGE_BLOCKED",
       message:
         "You cannot remove ADMIN access from the account you are currently using.",
+    });
+  if (
+    row.adminPlus &&
+    data.active === false &&
+    (await User.count({ where: { adminPlus: true, active: true } })) <= 1
+  )
+    return res.status(409).json({
+      code: "LAST_ADMIN_PLUS",
+      message: "The last active Admin++ account cannot be disabled.",
     });
   const before = publicUser(row);
   await sequelize.transaction(async (transaction) => {
@@ -390,8 +409,7 @@ router.patch("/users/:id", requireAdminPlus, requireAdminElevation, async (req, 
 });
 router.post(
   "/users/:id/reset-password",
-  requireAdminPlus,
-  requireAdminElevation,
+  requireRole("ADMIN"),
   async (req, res) => {
     const row = await User.findByPk(req.params.id);
     if (!row) return res.status(404).json({ message: "User not found." });
@@ -562,7 +580,7 @@ router.get("/audit-logs", requireRole("ADMIN"), async (req, res) =>
 const databaseTables = {
   users: {
     model: User,
-    attributes: { exclude: ["passwordHash"] },
+    attributes: { exclude: ["passwordHash", "phoneNumber"] },
     order: [["id", "ASC"]],
   },
   students: { model: Student, order: [["id", "ASC"]] },
@@ -586,7 +604,7 @@ const databaseTables = {
   app_migrations: { model: AppMigration, order: [["appliedAt", "DESC"]] },
 };
 
-router.get("/database/overview", requireAdminPlus, requireAdminElevation, async (req, res) => {
+router.get("/database/overview", requireRole("ADMIN"), async (req, res) => {
   const entries = await Promise.all(
     Object.entries(databaseTables).map(async ([name, definition]) => [
       name,
@@ -602,8 +620,7 @@ router.get("/database/overview", requireAdminPlus, requireAdminElevation, async 
 
 router.get(
   "/database/tables/:table",
-  requireAdminPlus,
-  requireAdminElevation,
+  requireRole("ADMIN"),
   async (req, res) => {
     const definition = databaseTables[req.params.table];
     if (!definition)

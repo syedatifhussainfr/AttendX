@@ -136,7 +136,7 @@ export function ChangePassword() {
             </div>
           </div>
         </div>
-        <small className="security-foot">AttendX V1.1 · Asia/Kolkata</small>
+        <small className="security-foot">AttendX V1.1.5 · Asia/Kolkata</small>
       </section>
 
       <section className="security-form-side">

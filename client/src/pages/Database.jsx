@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { api, messageOf } from "../api.js";
 import { useToast } from "../state/ToastContext.jsx";
+import { useAuth } from "../state/AuthContext.jsx";
 
 const labels = {
   users: "Users",
@@ -36,7 +37,7 @@ const managementAreas = [
     tables: ["users"],
     route: "/users",
     label: "Users & access",
-    description: "Create, disable, reset, or safely delete accounts.",
+    description: "Create, enable, disable, and reset managed accounts.",
     action: "Manage users",
     Icon: Users,
   },
@@ -113,6 +114,7 @@ export function DatabasePage() {
   const [loading, setLoading] = useState(true);
   const toast = useToast();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     api
@@ -138,7 +140,10 @@ export function DatabasePage() {
       Object.keys(row).forEach((key) => names.add(key));
     return [...names];
   }, [result]);
-  const selectedManagement = managementAreas.find((area) =>
+  const visibleManagementAreas = user.adminPlus
+    ? managementAreas
+    : managementAreas.filter((area) => !area.tables.includes("auth_sessions"));
+  const selectedManagement = visibleManagementAreas.find((area) =>
     area.tables.includes(selected),
   );
   const SelectedManagementIcon = selectedManagement?.Icon;
@@ -164,11 +169,15 @@ export function DatabasePage() {
     <div className="page database-page">
       <div className="page-intro">
         <div>
-          <span className="eyebrow">ADMIN++ · SECURE CONSOLE</span>
+          <span className="eyebrow">
+            {user.adminPlus
+              ? "ADMIN++ · SECURE CONSOLE"
+              : "ADMIN · READ-ONLY DATABASE"}
+          </span>
           <h1>Database</h1>
           <p>
-            Inspect every table, then create or edit data through protected,
-            validated management controls.
+            Inspect every table, then manage data through validated application
+            controls. Raw database rows are never edited here.
           </p>
         </div>
         <div className="database-engine">
@@ -213,7 +222,7 @@ export function DatabasePage() {
           <ShieldCheck />
         </div>
         <div className="database-management-grid">
-          {managementAreas.map(({ route, label, description, Icon }) => (
+          {visibleManagementAreas.map(({ route, label, description, Icon }) => (
             <button key={route} onClick={() => navigate(route)}>
               <span>
                 <Icon />
