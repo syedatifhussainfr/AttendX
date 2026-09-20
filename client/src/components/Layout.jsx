@@ -46,11 +46,13 @@ const clampSidebarWidth = (value) =>
   Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, Number(value) || 238));
 
 export function Layout() {
-  const { user } = useAuth(),
+  const { user, logout } = useAuth(),
     navigate = useNavigate(),
     [open, setOpen] = useState(false),
     [passwordPrompt, setPasswordPrompt] = useState(false),
     [skipPasswordPrompt, setSkipPasswordPrompt] = useState(false),
+    [logoutPrompt, setLogoutPrompt] = useState(false),
+    [loggingOut, setLoggingOut] = useState(false),
     [sidebarVisible, setSidebarVisible] = useState(
       () => localStorage.getItem("attendx_sidebar_visible") !== "false",
     ),
@@ -58,9 +60,19 @@ export function Layout() {
       clampSidebarWidth(localStorage.getItem("attendx_sidebar_width")),
     );
   const passwordPromptKey = `attendx_skip_password_prompt_${user.id}`;
+  const doLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await logout();
+      navigate("/login", { replace: true });
+    } finally {
+      setLoggingOut(false);
+      setLogoutPrompt(false);
+    }
+  };
   const requestLogout = () => {
     setOpen(false);
-    navigate("/logout");
+    setLogoutPrompt(true);
   };
   useEffect(() => {
     if (!open) return undefined;
@@ -301,6 +313,41 @@ export function Layout() {
             </button>
             <button className="primary" onClick={continueToPassword}>
               Continue to security <KeyRound />
+            </button>
+          </div>
+        </div>
+      </Dialog>
+      <Dialog
+        open={logoutPrompt}
+        title="Sign out of AttendX?"
+        onClose={() => !loggingOut && setLogoutPrompt(false)}
+      >
+        <div className="logout-confirmation">
+          <span className="logout-confirmation-icon">
+            <LogOut />
+          </span>
+          <div>
+            <h3>End this session</h3>
+            <p>
+              You’ll need to enter your email and password to access AttendX
+              again on this browser.
+            </p>
+          </div>
+          <div className="dialog-actions">
+            <button
+              className="secondary"
+              onClick={() => setLogoutPrompt(false)}
+              disabled={loggingOut}
+            >
+              Stay signed in
+            </button>
+            <button
+              className="danger logout-confirm-button"
+              onClick={doLogout}
+              disabled={loggingOut}
+            >
+              {loggingOut ? "Signing out…" : "Sign out"}
+              <LogOut />
             </button>
           </div>
         </div>
