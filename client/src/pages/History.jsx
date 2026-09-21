@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Download, Filter, ShieldAlert, Trash2 } from "lucide-react";
+import {
+  ArrowRight,
+  Download,
+  Filter,
+  ShieldAlert,
+  Trash2,
+} from "lucide-react";
 import { api, messageOf, setAdminElevation } from "../api.js";
 import { useToast } from "../state/ToastContext.jsx";
 import { downloadAttendanceExport } from "../utils/download.js";
@@ -202,21 +208,25 @@ export function History() {
       >
         <form className="form-stack delete-attendance-form" onSubmit={remove}>
           <div className="destructive-summary">
-            <ShieldAlert />
+            <span className="destructive-summary-icon">
+              <ShieldAlert />
+            </span>
             <div>
               <strong>This cannot be undone</strong>
               <p>
                 {deleteSession?.Subject.name} · {deleteSession?.sessionDate} ·{" "}
-                {deleteSession?.scheduledStartTime}–{deleteSession?.scheduledEndTime}
+                {deleteSession?.scheduledStartTime}–
+                {deleteSession?.scheduledEndTime}
               </p>
               <small>
-                Attendance records will be removed, while a deletion snapshot,
-                reason, administrator, and time remain in the audit log.
+                Detailed attendance records will be removed. The session
+                snapshot, your reason, identity, and deletion time stay in the
+                audit log.
               </small>
             </div>
           </div>
-          <label>
-            Reason for deletion
+          <label className="delete-attendance-field">
+            <span className="field-label">Reason for deletion</span>
             <textarea
               name="reason"
               minLength="5"
@@ -224,19 +234,34 @@ export function History() {
               required
               placeholder="Explain why this attendance history must be removed"
             />
+            <small className="field-help">
+              Required · 5–250 characters · recorded permanently
+            </small>
           </label>
-          <label>
-            Type <code>DELETE ATTENDANCE</code>
+          <label className="delete-attendance-field confirmation-field">
+            <span className="field-label">Confirmation phrase</span>
+            <small className="field-help">
+              Type <code>DELETE ATTENDANCE</code> exactly as shown.
+            </small>
             <input
               name="confirmation"
               autoComplete="off"
               pattern="DELETE ATTENDANCE"
+              spellCheck="false"
               required
             />
           </label>
-          <label>
-            Your Admin++ password
-            <input name="password" type="password" autoComplete="current-password" required />
+          <label className="delete-attendance-field">
+            <span className="field-label">Your Admin++ password</span>
+            <input
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+            />
+            <small className="field-help">
+              Password confirmation unlocks this action for five minutes.
+            </small>
           </label>
           <div className="dialog-actions">
             <button
