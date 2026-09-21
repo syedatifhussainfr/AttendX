@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Download, Filter } from "lucide-react";
-import { api, messageOf } from "../api.js";
+import { ArrowRight, Download, Filter, ShieldAlert, Trash2 } from "lucide-react";
+import { api, messageOf, setAdminElevation } from "../api.js";
 import { useToast } from "../state/ToastContext.jsx";
 import { downloadAttendanceExport } from "../utils/download.js";
 import { useAuth } from "../state/AuthContext.jsx";
+import { Dialog } from "../components/Dialog.jsx";
 export function History() {
   const [rows, setRows] = useState([]),
     [subjects, setSubjects] = useState([]),
+    [filters, setFilters] = useState({}),
+    [deleteSession, setDeleteSession] = useState(null),
+    [deleting, setDeleting] = useState(false),
     toast = useToast(),
     nav = useNavigate(),
     { can } = useAuth();
@@ -30,7 +34,33 @@ export function History() {
   }, []);
   const filter = (e) => {
     e.preventDefault();
-    load(Object.fromEntries(new FormData(e.currentTarget)));
+    const nextFilters = Object.fromEntries(new FormData(e.currentTarget));
+    setFilters(nextFilters);
+    load(nextFilters);
+  };
+  const remove = async (event) => {
+    event.preventDefault();
+    const form = Object.fromEntries(new FormData(event.currentTarget));
+    setDeleting(true);
+    try {
+      const { data } = await api.post("/auth/elevate", {
+        password: form.password,
+      });
+      setAdminElevation(data.elevationToken, data.expiresInSeconds);
+      await api.delete(`/attendance/sessions/${deleteSession.id}`, {
+        data: {
+          confirmation: form.confirmation,
+          reason: form.reason,
+        },
+      });
+      toast("Attendance session permanently deleted. Its audit snapshot was preserved.");
+      setDeleteSession(null);
+      await load(filters);
+    } catch (error) {
+      toast(messageOf(error), "error");
+    } finally {
+      setDeleting(false);
+    }
   };
   const exportRange = async (e, review) => {
     const params = Object.fromEntries(
@@ -104,7 +134,7 @@ export function History() {
               <th>Type</th>
               <th>Present</th>
               <th>Late</th>
-              <th>Absent / missing</th>
+              <th>Absent / pending</th>
               <th>Status</th>
               <th />
             </tr>
@@ -129,7 +159,7 @@ export function History() {
                 <td>
                   {r.status === "CLOSED"
                     ? r.summary.absent
-                    : 78 - r.summary.total}
+                    : r.summary.pending}
                 </td>
                 <td>
                   <span className={`table-status ${r.status.toLowerCase()}`}>
@@ -137,13 +167,25 @@ export function History() {
                   </span>
                 </td>
                 <td>
-                  <button
-                    className="row-action"
-                    onClick={() => nav(`/attendance/${r.id}`)}
-                  >
-                    View
-                    <ArrowRight />
-                  </button>
+                  <div className="history-actions">
+                    <button
+                      className="row-action"
+                      onClick={() => nav(`/attendance/${r.id}`)}
+                    >
+                      View
+                      <ArrowRight />
+                    </button>
+                    {r.status === "CLOSED" && can("attendance.delete") && (
+                      <button
+                        className="history-delete"
+                        onClick={() => setDeleteSession(r)}
+                        aria-label={`Delete ${r.Subject.name} attendance from ${r.sessionDate}`}
+                        title="Permanently delete this closed session"
+                      >
+                        <Trash2 />
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -153,6 +195,65 @@ export function History() {
           <div className="empty">No sessions match these filters.</div>
         )}
       </section>
+      <Dialog
+        open={!!deleteSession}
+        title="Permanently delete attendance?"
+        onClose={() => !deleting && setDeleteSession(null)}
+      >
+        <form className="form-stack delete-attendance-form" onSubmit={remove}>
+          <div className="destructive-summary">
+            <ShieldAlert />
+            <div>
+              <strong>This cannot be undone</strong>
+              <p>
+                {deleteSession?.Subject.name} · {deleteSession?.sessionDate} ·{" "}
+                {deleteSession?.scheduledStartTime}–{deleteSession?.scheduledEndTime}
+              </p>
+              <small>
+                Attendance records will be removed, while a deletion snapshot,
+                reason, administrator, and time remain in the audit log.
+              </small>
+            </div>
+          </div>
+          <label>
+            Reason for deletion
+            <textarea
+              name="reason"
+              minLength="5"
+              maxLength="250"
+              required
+              placeholder="Explain why this attendance history must be removed"
+            />
+          </label>
+          <label>
+            Type <code>DELETE ATTENDANCE</code>
+            <input
+              name="confirmation"
+              autoComplete="off"
+              pattern="DELETE ATTENDANCE"
+              required
+            />
+          </label>
+          <label>
+            Your Admin++ password
+            <input name="password" type="password" autoComplete="current-password" required />
+          </label>
+          <div className="dialog-actions">
+            <button
+              type="button"
+              className="secondary"
+              disabled={deleting}
+              onClick={() => setDeleteSession(null)}
+            >
+              Cancel
+            </button>
+            <button className="danger" disabled={deleting}>
+              <Trash2 />
+              {deleting ? "Deleting…" : "Delete permanently"}
+            </button>
+          </div>
+        </form>
+      </Dialog>
     </div>
   );
 }

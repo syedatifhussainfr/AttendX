@@ -10,6 +10,7 @@ const crPermissions = {
     correctOpen: true,
     correctClosed: false,
     reopen: false,
+    delete: false,
   },
   students: {
     view: true,
@@ -63,6 +64,7 @@ const adminPermissions = rolePermissions(crPermissions, {
 });
 
 const adminPlusPermissions = rolePermissions(adminPermissions, {
+  attendance: { delete: true },
   students: { delete: true },
   subjects: { delete: true },
   users: { delete: true, manageSessions: true, modifyAdminPlus: true },
@@ -80,6 +82,7 @@ export const defaultPolicy = {
 // Privilege ceilings: protected permissions may be disabled, but cannot be
 // granted to a lower-trust role.
 export const protectedPermissions = {
+  "attendance.delete": { CR: false, ADMIN: false },
   "students.delete": { CR: false, ADMIN: false },
   "subjects.delete": { CR: false, ADMIN: false },
   "users.create": { CR: false },
@@ -97,6 +100,7 @@ export const permissionDependencies = {
   "attendance.correctOpen": ["attendance.view"],
   "attendance.correctClosed": ["attendance.view"],
   "attendance.reopen": ["attendance.view"],
+  "attendance.delete": ["attendance.view"],
   "students.create": ["students.view"],
   "students.update": ["students.view"],
   "students.import": ["students.view"],

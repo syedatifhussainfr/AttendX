@@ -263,6 +263,70 @@ export async function closeSession({ sessionId, userId, now = new Date() }) {
   });
 }
 
+export async function deleteAttendanceSession({ sessionId, userId, reason }) {
+  return sequelize.transaction(async (transaction) => {
+    const session = await AttendanceSession.findByPk(sessionId, {
+      include: [Subject, AttendanceRecord],
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    if (!session) {
+      const error = new Error("Attendance session not found.");
+      error.status = 404;
+      throw error;
+    }
+    if (session.status !== "CLOSED") {
+      const error = new Error(
+        "Only closed attendance history can be permanently deleted.",
+      );
+      error.status = 409;
+      error.code = "SESSION_MUST_BE_CLOSED";
+      throw error;
+    }
+
+    const summary = summarize(session.AttendanceRecords);
+    const snapshot = {
+      id: session.id,
+      sessionDate: session.sessionDate,
+      scheduledStartTime: session.scheduledStartTime,
+      scheduledEndTime: session.scheduledEndTime,
+      subjectId: session.SubjectId,
+      subjectCode: session.Subject?.code || null,
+      subjectName: session.Subject?.name || null,
+      sessionType: session.sessionType,
+      status: session.status,
+      createdById: session.createdById,
+      closedById: session.closedById,
+      closedAt: session.closedAt,
+      summary,
+    };
+
+    // Preserve earlier audit entries while removing their now-invalid FK.
+    await AuditLog.update(
+      { AttendanceSessionId: null },
+      { where: { AttendanceSessionId: session.id }, transaction },
+    );
+    await AttendanceRecord.destroy({
+      where: { AttendanceSessionId: session.id },
+      transaction,
+    });
+    await session.destroy({ transaction });
+    await AuditLog.create(
+      {
+        entityType: "ATTENDANCE_SESSION",
+        entityId: snapshot.id,
+        action: "SESSION_DELETED",
+        oldValue: JSON.stringify(snapshot),
+        reason,
+        UserId: userId,
+        AttendanceSessionId: null,
+      },
+      { transaction },
+    );
+    return snapshot;
+  });
+}
+
 export function summarize(records) {
   const total = records.length,
     present = records.filter((r) => r.status === "PRESENT").length,

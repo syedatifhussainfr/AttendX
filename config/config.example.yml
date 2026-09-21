@@ -13,6 +13,7 @@ permissions:
       correctOpen: true
       correctClosed: false
       reopen: false
+      delete: false
     students:
       view: true
       create: false
@@ -60,6 +61,7 @@ permissions:
       correctOpen: true
       correctClosed: true
       reopen: true
+      delete: false
     students:
       view: true
       create: true
@@ -107,6 +109,7 @@ permissions:
       correctOpen: true
       correctClosed: true
       reopen: true
+      delete: true
     students:
       view: true
       create: true

@@ -36,7 +36,7 @@ The published [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/re
 | User management | Basic account controls | ADMIN account management; ADMIN++ permanent deletion and per-user device-session control |
 | Database visibility | Local SQLite file | ADMIN/ADMIN++ read-only browser with redacted credentials and validated management links |
 | Student import | Direct CSV import | Preview and reconciliation for additions, changes, duplicates, invalid rows, and missing students |
-| Attendance safety | Standard session flow | Duplicate/overlap detection, opener/closer ownership, reopen reasons, and race-safe operations |
+| Attendance safety | Standard session flow | Explicit roll-click Present/Late marking, pending-to-Absent closure, duplicate/overlap detection, opener/closer ownership, reopen reasons, and race-safe operations |
 | Corrections | Basic edits | Mandatory reason, before/after state, actor, time, and permanent audit history |
 | Reporting | Basic export | Machine export and organized review workbook with overall and subject-level student percentages |
 | Backups | Manual file handling | Managed SQLite snapshots, validation, guarded restore, pre-restore backup, download, and audit logging |
@@ -132,6 +132,7 @@ The published [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/re
 | Modify an Admin++ account | — | — | ✓ |
 | Inspect/revoke another user’s browser sessions | — | — | ✓ |
 | Permanently delete eligible users/students/subjects | — | — | ✓ |
+| Permanently delete closed attendance history with an audit snapshot | — | — | ✓ |
 | Promote or revoke Admin++ | — | — | CLI only |
 
 Raw database records remain read-only for both ADMIN and ADMIN++. Data changes go through validated API workflows so authorization, relationships, and audit rules cannot be bypassed.
@@ -347,6 +348,10 @@ For a class beginning at `09:30` with a 15-minute threshold:
 - `09:45:00` onward: `LATE`, no attendance credit.
 - Unmarked when the session closes: `ABSENT`, no attendance credit.
 
+During an open session, select a roll card and explicitly choose **Present** or **Late**. Leaving a roll untouched keeps it pending; AttendX does not silently mark it absent while the session is live. The close review lists all pending rolls, and only confirmation converts them to **Absent**. Authorized corrections can still change recorded or closed attendance later, but require a reason and preserve the original value, actor, and time in the audit log.
+
+Admin++ may permanently delete a closed attendance session from **Attendance history**. This destructive workflow requires fresh password elevation, the exact confirmation phrase, and a reason. Open sessions cannot be deleted, ordinary ADMIN cannot use the action, and a permanent audit snapshot of the deleted session and its totals remains available.
+
 Credited attendance percentage is `PRESENT / classes conducted × 100`. Physical appearance may be reported as `PRESENT + LATE`, but a late arrival never increases credited attendance.
 
 ## Security model
@@ -361,11 +366,12 @@ Credited attendance percentage is `PRESENT / classes conducted × 100`. Physical
 - Admin++ elevation is password-confirmed, memory-only, tied to the current session, and expires after five minutes.
 - Database browsing redacts password, refresh-token, token-history, and IP-hash material.
 - Destructive deletion is refused when historical relationships require deactivation instead.
+- Closed attendance deletion preserves an audit snapshot even after its detailed records are removed.
 - Self-disable, self-delete, and last-active-Admin++ protections prevent avoidable lockout.
 
 ## V1.1.6 verification
 
-- 26 backend tests cover attendance rules, imports, exports, sessions, authorization, backups, Admin++, and self-healing configuration.
+- 27 backend tests cover attendance rules, imports, exports, sessions, authorization, backups, Admin++, destructive history controls, and self-healing configuration.
 - Production frontend compilation succeeds with Vite.
 - `npm run config-check` validates YAML parsing, structural repair, permission dependencies, and protected privilege ceilings.
 - `npm run verify-data` checks SQLite integrity, foreign keys, duplicate rolls, administrator availability, and record totals without modifying data.

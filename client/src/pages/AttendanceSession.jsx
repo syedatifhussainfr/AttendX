@@ -31,6 +31,8 @@ export function AttendanceSessionPage() {
     [roll, setRoll] = useState(""),
     [query, setQuery] = useState(""),
     [busy, setBusy] = useState(false),
+    [quickStudent, setQuickStudent] = useState(null),
+    [quickBusy, setQuickBusy] = useState(false),
     [selected, setSelected] = useState(null),
     [closing, setClosing] = useState(false),
     [reopening, setReopening] = useState(false),
@@ -96,6 +98,23 @@ export function AttendanceSessionPage() {
       toast(messageOf(err), "error");
     } finally {
       setBusy(false);
+    }
+  };
+  const quickMark = async (status) => {
+    if (!quickStudent) return;
+    setQuickBusy(true);
+    try {
+      await api.post(
+        `/attendance/sessions/${id}/students/${quickStudent.id}/mark`,
+        { status },
+      );
+      toast(`Roll ${quickStudent.rollNumber} marked ${status}.`);
+      setQuickStudent(null);
+      await load(true);
+    } catch (error) {
+      toast(messageOf(error), "error");
+    } finally {
+      setQuickBusy(false);
     }
   };
   const close = async () => {
@@ -287,7 +306,10 @@ export function AttendanceSessionPage() {
         <div className="panel-title">
           <div>
             <h2>Live roll grid</h2>
-            <p>Select a roll to view or correct its attendance.</p>
+            <p>
+              Select an unmarked roll to choose PRESENT or LATE. Leave it
+              untouched and it becomes ABSENT only when the session closes.
+            </p>
           </div>
           <div className="search">
             <Search />
@@ -306,7 +328,20 @@ export function AttendanceSessionPage() {
               <button
                 key={student.id}
                 className={`roll-tile ${state} ${r?.correctedAt ? "corrected" : ""}`}
-                onClick={() => setSelected(student)}
+                onClick={() => {
+                  if (
+                    !r &&
+                    s.status === "OPEN" &&
+                    can("attendance.mark")
+                  )
+                    setQuickStudent(student);
+                  else setSelected(student);
+                }}
+                title={
+                  !r && s.status === "OPEN"
+                    ? "Choose Present or Late"
+                    : "View attendance details"
+                }
               >
                 <strong>{student.rollNumber}</strong>
                 <span>{r?.status || "Not marked"}</span>
@@ -317,6 +352,57 @@ export function AttendanceSessionPage() {
           })}
         </div>
       </section>
+      <Dialog
+        open={!!quickStudent}
+        title={
+          quickStudent
+            ? `Mark roll ${quickStudent.rollNumber} · ${quickStudent.name}`
+            : "Mark attendance"
+        }
+        onClose={() => !quickBusy && setQuickStudent(null)}
+      >
+        <div className="quick-mark-panel">
+          <p>
+            Choose the student’s recorded status. Cancel or leave this roll
+            untouched to keep it pending; pending rolls become absent only
+            when you confirm session closure.
+          </p>
+          <div className="quick-mark-actions">
+            <button
+              type="button"
+              className="quick-mark-option present"
+              disabled={quickBusy}
+              onClick={() => quickMark("PRESENT")}
+            >
+              <Check />
+              <span>
+                <strong>Present</strong>
+                <small>Counts toward attendance</small>
+              </span>
+            </button>
+            <button
+              type="button"
+              className="quick-mark-option late"
+              disabled={quickBusy}
+              onClick={() => quickMark("LATE")}
+            >
+              <Clock3 />
+              <span>
+                <strong>Late</strong>
+                <small>Recorded appearance, zero credit</small>
+              </span>
+            </button>
+          </div>
+          <button
+            type="button"
+            className="secondary full"
+            disabled={quickBusy}
+            onClick={() => setQuickStudent(null)}
+          >
+            Keep unmarked for now
+          </button>
+        </div>
+      </Dialog>
       <Dialog
         open={!!selected}
         title={selected ? `Roll ${selected.rollNumber} · ${selected.name}` : ""}
@@ -350,8 +436,9 @@ export function AttendanceSessionPage() {
               </div>
             )}
           </div>
-          {((s.status === "OPEN" && can("attendance.correctOpen")) ||
-            (s.status === "CLOSED" && can("attendance.correctClosed"))) && (
+          {records.has(selected?.id) &&
+            ((s.status === "OPEN" && can("attendance.correctOpen")) ||
+              (s.status === "CLOSED" && can("attendance.correctClosed"))) && (
             <form onSubmit={correct} className="form-stack">
               <label>
                 Set attendance status

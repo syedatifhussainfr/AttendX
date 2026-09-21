@@ -552,6 +552,103 @@ test("Admin++ can review and revoke another user's login sessions", async () => 
     .expect(401);
 });
 
+test("roll selection marks present or late, close assigns absence, and only elevated Admin++ deletes history", async () => {
+  const live = await db.AttendanceSession.create({
+    sessionDate: "2026-09-19",
+    scheduledStartTime: "12:00",
+    scheduledEndTime: "13:00",
+    openedAt: new Date("2026-09-19T06:30:00Z"),
+    status: "OPEN",
+    sessionType: "EXTRA",
+    reason: "Attendance workflow test",
+    lateThresholdMinutes: 15,
+    SubjectId: subject.id,
+    scheduledSubjectId: subject.id,
+    createdById: cr.id,
+  });
+  const rollOne = await db.Student.findOne({ where: { rollNumber: "01" } });
+  const rollThree = await db.Student.findOne({ where: { rollNumber: "03" } });
+
+  const marked = await request(app)
+    .post(`/api/attendance/sessions/${live.id}/students/${rollOne.id}/mark`)
+    .set("Authorization", `Bearer ${crToken}`)
+    .send({ status: "LATE" })
+    .expect(201);
+  assert.equal(marked.body.record.status, "LATE");
+  await request(app)
+    .post(`/api/attendance/sessions/${live.id}/students/${rollThree.id}/mark`)
+    .set("Authorization", `Bearer ${crToken}`)
+    .send({ status: "ABSENT" })
+    .expect(400);
+
+  const prematureDelete = await request(app)
+    .delete(`/api/attendance/sessions/${live.id}`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .send({
+      confirmation: "DELETE ATTENDANCE",
+      reason: "Testing open-session protection",
+    })
+    .expect(409);
+  assert.equal(prematureDelete.body.code, "SESSION_MUST_BE_CLOSED");
+
+  await request(app)
+    .post(`/api/attendance/sessions/${live.id}/close`)
+    .set("Authorization", `Bearer ${crToken}`)
+    .expect(200);
+  const autoAbsent = await db.AttendanceRecord.findOne({
+    where: { AttendanceSessionId: live.id, StudentId: rollThree.id },
+  });
+  assert.equal(autoAbsent.status, "ABSENT");
+
+  await request(app)
+    .delete(`/api/attendance/sessions/${live.id}`)
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .send({
+      confirmation: "DELETE ATTENDANCE",
+      reason: "Standard admins cannot delete",
+    })
+    .expect(403);
+  await request(app)
+    .delete(`/api/attendance/sessions/${live.id}`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .send({
+      confirmation: "DELETE ATTENDANCE",
+      reason: "Elevation is mandatory",
+    })
+    .expect(403);
+  await request(app)
+    .delete(`/api/attendance/sessions/${live.id}`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .send({
+      confirmation: "DELETE ATTENDANCE",
+      reason: "Disposable automated workflow test",
+    })
+    .expect(204);
+
+  assert.equal(await db.AttendanceSession.findByPk(live.id), null);
+  assert.equal(
+    await db.AttendanceRecord.count({
+      where: { AttendanceSessionId: live.id },
+    }),
+    0,
+  );
+  const deletionAudit = await db.AuditLog.findOne({
+    where: {
+      entityType: "ATTENDANCE_SESSION",
+      entityId: live.id,
+      action: "SESSION_DELETED",
+    },
+  });
+  assert.ok(deletionAudit);
+  assert.equal(deletionAudit.AttendanceSessionId, null);
+  assert.equal(deletionAudit.reason, "Disposable automated workflow test");
+  const snapshot = JSON.parse(deletionAudit.oldValue);
+  assert.equal(snapshot.summary.late, 1);
+  assert.equal(snapshot.summary.absent, 1);
+});
+
 test("ADMIN cannot disable their own account but can disable another account", async () => {
   await request(app)
     .patch(`/api/admin/users/${normalAdmin.id}`)

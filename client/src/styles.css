@@ -3489,6 +3489,149 @@ select {
   border-color: rgba(218, 149, 157, 0.46);
 }
 
+.quick-mark-panel > p {
+  margin: 0 0 16px;
+  color: #607587;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.quick-mark-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.quick-mark-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 82px;
+  padding: 15px;
+  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.5);
+  color: #17364f;
+  box-shadow: 0 8px 24px rgba(26, 61, 87, 0.06);
+  transition: border-color 0.16s ease, background-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.quick-mark-option:hover {
+  transform: none;
+  box-shadow: 0 10px 26px rgba(26, 61, 87, 0.1);
+}
+
+.quick-mark-option.present:hover {
+  border-color: rgba(57, 151, 113, 0.42);
+  background: rgba(222, 246, 237, 0.8);
+}
+
+.quick-mark-option.late:hover {
+  border-color: rgba(210, 135, 56, 0.42);
+  background: rgba(255, 239, 219, 0.84);
+}
+
+.quick-mark-option > svg {
+  width: 23px;
+  flex: 0 0 auto;
+}
+
+.quick-mark-option.present > svg {
+  color: #17805d;
+}
+
+.quick-mark-option.late > svg {
+  color: #b66118;
+}
+
+.quick-mark-option span,
+.quick-mark-option strong,
+.quick-mark-option small {
+  display: block;
+}
+
+.quick-mark-option small {
+  margin-top: 3px;
+  color: #6e8190;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.quick-mark-panel .full {
+  width: 100%;
+  justify-content: center;
+}
+
+.history-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.history-delete {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: #a43b43;
+  border: 1px solid rgba(175, 67, 75, 0.2);
+  border-radius: 9px;
+  background: rgba(255, 245, 245, 0.64);
+  transition: border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.history-delete:hover {
+  transform: none;
+  border-color: rgba(175, 67, 75, 0.42);
+  background: rgba(255, 232, 234, 0.86);
+}
+
+.history-delete svg {
+  width: 15px;
+}
+
+.destructive-summary {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 14px;
+  border: 1px solid rgba(172, 71, 59, 0.2);
+  border-radius: 13px;
+  background: rgba(255, 236, 233, 0.64);
+}
+
+.destructive-summary > svg {
+  width: 22px;
+  color: #a33d35;
+}
+
+.destructive-summary strong,
+.destructive-summary p,
+.destructive-summary small {
+  display: block;
+}
+
+.destructive-summary p {
+  margin: 4px 0;
+  color: #374f62;
+  font-size: 12px;
+}
+
+.destructive-summary small {
+  color: #6c7e8c;
+  line-height: 1.5;
+}
+
+.delete-attendance-form textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
 .table-panel {
   background: rgba(255, 255, 255, 0.59);
 }
@@ -4341,6 +4484,20 @@ body.sidebar-resizing * {
   .logout-confirmation-icon {
     width: 40px;
     height: 40px;
+  }
+
+  .quick-mark-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-mark-option {
+    min-height: 68px;
+  }
+
+  .destructive-summary {
+    grid-template-columns: 32px 1fr;
+    gap: 9px;
+    padding: 12px;
   }
 
   .count-strip {

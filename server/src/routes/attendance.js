@@ -3,7 +3,12 @@ import { Op } from "sequelize";
 import { DateTime } from "luxon";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
-import { requireAuth, requirePermission } from "../middleware/auth.js";
+import {
+  requireAdminElevation,
+  requireAdminPlus,
+  requireAuth,
+  requirePermission,
+} from "../middleware/auth.js";
 import { hasPermission } from "../policy/policyService.js";
 import {
   AttendanceSession,
@@ -19,6 +24,7 @@ import {
   getSessionDetail,
   summarize,
   reopenSession,
+  deleteAttendanceSession,
 } from "../services/attendanceService.js";
 import { openAttendanceSession } from "../services/sessionService.js";
 import {
@@ -151,25 +157,44 @@ router.get("/sessions", requirePermission("attendance.view"), async (req, res) =
       ...(req.query.to && { [Op.lte]: req.query.to }),
     };
   if (req.query.subjectId) where.SubjectId = req.query.subjectId;
-  const sessions = await AttendanceSession.findAll({
-    where,
-    limit: 100,
-    order: [
-      ["sessionDate", "DESC"],
-      ["openedAt", "DESC"],
-    ],
-    include: [Subject, AttendanceRecord],
-  });
+  const [sessions, activeStudentCount] = await Promise.all([
+    AttendanceSession.findAll({
+      where,
+      limit: 100,
+      order: [
+        ["sessionDate", "DESC"],
+        ["openedAt", "DESC"],
+      ],
+      include: [Subject, AttendanceRecord],
+    }),
+    Student.count({ where: { active: true } }),
+  ]);
   res.json(
-    sessions.map((s) => ({
-      ...s.toJSON(),
-      summary: summarize(s.AttendanceRecords),
-    })),
+    sessions.map((s) => {
+      const summary = summarize(s.AttendanceRecords);
+      return {
+        ...s.toJSON(),
+        summary: {
+          ...summary,
+          pending:
+            s.status === "OPEN"
+              ? Math.max(0, activeStudentCount - summary.total)
+              : 0,
+        },
+      };
+    }),
   );
 });
 router.get("/sessions/:id", requirePermission("attendance.view"), async (req, res) => {
   const session = await getSessionDetail(req.params.id);
-  const students = await Student.findAll({ where: { active: true } });
+  const activeStudents = await Student.findAll({ where: { active: true } });
+  const studentsById = new Map(
+    session.AttendanceRecords.filter((record) => record.Student).map(
+      (record) => [record.Student.id, record.Student],
+    ),
+  );
+  for (const student of activeStudents) studentsById.set(student.id, student);
+  const students = [...studentsById.values()];
   students.sort(compareRollNumbers);
   res.json({
     session,
@@ -200,6 +225,23 @@ router.post(
         .json({ message: error.message, existing: error.existing });
     next(error);
   }
+  },
+);
+router.post(
+  "/sessions/:id/students/:studentId/mark",
+  requirePermission("attendance.mark"),
+  async (req, res) => {
+    const { status } = z
+      .object({ status: z.enum(["PRESENT", "LATE"]) })
+      .parse(req.body);
+    res.status(201).json(
+      await markAttendance({
+        sessionId: req.params.id,
+        studentId: Number(req.params.studentId),
+        status,
+        markedById: req.user.id,
+      }),
+    );
   },
 );
 router.patch("/sessions/:id/students/:studentId", async (req, res) => {
@@ -255,6 +297,26 @@ router.post(
       reason,
     }),
   );
+  },
+);
+router.delete(
+  "/sessions/:id",
+  requirePermission("attendance.delete"),
+  requireAdminPlus,
+  requireAdminElevation,
+  async (req, res) => {
+    const { reason } = z
+      .object({
+        confirmation: z.literal("DELETE ATTENDANCE"),
+        reason: z.string().trim().min(5).max(250),
+      })
+      .parse(req.body);
+    await deleteAttendanceSession({
+      sessionId: req.params.id,
+      userId: req.user.id,
+      reason,
+    });
+    res.status(204).end();
   },
 );
 router.get(
