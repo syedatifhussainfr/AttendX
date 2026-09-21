@@ -348,7 +348,7 @@ For a class beginning at `09:30` with a 15-minute threshold:
 - `09:45:00` onward: `LATE`, no attendance credit.
 - Unmarked when the session closes: `ABSENT`, no attendance credit.
 
-During an open session, select a roll card and explicitly choose **Present** or **Late**. Leaving a roll untouched keeps it pending; AttendX does not silently mark it absent while the session is live. The close review lists all pending rolls, and only confirmation converts them to **Absent**. Authorized corrections can still change recorded or closed attendance later, but require a reason and preserve the original value, actor, and time in the audit log.
+During an open session, choose the persistent **Present**, **Late**, or **Remove mark** tool and then select as many roll cards as needed. Present and Late can overwrite one another, while Remove mark returns a roll to pending; those live changes preserve actor, time, and before/after audit history. Leaving a roll untouched keeps it pending, and AttendX does not silently mark it absent while the session is live. The close review lists all pending rolls, and only confirmation converts them to **Absent**. Authorized closed-session corrections still require an explicit reason.
 
 Admin++ may permanently delete a closed attendance session from **Attendance history**. This destructive workflow requires fresh password elevation, the exact confirmation phrase, and a reason. Open sessions cannot be deleted, ordinary ADMIN cannot use the action, and a permanent audit snapshot of the deleted session and its totals remains available.
 

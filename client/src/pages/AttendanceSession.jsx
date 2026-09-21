@@ -3,9 +3,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Check,
+  CheckCircle2,
   Clock3,
   Download,
+  Eraser,
   Lock,
+  MousePointer2,
   Search,
   UserRoundCheck,
   X,
@@ -31,8 +34,8 @@ export function AttendanceSessionPage() {
     [roll, setRoll] = useState(""),
     [query, setQuery] = useState(""),
     [busy, setBusy] = useState(false),
-    [quickStudent, setQuickStudent] = useState(null),
-    [quickBusy, setQuickBusy] = useState(false),
+    [markTool, setMarkTool] = useState("PRESENT"),
+    [applying, setApplying] = useState(() => new Set()),
     [selected, setSelected] = useState(null),
     [closing, setClosing] = useState(false),
     [reopening, setReopening] = useState(false),
@@ -51,6 +54,26 @@ export function AttendanceSessionPage() {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [id]);
+  useEffect(() => {
+    const selectTool = (event) => {
+      if (data?.session.status !== "OPEN") return;
+      const element = event.target;
+      if (
+        element instanceof HTMLInputElement ||
+        element instanceof HTMLTextAreaElement ||
+        element instanceof HTMLSelectElement ||
+        element?.isContentEditable
+      )
+        return;
+      const shortcut = { 1: "PRESENT", 2: "LATE", 3: "REMOVE" }[event.key];
+      if (!shortcut || (shortcut === "REMOVE" && !can("attendance.correctOpen")))
+        return;
+      event.preventDefault();
+      setMarkTool(shortcut);
+    };
+    window.addEventListener("keydown", selectTool);
+    return () => window.removeEventListener("keydown", selectTool);
+  }, [data?.session.status, can]);
   const records = useMemo(
     () =>
       new Map(
@@ -100,21 +123,43 @@ export function AttendanceSessionPage() {
       setBusy(false);
     }
   };
-  const quickMark = async (status) => {
-    if (!quickStudent) return;
-    setQuickBusy(true);
+  const applyMarkTool = async (student) => {
+    const existing = records.get(student.id);
+    const status = markTool === "REMOVE" ? null : markTool;
+    if ((!existing && status === null) || existing?.status === status) return;
+    if (existing && !can("attendance.correctOpen")) {
+      toast("You do not have permission to overwrite or remove this mark.", "error");
+      return;
+    }
+    setApplying((current) => new Set(current).add(student.id));
     try {
-      await api.post(
-        `/attendance/sessions/${id}/students/${quickStudent.id}/mark`,
+      const { data: result } = await api.patch(
+        `/attendance/sessions/${id}/students/${student.id}/selection`,
         { status },
       );
-      toast(`Roll ${quickStudent.rollNumber} marked ${status}.`);
-      setQuickStudent(null);
-      await load(true);
+      setData((current) => {
+        if (!current) return current;
+        const currentRecords = current.session.AttendanceRecords || [];
+        const nextRecords = result.record
+          ? currentRecords.some((record) => record.StudentId === student.id)
+            ? currentRecords.map((record) =>
+                record.StudentId === student.id ? result.record : record,
+              )
+            : [...currentRecords, result.record]
+          : currentRecords.filter((record) => record.StudentId !== student.id);
+        return {
+          ...current,
+          session: { ...current.session, AttendanceRecords: nextRecords },
+        };
+      });
     } catch (error) {
       toast(messageOf(error), "error");
     } finally {
-      setQuickBusy(false);
+      setApplying((current) => {
+        const next = new Set(current);
+        next.delete(student.id);
+        return next;
+      });
     }
   };
   const close = async () => {
@@ -305,10 +350,11 @@ export function AttendanceSessionPage() {
       <section className="panel grid-panel">
         <div className="panel-title">
           <div>
-            <h2>Live roll grid</h2>
+            <h2>{s.status === "OPEN" ? "Live attendance board" : "Attendance roll"}</h2>
             <p>
-              Select an unmarked roll to choose PRESENT or LATE. Leave it
-              untouched and it becomes ABSENT only when the session closes.
+              {s.status === "OPEN"
+                ? "Choose a tool, then select as many rolls as needed. Pending rolls become absent only after final review."
+                : "Select a roll to inspect its recorded attendance and correction history."}
             </p>
           </div>
           <div className="search">
@@ -320,89 +366,90 @@ export function AttendanceSessionPage() {
             />
           </div>
         </div>
-        <div className="roll-grid">
+        {s.status === "OPEN" && can("attendance.mark") && (
+          <div className="attendance-toolbox" role="toolbar" aria-label="Attendance marking tools">
+            <div className="toolbox-heading">
+              <span className="toolbox-icon"><MousePointer2 /></span>
+              <div>
+                <strong>Marking tool</strong>
+                <small>The active tool stays selected while you mark rolls.</small>
+              </div>
+            </div>
+            <div className="attendance-tools">
+              <button
+                type="button"
+                className={`attendance-tool present ${markTool === "PRESENT" ? "active" : ""}`}
+                aria-pressed={markTool === "PRESENT"}
+                aria-keyshortcuts="1"
+                onClick={() => setMarkTool("PRESENT")}
+              >
+                <CheckCircle2 />
+                <span><strong>Present</strong><small>Give attendance credit</small></span>
+                <kbd>1</kbd>
+              </button>
+              <button
+                type="button"
+                className={`attendance-tool late ${markTool === "LATE" ? "active" : ""}`}
+                aria-pressed={markTool === "LATE"}
+                aria-keyshortcuts="2"
+                onClick={() => setMarkTool("LATE")}
+              >
+                <Clock3 />
+                <span><strong>Late</strong><small>Record without credit</small></span>
+                <kbd>2</kbd>
+              </button>
+              <button
+                type="button"
+                className={`attendance-tool remove ${markTool === "REMOVE" ? "active" : ""}`}
+                aria-pressed={markTool === "REMOVE"}
+                aria-keyshortcuts="3"
+                disabled={!can("attendance.correctOpen")}
+                onClick={() => setMarkTool("REMOVE")}
+              >
+                <Eraser />
+                <span><strong>Remove mark</strong><small>Return roll to pending</small></span>
+                <kbd>3</kbd>
+              </button>
+            </div>
+            <div className={`active-tool-hint ${markTool.toLowerCase()}`}>
+              <i />
+              <span>
+                <b>{markTool === "REMOVE" ? "Remove mark" : markTool.toLowerCase()}</b> tool active
+              </span>
+              <small>Click a roll to apply</small>
+            </div>
+          </div>
+        )}
+        <div className={`roll-grid tool-${markTool.toLowerCase()}`}>
           {shown.map((student) => {
             const r = records.get(student.id),
               state = r?.status?.toLowerCase() || "unmarked";
             return (
               <button
                 key={student.id}
-                className={`roll-tile ${state} ${r?.correctedAt ? "corrected" : ""}`}
+                className={`roll-tile ${state} ${r?.correctedAt ? "corrected" : ""} ${applying.has(student.id) ? "applying" : ""}`}
+                disabled={applying.has(student.id)}
                 onClick={() => {
-                  if (
-                    !r &&
-                    s.status === "OPEN" &&
-                    can("attendance.mark")
-                  )
-                    setQuickStudent(student);
+                  if (s.status === "OPEN" && can("attendance.mark"))
+                    applyMarkTool(student);
                   else setSelected(student);
                 }}
                 title={
-                  !r && s.status === "OPEN"
-                    ? "Choose Present or Late"
+                  s.status === "OPEN"
+                    ? `${markTool === "REMOVE" ? "Remove mark from" : `Mark ${markTool.toLowerCase()}:`} roll ${student.rollNumber}`
                     : "View attendance details"
                 }
               >
                 <strong>{student.rollNumber}</strong>
                 <span>{r?.status || "Not marked"}</span>
                 {r?.status === "PRESENT" && <Check />}
-                {(r?.status === "LATE" || r?.status === "ABSENT") && <X />}
+                {r?.status === "LATE" && <Clock3 />}
+                {r?.status === "ABSENT" && <X />}
               </button>
             );
           })}
         </div>
       </section>
-      <Dialog
-        open={!!quickStudent}
-        title={
-          quickStudent
-            ? `Mark roll ${quickStudent.rollNumber} · ${quickStudent.name}`
-            : "Mark attendance"
-        }
-        onClose={() => !quickBusy && setQuickStudent(null)}
-      >
-        <div className="quick-mark-panel">
-          <p>
-            Choose the student’s recorded status. Cancel or leave this roll
-            untouched to keep it pending; pending rolls become absent only
-            when you confirm session closure.
-          </p>
-          <div className="quick-mark-actions">
-            <button
-              type="button"
-              className="quick-mark-option present"
-              disabled={quickBusy}
-              onClick={() => quickMark("PRESENT")}
-            >
-              <Check />
-              <span>
-                <strong>Present</strong>
-                <small>Counts toward attendance</small>
-              </span>
-            </button>
-            <button
-              type="button"
-              className="quick-mark-option late"
-              disabled={quickBusy}
-              onClick={() => quickMark("LATE")}
-            >
-              <Clock3 />
-              <span>
-                <strong>Late</strong>
-                <small>Recorded appearance, zero credit</small>
-              </span>
-            </button>
-          </div>
-          <button
-            type="button"
-            className="secondary full"
-            disabled={quickBusy}
-            onClick={() => setQuickStudent(null)}
-          >
-            Keep unmarked for now
-          </button>
-        </div>
-      </Dialog>
       <Dialog
         open={!!selected}
         title={selected ? `Roll ${selected.rollNumber} · ${selected.name}` : ""}

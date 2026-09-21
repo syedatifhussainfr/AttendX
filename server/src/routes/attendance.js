@@ -25,6 +25,7 @@ import {
   summarize,
   reopenSession,
   deleteAttendanceSession,
+  setLiveAttendanceSelection,
 } from "../services/attendanceService.js";
 import { openAttendanceSession } from "../services/sessionService.js";
 import {
@@ -240,6 +241,24 @@ router.post(
         studentId: Number(req.params.studentId),
         status,
         markedById: req.user.id,
+      }),
+    );
+  },
+);
+router.patch(
+  "/sessions/:id/students/:studentId/selection",
+  requirePermission("attendance.mark"),
+  async (req, res) => {
+    const { status } = z
+      .object({ status: z.enum(["PRESENT", "LATE"]).nullable() })
+      .parse(req.body);
+    res.json(
+      await setLiveAttendanceSelection({
+        sessionId: req.params.id,
+        studentId: Number(req.params.studentId),
+        status,
+        markedById: req.user.id,
+        allowCorrection: hasPermission(req.user, "attendance.correctOpen"),
       }),
     );
   },

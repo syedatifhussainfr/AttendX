@@ -575,6 +575,53 @@ test("roll selection marks present or late, close assigns absence, and only elev
     .send({ status: "LATE" })
     .expect(201);
   assert.equal(marked.body.record.status, "LATE");
+
+  const overwritten = await request(app)
+    .patch(`/api/attendance/sessions/${live.id}/students/${rollOne.id}/selection`)
+    .set("Authorization", `Bearer ${crToken}`)
+    .send({ status: "PRESENT" })
+    .expect(200);
+  assert.equal(overwritten.body.action, "UPDATED");
+  assert.equal(overwritten.body.record.status, "PRESENT");
+  assert.ok(
+    await db.AuditLog.findOne({
+      where: {
+        AttendanceSessionId: live.id,
+        StudentId: rollOne.id,
+        action: "STATUS_CORRECTED",
+      },
+    }),
+  );
+
+  const removed = await request(app)
+    .patch(`/api/attendance/sessions/${live.id}/students/${rollOne.id}/selection`)
+    .set("Authorization", `Bearer ${crToken}`)
+    .send({ status: null })
+    .expect(200);
+  assert.equal(removed.body.action, "REMOVED");
+  assert.equal(
+    await db.AttendanceRecord.findOne({
+      where: { AttendanceSessionId: live.id, StudentId: rollOne.id },
+    }),
+    null,
+  );
+  assert.ok(
+    await db.AuditLog.findOne({
+      where: {
+        AttendanceSessionId: live.id,
+        StudentId: rollOne.id,
+        action: "MARK_REMOVED",
+      },
+    }),
+  );
+
+  const reselected = await request(app)
+    .patch(`/api/attendance/sessions/${live.id}/students/${rollOne.id}/selection`)
+    .set("Authorization", `Bearer ${crToken}`)
+    .send({ status: "LATE" })
+    .expect(200);
+  assert.equal(reselected.body.action, "MARKED");
+  assert.equal(reselected.body.record.status, "LATE");
   await request(app)
     .post(`/api/attendance/sessions/${live.id}/students/${rollThree.id}/mark`)
     .set("Authorization", `Bearer ${crToken}`)

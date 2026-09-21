@@ -150,6 +150,133 @@ export async function markAttendance({
   });
 }
 
+export async function setLiveAttendanceSelection({
+  sessionId,
+  studentId,
+  status,
+  markedById,
+  allowCorrection = false,
+  now = new Date(),
+}) {
+  return sequelize.transaction(async (transaction) => {
+    const session = await AttendanceSession.findByPk(sessionId, {
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    if (!session) {
+      const error = new Error("Attendance session not found.");
+      error.status = 404;
+      throw error;
+    }
+    if (session.status !== "OPEN") {
+      const error = new Error(
+        "Tool-based marking is available only while the session is open.",
+      );
+      error.status = 409;
+      error.code = "SESSION_CLOSED";
+      throw error;
+    }
+
+    const student = await Student.findByPk(studentId, { transaction });
+    if (!student || !student.active) {
+      const error = new Error("Active student not found.");
+      error.status = 404;
+      throw error;
+    }
+    const existing = await AttendanceRecord.findOne({
+      where: { AttendanceSessionId: session.id, StudentId: student.id },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    if (!existing && status === null)
+      return { action: "UNCHANGED", record: null, student };
+
+    if (existing && status === existing.status)
+      return { action: "UNCHANGED", record: existing, student };
+
+    if (existing && !allowCorrection) {
+      const error = new Error(
+        "Permission attendance.correctOpen is required to overwrite or remove a mark.",
+      );
+      error.status = 403;
+      error.code = "PERMISSION_REQUIRED";
+      throw error;
+    }
+
+    if (existing && status === null) {
+      const snapshot = {
+        recordId: existing.id,
+        status: existing.status,
+        attendanceCredit: existing.attendanceCredit,
+        markedAt: existing.markedAt,
+        markedById: existing.markedById,
+        method: existing.method,
+      };
+      await AuditLog.create(
+        {
+          entityType: "ATTENDANCE_RECORD",
+          entityId: existing.id,
+          action: "MARK_REMOVED",
+          oldValue: JSON.stringify(snapshot),
+          newValue: null,
+          reason: "Removed with the live attendance tool",
+          UserId: markedById,
+          StudentId: student.id,
+          AttendanceSessionId: session.id,
+        },
+        { transaction },
+      );
+      await existing.destroy({ transaction });
+      return { action: "REMOVED", record: null, student };
+    }
+
+    if (existing) {
+      const oldStatus = existing.status;
+      await existing.update(
+        {
+          status,
+          attendanceCredit: creditFor(status),
+          correctedFromStatus: existing.correctedFromStatus || oldStatus,
+          correctionReason: "Changed with the live attendance tool",
+          correctedAt: now,
+          correctedById: markedById,
+        },
+        { transaction },
+      );
+      await AuditLog.create(
+        {
+          entityType: "ATTENDANCE_RECORD",
+          entityId: existing.id,
+          action: "STATUS_CORRECTED",
+          oldValue: oldStatus,
+          newValue: status,
+          reason: "Changed with the live attendance tool",
+          UserId: markedById,
+          StudentId: student.id,
+          AttendanceSessionId: session.id,
+        },
+        { transaction },
+      );
+      return { action: "UPDATED", record: existing, student };
+    }
+
+    const record = await AttendanceRecord.create(
+      {
+        AttendanceSessionId: session.id,
+        StudentId: student.id,
+        status,
+        attendanceCredit: creditFor(status),
+        markedAt: now,
+        markedById,
+        method: "MANUAL",
+      },
+      { transaction },
+    );
+    return { action: "MARKED", record, student };
+  });
+}
+
 export async function reopenSession({
   sessionId,
   userId,

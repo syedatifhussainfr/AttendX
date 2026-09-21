@@ -3492,80 +3492,231 @@ textarea {
   border-color: rgba(218, 149, 157, 0.46);
 }
 
-.quick-mark-panel > p {
-  margin: 0 0 16px;
-  color: #607587;
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.quick-mark-actions {
+.attendance-toolbox {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(160px, 0.72fr) minmax(420px, 2fr) minmax(160px, 0.72fr);
   gap: 12px;
-  margin-bottom: 12px;
+  align-items: stretch;
+  margin: 0 0 18px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 16px;
+  background: rgba(236, 244, 248, 0.52);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.9),
+    0 14px 34px rgba(18, 51, 75, 0.07);
+  backdrop-filter: blur(22px) saturate(135%);
 }
 
-.quick-mark-option {
+.toolbox-heading {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 82px;
-  padding: 15px;
-  text-align: left;
-  border: 1px solid rgba(255, 255, 255, 0.82);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.5);
-  color: #17364f;
-  box-shadow: 0 8px 24px rgba(26, 61, 87, 0.06);
-  transition: border-color 0.16s ease, background-color 0.16s ease,
-    box-shadow 0.16s ease;
+  gap: 10px;
+  padding: 4px 7px;
 }
 
-.quick-mark-option:hover {
-  transform: none;
-  box-shadow: 0 10px 26px rgba(26, 61, 87, 0.1);
-}
-
-.quick-mark-option.present:hover {
-  border-color: rgba(57, 151, 113, 0.42);
-  background: rgba(222, 246, 237, 0.8);
-}
-
-.quick-mark-option.late:hover {
-  border-color: rgba(210, 135, 56, 0.42);
-  background: rgba(255, 239, 219, 0.84);
-}
-
-.quick-mark-option > svg {
-  width: 23px;
+.toolbox-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
   flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(41, 86, 118, 0.12);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.56);
+  color: #315f7e;
 }
 
-.quick-mark-option.present > svg {
-  color: #17805d;
+.toolbox-icon svg {
+  width: 17px;
 }
 
-.quick-mark-option.late > svg {
-  color: #b66118;
-}
-
-.quick-mark-option span,
-.quick-mark-option strong,
-.quick-mark-option small {
+.toolbox-heading strong,
+.toolbox-heading small {
   display: block;
 }
 
-.quick-mark-option small {
-  margin-top: 3px;
-  color: #6e8190;
-  font-size: 10px;
-  font-weight: 500;
+.toolbox-heading strong {
+  color: #24445d;
+  font-size: 12px;
 }
 
-.quick-mark-panel .full {
-  width: 100%;
-  justify-content: center;
+.toolbox-heading small {
+  margin-top: 2px;
+  color: #778995;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.attendance-tools {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.attendance-tool {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 11px;
+  text-align: left;
+  border: 1px solid rgba(38, 78, 107, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.5);
+  color: #17364f;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.8);
+  transition: border-color 0.15s ease, background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.attendance-tool:hover {
+  transform: none;
+  border-color: rgba(37, 83, 115, 0.25);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.attendance-tool svg {
+  width: 19px;
+  flex: 0 0 auto;
+}
+
+.attendance-tool span,
+.attendance-tool strong,
+.attendance-tool small {
+  display: block;
+  min-width: 0;
+}
+
+.attendance-tool strong {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attendance-tool kbd {
+  min-width: 20px;
+  margin-left: auto;
+  padding: 3px 5px;
+  color: #788995;
+  border: 1px solid rgba(45, 80, 105, 0.12);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.56);
+  box-shadow: inset 0 -1px rgba(38, 72, 97, 0.07);
+  font: 600 8px/1 sans-serif;
+  text-align: center;
+}
+
+.attendance-tool small {
+  margin-top: 2px;
+  overflow: hidden;
+  color: #788a97;
+  font-size: 8px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attendance-tool.present svg {
+  color: #17805d;
+}
+
+.attendance-tool.late svg {
+  color: #b66118;
+}
+
+.attendance-tool.remove svg {
+  color: #8b5660;
+}
+
+.attendance-tool.present.active {
+  border-color: rgba(44, 143, 104, 0.4);
+  background: rgba(218, 244, 233, 0.8);
+  box-shadow: inset 0 0 0 1px rgba(44, 143, 104, 0.08);
+}
+
+.attendance-tool.late.active {
+  border-color: rgba(211, 132, 49, 0.42);
+  background: rgba(255, 237, 213, 0.84);
+  box-shadow: inset 0 0 0 1px rgba(211, 132, 49, 0.08);
+}
+
+.attendance-tool.remove.active {
+  border-color: rgba(145, 82, 94, 0.35);
+  background: rgba(247, 232, 235, 0.8);
+  box-shadow: inset 0 0 0 1px rgba(145, 82, 94, 0.07);
+}
+
+.attendance-tool:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.active-tool-hint {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-content: center;
+  column-gap: 8px;
+  padding: 8px 11px;
+  border: 1px solid rgba(39, 82, 112, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.38);
+  color: #415c70;
+}
+
+.active-tool-hint i {
+  width: 8px;
+  height: 8px;
+  align-self: center;
+  border-radius: 50%;
+  background: #299469;
+  box-shadow: 0 0 0 4px rgba(41, 148, 105, 0.1);
+}
+
+.active-tool-hint.late i {
+  background: #d17b2d;
+  box-shadow: 0 0 0 4px rgba(209, 123, 45, 0.1);
+}
+
+.active-tool-hint.remove i {
+  background: #9a5965;
+  box-shadow: 0 0 0 4px rgba(154, 89, 101, 0.1);
+}
+
+.active-tool-hint span {
+  font-size: 10px;
+  text-transform: capitalize;
+}
+
+.active-tool-hint small {
+  grid-column: 2;
+  color: #82919c;
+  font-size: 8px;
+}
+
+.roll-tile.applying {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.roll-tile:disabled {
+  transform: none;
+}
+
+.attendance-page .roll-grid.tool-present .roll-tile:hover {
+  border-color: rgba(44, 143, 104, 0.48);
+  background: rgba(222, 246, 237, 0.7);
+}
+
+.attendance-page .roll-grid.tool-late .roll-tile:hover {
+  border-color: rgba(211, 132, 49, 0.48);
+  background: rgba(255, 239, 219, 0.74);
+}
+
+.attendance-page .roll-grid.tool-remove .roll-tile:hover {
+  border-color: rgba(145, 82, 94, 0.4);
+  background: rgba(247, 232, 235, 0.72);
 }
 
 .history-actions {
@@ -4438,6 +4589,24 @@ body.sidebar-resizing * {
   .dialog {
     max-height: calc(100dvh - 24px);
   }
+
+  .attendance-toolbox {
+    grid-template-columns: 1fr;
+  }
+
+  .toolbox-heading {
+    padding-bottom: 0;
+  }
+
+  .active-tool-hint {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .active-tool-hint small {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: center;
+  }
 }
 
 @media (max-width: 680px) {
@@ -4582,12 +4751,46 @@ body.sidebar-resizing * {
     height: 40px;
   }
 
-  .quick-mark-actions {
-    grid-template-columns: 1fr;
+  .attendance-toolbox {
+    gap: 8px;
+    padding: 9px;
+    border-radius: 13px;
   }
 
-  .quick-mark-option {
-    min-height: 68px;
+  .attendance-tools {
+    gap: 6px;
+  }
+
+  .attendance-tool {
+    min-height: 58px;
+    justify-content: center;
+    padding: 8px 5px;
+    text-align: center;
+  }
+
+  .attendance-tool span {
+    min-width: 0;
+  }
+
+  .attendance-tool small {
+    display: none;
+  }
+
+  .attendance-tool svg {
+    width: 17px;
+  }
+
+  .attendance-tool kbd {
+    display: none;
+  }
+
+  .active-tool-hint {
+    grid-template-columns: auto 1fr;
+  }
+
+  .active-tool-hint small {
+    grid-column: 2;
+    grid-row: auto;
   }
 
   .destructive-summary {
