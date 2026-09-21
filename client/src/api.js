@@ -33,7 +33,7 @@ const wait = (milliseconds) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
 async function requestSessionResume() {
-  const delays = [0, 180, 450];
+  const delays = [0, 250, 750, 1_500, 3_000];
   let lastError;
   for (const delay of delays) {
     if (delay) await wait(delay);
