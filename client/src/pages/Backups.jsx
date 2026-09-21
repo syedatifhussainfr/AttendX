@@ -1,12 +1,23 @@
 import { useEffect, useState } from "react";
-import { ArchiveRestore, DatabaseBackup, Download, Plus } from "lucide-react";
-import { api, messageOf } from "../api.js";
+import {
+  ArchiveRestore,
+  DatabaseBackup,
+  Download,
+  FileCheck2,
+  HardDrive,
+  Plus,
+  ShieldAlert,
+  Trash2,
+} from "lucide-react";
+import { api, messageOf, setAdminElevation } from "../api.js";
 import { Dialog } from "../components/Dialog.jsx";
 import { useToast } from "../state/ToastContext.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
 
 const sizeOf = (bytes) =>
-  bytes < 1024 * 1024
+  bytes === 0
+    ? "0 KB"
+    : bytes < 1024 * 1024
     ? `${Math.max(1, Math.round(bytes / 1024))} KB`
     : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
@@ -14,6 +25,8 @@ export function BackupsPage() {
   const [rows, setRows] = useState([]);
   const [busy, setBusy] = useState(false);
   const [restoreOpen, setRestoreOpen] = useState(false);
+  const [deleteRow, setDeleteRow] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const toast = useToast();
   const { can } = useAuth();
   const load = async () => {
@@ -67,15 +80,40 @@ export function BackupsPage() {
       setBusy(false);
     }
   };
+  const remove = async (event) => {
+    event.preventDefault();
+    const form = Object.fromEntries(new FormData(event.currentTarget));
+    setDeleting(true);
+    try {
+      const { data } = await api.post("/auth/elevate", {
+        password: form.password,
+      });
+      setAdminElevation(data.elevationToken, data.expiresInSeconds);
+      await api.delete(`/admin/backups/${encodeURIComponent(deleteRow.filename)}`, {
+        data: {
+          confirmation: form.confirmation,
+          reason: form.reason,
+        },
+      });
+      toast(`${deleteRow.filename} permanently deleted.`);
+      setDeleteRow(null);
+      await load();
+    } catch (error) {
+      toast(messageOf(error), "error");
+    } finally {
+      setDeleting(false);
+    }
+  };
+  const totalSize = rows.reduce((total, row) => total + row.size, 0);
   return (
-    <div className="page">
+    <div className="page backups-page">
       <div className="page-intro">
         <div>
           <span className="eyebrow">DATA PROTECTION</span>
           <h1>Backup & restore</h1>
           <p>
-            ADMIN-only, integrity-checked SQLite snapshots. PostgreSQL uses
-            pg_dump/pg_restore.
+            Integrity-checked SQLite recovery points with protected restore and
+            retention controls.
           </p>
         </div>
         <div className="button-row">
@@ -87,6 +125,11 @@ export function BackupsPage() {
           </button>}
         </div>
       </div>
+      <section className="backup-overview" aria-label="Backup overview">
+        <div><DatabaseBackup /><span><small>Recovery points</small><strong>{rows.length}</strong></span></div>
+        <div><HardDrive /><span><small>Managed storage</small><strong>{sizeOf(totalSize)}</strong></span></div>
+        <div><FileCheck2 /><span><small>Newest backup</small><strong>{rows[0] ? new Date(rows[0].createdAt).toLocaleDateString("en-IN") : "Not created"}</strong></span></div>
+      </section>
       <section className="panel table-panel">
         <div className="panel-title">
           <div>
@@ -102,7 +145,7 @@ export function BackupsPage() {
                 <th>Filename</th>
                 <th>Created</th>
                 <th>Size</th>
-                <th />
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -114,9 +157,14 @@ export function BackupsPage() {
                   <td>{new Date(row.createdAt).toLocaleString("en-IN")}</td>
                   <td>{sizeOf(row.size)}</td>
                   <td>
-                    {can("backups.download") && <button className="secondary" onClick={() => download(row)}>
-                      <Download /> Download
-                    </button>}
+                    <div className="backup-actions">
+                      {can("backups.download") && <button className="secondary" onClick={() => download(row)}>
+                        <Download /> Download
+                      </button>}
+                      {can("backups.delete") && <button className="backup-delete" onClick={() => setDeleteRow(row)} aria-label={`Delete ${row.filename}`}>
+                        <Trash2 />
+                      </button>}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -133,32 +181,77 @@ export function BackupsPage() {
         title="Restore SQLite database"
         onClose={() => !busy && setRestoreOpen(false)}
       >
-        <form className="form-stack" onSubmit={restore}>
-          <div className="danger-note">
-            Restoration replaces the current database. AttendX creates a safety
-            backup first, validates the upload, then stops the API so you can
-            restart it safely.
+        <form className="form-stack restore-backup-form" onSubmit={restore}>
+          <div className="restore-warning">
+            <ShieldAlert />
+            <div><strong>Current data will be replaced</strong><p>AttendX validates the file and creates a safety backup before restoration. The API then stops for a clean restart.</p></div>
           </div>
-          <label>
-            SQLite backup file
+          <label className="restore-file-field">
+            <span>SQLite backup file</span>
             <input
               name="backup"
               type="file"
               accept=".sqlite,.db,application/x-sqlite3"
               required
             />
+            <small>Accepted: .sqlite or .db · maximum 100 MB</small>
           </label>
           <label>
             Your ADMIN password
-            <input name="password" type="password" required />
+            <input
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+            />
           </label>
           <label>
             Type <code>RESTORE ATTENDX</code>
-            <input name="confirmation" autoComplete="off" required />
+            <input
+              name="confirmation"
+              pattern="RESTORE ATTENDX"
+              autoComplete="off"
+              spellCheck="false"
+              required
+            />
           </label>
-          <button className="danger" disabled={busy}>
-            {busy ? "Validating and restoring…" : "Restore and stop API"}
-          </button>
+          <div className="dialog-actions">
+            <button type="button" className="secondary" disabled={busy} onClick={() => setRestoreOpen(false)}>Cancel</button>
+            <button className="danger" disabled={busy}>
+              <ArchiveRestore /> {busy ? "Validating and restoring…" : "Restore and stop API"}
+            </button>
+          </div>
+        </form>
+      </Dialog>
+      <Dialog
+        open={!!deleteRow}
+        title="Delete backup file?"
+        onClose={() => !deleting && setDeleteRow(null)}
+      >
+        <form className="form-stack backup-delete-form" onSubmit={remove}>
+          <div className="restore-warning delete-warning">
+            <Trash2 />
+            <div>
+              <strong>This recovery point will be lost</strong>
+              <p>{deleteRow?.filename} · {sizeOf(deleteRow?.size || 0)}</p>
+            </div>
+          </div>
+          <label>
+            Reason for deletion
+            <textarea name="reason" minLength="5" maxLength="250" required placeholder="For example: expired duplicate backup" />
+          </label>
+          <label>
+            Type <code>DELETE BACKUP</code>
+            <input name="confirmation" pattern="DELETE BACKUP" autoComplete="off" required />
+          </label>
+          <label>
+            Your Admin++ password
+            <input name="password" type="password" autoComplete="current-password" required />
+          </label>
+          <div className="dialog-actions">
+            <button type="button" className="secondary" disabled={deleting} onClick={() => setDeleteRow(null)}>Keep backup</button>
+            <button className="danger" disabled={deleting}><Trash2 /> {deleting ? "Deleting…" : "Delete permanently"}</button>
+          </div>
         </form>
       </Dialog>
     </div>

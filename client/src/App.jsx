@@ -1,21 +1,30 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./state/AuthContext.jsx";
 import { Layout } from "./components/Layout.jsx";
 import { Login } from "./pages/Login.jsx";
-import { Dashboard } from "./pages/Dashboard.jsx";
-import { AttendanceSessionPage } from "./pages/AttendanceSession.jsx";
-import { History } from "./pages/History.jsx";
-import { Students } from "./pages/Students.jsx";
-import { Subjects } from "./pages/Subjects.jsx";
-import { Timetable } from "./pages/Timetable.jsx";
-import { UsersPage } from "./pages/Users.jsx";
-import { Audit } from "./pages/Audit.jsx";
-import { SettingsPage } from "./pages/Settings.jsx";
-import { DatabasePage } from "./pages/Database.jsx";
-import { ChangePassword } from "./pages/ChangePassword.jsx";
-import { BackupsPage } from "./pages/Backups.jsx";
-import { LogoutPage } from "./pages/Logout.jsx";
+
+const lazyNamed = (loader, name) =>
+  lazy(() => loader().then((module) => ({ default: module[name] })));
+const Dashboard = lazyNamed(() => import("./pages/Dashboard.jsx"), "Dashboard");
+const AttendanceSessionPage = lazyNamed(
+  () => import("./pages/AttendanceSession.jsx"),
+  "AttendanceSessionPage",
+);
+const History = lazyNamed(() => import("./pages/History.jsx"), "History");
+const Students = lazyNamed(() => import("./pages/Students.jsx"), "Students");
+const Subjects = lazyNamed(() => import("./pages/Subjects.jsx"), "Subjects");
+const Timetable = lazyNamed(() => import("./pages/Timetable.jsx"), "Timetable");
+const UsersPage = lazyNamed(() => import("./pages/Users.jsx"), "UsersPage");
+const Audit = lazyNamed(() => import("./pages/Audit.jsx"), "Audit");
+const SettingsPage = lazyNamed(() => import("./pages/Settings.jsx"), "SettingsPage");
+const DatabasePage = lazyNamed(() => import("./pages/Database.jsx"), "DatabasePage");
+const ChangePassword = lazyNamed(
+  () => import("./pages/ChangePassword.jsx"),
+  "ChangePassword",
+);
+const BackupsPage = lazyNamed(() => import("./pages/Backups.jsx"), "BackupsPage");
+const LogoutPage = lazyNamed(() => import("./pages/Logout.jsx"), "LogoutPage");
 
 function Protected({ children, permission, allowPasswordChange = false }) {
   const { user, can } = useAuth();
@@ -26,13 +35,23 @@ function Protected({ children, permission, allowPasswordChange = false }) {
   return children;
 }
 
+function Deferred({ children }) {
+  return (
+    <Suspense
+      fallback={<div className="route-loading"><i /><span>Loading view…</span></div>}
+    >
+      {children}
+    </Suspense>
+  );
+}
+
 function RouteProgress() {
   const { pathname } = useLocation();
   const [state, setState] = useState("idle");
   useEffect(() => {
     setState("loading");
-    const finishing = setTimeout(() => setState("finishing"), 60);
-    const finished = setTimeout(() => setState("idle"), 520);
+    const finishing = setTimeout(() => setState("finishing"), 40);
+    const finished = setTimeout(() => setState("idle"), 240);
     return () => {
       clearTimeout(finishing);
       clearTimeout(finished);
@@ -69,7 +88,7 @@ export function App() {
           path="/change-password"
           element={
             <Protected allowPasswordChange>
-              <ChangePassword />
+              <Deferred><ChangePassword /></Deferred>
             </Protected>
           }
         />
@@ -77,7 +96,7 @@ export function App() {
           path="/logout"
           element={
             <Protected allowPasswordChange>
-              <LogoutPage />
+              <Deferred><LogoutPage /></Deferred>
             </Protected>
           }
         />
@@ -88,15 +107,15 @@ export function App() {
             </Protected>
           }
         >
-          <Route index element={<Dashboard />} />
-          <Route path="attendance/:id" element={<AttendanceSessionPage />} />
-          <Route path="history" element={<History />} />
-          <Route path="students" element={<Students />} />
+          <Route index element={<Deferred><Dashboard /></Deferred>} />
+          <Route path="attendance/:id" element={<Deferred><AttendanceSessionPage /></Deferred>} />
+          <Route path="history" element={<Deferred><History /></Deferred>} />
+          <Route path="students" element={<Deferred><Students /></Deferred>} />
           <Route
             path="subjects"
             element={
               <Protected permission="subjects.view">
-                <Subjects />
+                <Deferred><Subjects /></Deferred>
               </Protected>
             }
           />
@@ -104,7 +123,7 @@ export function App() {
             path="timetable"
             element={
               <Protected permission="timetable.view">
-                <Timetable />
+                <Deferred><Timetable /></Deferred>
               </Protected>
             }
           />
@@ -112,7 +131,7 @@ export function App() {
             path="users"
             element={
               <Protected permission="users.view">
-                <UsersPage />
+                <Deferred><UsersPage /></Deferred>
               </Protected>
             }
           />
@@ -120,7 +139,7 @@ export function App() {
             path="audit"
             element={
               <Protected permission="audit.view">
-                <Audit />
+                <Deferred><Audit /></Deferred>
               </Protected>
             }
           />
@@ -128,7 +147,7 @@ export function App() {
             path="database"
             element={
               <Protected permission="database.view">
-                <DatabasePage />
+                <Deferred><DatabasePage /></Deferred>
               </Protected>
             }
           />
@@ -136,7 +155,7 @@ export function App() {
             path="backups"
             element={
               <Protected permission="backups.view">
-                <BackupsPage />
+                <Deferred><BackupsPage /></Deferred>
               </Protected>
             }
           />
@@ -144,7 +163,7 @@ export function App() {
             path="settings"
             element={
               <Protected permission="settings.view">
-                <SettingsPage />
+                <Deferred><SettingsPage /></Deferred>
               </Protected>
             }
           />

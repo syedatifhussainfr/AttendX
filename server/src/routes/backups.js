@@ -2,11 +2,17 @@ import { Router } from "express";
 import multer from "multer";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { requireAuth, requirePermission } from "../middleware/auth.js";
+import {
+  requireAdminElevation,
+  requireAdminPlus,
+  requireAuth,
+  requirePermission,
+} from "../middleware/auth.js";
 import { User, AuditLog } from "../db/index.js";
 import {
   backupPath,
   createBackup,
+  deleteBackup,
   listBackups,
   restoreStagedBackup,
   stageUploadedBackup,
@@ -42,6 +48,30 @@ router.get(
   } catch (error) {
     next(error);
   }
+  },
+);
+router.delete(
+  "/:filename",
+  requirePermission("backups.delete"),
+  requireAdminPlus,
+  requireAdminElevation,
+  async (req, res) => {
+    const { confirmation, reason } = z
+      .object({
+        confirmation: z.literal("DELETE BACKUP"),
+        reason: z.string().trim().min(5).max(250),
+      })
+      .parse(req.body);
+    const removed = await deleteBackup(req.params.filename);
+    await AuditLog.create({
+      entityType: "DATABASE_BACKUP",
+      entityId: 0,
+      action: "DATABASE_BACKUP_DELETED",
+      oldValue: JSON.stringify(removed),
+      reason,
+      UserId: req.user.id,
+    });
+    res.status(204).end();
   },
 );
 router.post(

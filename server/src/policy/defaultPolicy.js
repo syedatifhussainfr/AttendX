@@ -34,7 +34,13 @@ const crPermissions = {
   },
   database: { view: false },
   audit: { view: false },
-  backups: { view: false, create: false, download: false, restore: false },
+  backups: {
+    view: false,
+    create: false,
+    download: false,
+    restore: false,
+    delete: false,
+  },
 };
 
 function rolePermissions(base, overrides) {
@@ -68,6 +74,7 @@ const adminPlusPermissions = rolePermissions(adminPermissions, {
   students: { delete: true },
   subjects: { delete: true },
   users: { delete: true, manageSessions: true, modifyAdminPlus: true },
+  backups: { delete: true },
 });
 
 export const defaultPolicy = {
@@ -91,6 +98,7 @@ export const protectedPermissions = {
   "users.delete": { CR: false, ADMIN: false },
   "users.manageSessions": { CR: false, ADMIN: false },
   "users.modifyAdminPlus": { CR: false, ADMIN: false },
+  "backups.delete": { CR: false, ADMIN: false },
 };
 
 export const permissionDependencies = {
@@ -118,4 +126,5 @@ export const permissionDependencies = {
   "backups.create": ["backups.view"],
   "backups.download": ["backups.view"],
   "backups.restore": ["backups.view"],
+  "backups.delete": ["backups.view"],
 };

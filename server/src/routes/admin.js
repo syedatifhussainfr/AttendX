@@ -569,18 +569,71 @@ router.delete(
     res.status(204).end();
   },
 );
+const auditIncludes = [
+  { model: User, attributes: ["id", "name"] },
+  { model: Student, attributes: ["id", "rollNumber", "name"] },
+  { model: AttendanceSession, attributes: ["id", "sessionDate"] },
+];
+
+const findAuditLogs = (limit) =>
+  AuditLog.findAll({
+    limit,
+    order: [["createdAt", "DESC"]],
+    include: auditIncludes,
+  });
+
+function readableAuditValue(value) {
+  if (value == null || value === "") return "—";
+  try {
+    return JSON.stringify(JSON.parse(value), null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+router.get(
+  "/audit-logs/export",
+  requirePermission("audit.view"),
+  async (req, res) => {
+    const rows = await findAuditLogs(5000);
+    const generatedAt = new Date().toISOString();
+    const body = [
+      "AttendX audit log",
+      `Generated: ${generatedAt}`,
+      `Entries: ${rows.length}`,
+      "=".repeat(72),
+      ...rows.flatMap((row) => {
+        const target = row.Student
+          ? `Student ${row.Student.rollNumber} · ${row.Student.name}`
+          : row.AttendanceSession
+            ? `Attendance session ${row.AttendanceSession.sessionDate} (#${row.AttendanceSession.id})`
+            : `${row.entityType} #${row.entityId}`;
+        return [
+          "",
+          `[${new Date(row.createdAt).toISOString()}] ${row.action.replaceAll("_", " ")}`,
+          `Actor: ${row.User?.name || "System"}`,
+          `Target: ${target}`,
+          `Reason: ${row.reason || "—"}`,
+          `Previous value:\n${readableAuditValue(row.oldValue)}`,
+          `New value:\n${readableAuditValue(row.newValue)}`,
+          "-".repeat(72),
+        ];
+      }),
+      "",
+    ].join("\r\n");
+    const date = generatedAt.slice(0, 10);
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="attendx-audit-${date}.txt"`,
+    );
+    res.setHeader("Cache-Control", "private, no-store");
+    res.send(body);
+  },
+);
+
 router.get("/audit-logs", requirePermission("audit.view"), async (req, res) =>
-  res.json(
-    await AuditLog.findAll({
-      limit: 300,
-      order: [["createdAt", "DESC"]],
-      include: [
-        { model: User, attributes: ["id", "name"] },
-        { model: Student, attributes: ["id", "rollNumber", "name"] },
-        { model: AttendanceSession, attributes: ["id", "sessionDate"] },
-      ],
-    }),
-  ),
+  res.json(await findAuditLogs(300)),
 );
 
 const databaseTables = {

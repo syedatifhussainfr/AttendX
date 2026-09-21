@@ -138,6 +138,29 @@ export function backupPath(filename) {
   return path.join(backupDirectory(), filename);
 }
 
+export async function deleteBackup(filename) {
+  sqliteOnly();
+  const target = backupPath(filename);
+  let stat;
+  try {
+    stat = await fs.stat(target);
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      const unavailable = new Error("Backup file is unavailable.");
+      unavailable.status = 404;
+      throw unavailable;
+    }
+    throw error;
+  }
+  if (!stat.isFile()) {
+    const error = new Error("Backup file is unavailable.");
+    error.status = 404;
+    throw error;
+  }
+  await fs.rm(target);
+  return { filename, size: stat.size, createdAt: stat.birthtime.toISOString() };
+}
+
 export async function stageUploadedBackup(buffer) {
   sqliteOnly();
   const directory = backupDirectory();

@@ -133,6 +133,7 @@ The published [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/re
 | Inspect/revoke another user’s browser sessions | — | — | ✓ |
 | Permanently delete eligible users/students/subjects | — | — | ✓ |
 | Permanently delete closed attendance history with an audit snapshot | — | — | ✓ |
+| Permanently delete managed backup files with an audit entry | — | — | ✓ |
 | Promote or revoke Admin++ | — | — | CLI only |
 
 Raw database records remain read-only for both ADMIN and ADMIN++. Data changes go through validated API workflows so authorization, relationships, and audit rules cannot be bypassed.
@@ -320,6 +321,8 @@ npm run backup
 
 Restoration requires an ADMIN password plus the exact confirmation phrase. AttendX validates the upload, creates a pre-restore snapshot, restores the database, revokes sessions, and stops the API. Restart the service only after the restore response completes.
 
+Admin++ may remove obsolete managed backup files from **Backup & restore** after password elevation, an exact confirmation phrase, and a mandatory reason. File deletion is restricted to validated filenames inside the configured backup directory and creates a permanent audit entry. Keep at least one tested off-machine recovery point before cleaning local backups.
+
 ### Verify live data
 
 Stop write-heavy maintenance jobs, then run:
@@ -367,11 +370,12 @@ Credited attendance percentage is `PRESENT / classes conducted × 100`. Physical
 - Database browsing redacts password, refresh-token, token-history, and IP-hash material.
 - Destructive deletion is refused when historical relationships require deactivation instead.
 - Closed attendance deletion preserves an audit snapshot even after its detailed records are removed.
+- Audit logs can be downloaded as a human-readable `.txt` record from the Audit page.
 - Self-disable, self-delete, and last-active-Admin++ protections prevent avoidable lockout.
 
 ## V1.1.6 verification
 
-- 27 backend tests cover attendance rules, imports, exports, sessions, authorization, backups, Admin++, destructive history controls, and self-healing configuration.
+- 28 backend tests cover attendance rules, imports, exports, sessions, authorization, backup retention, audit export, Admin++, destructive history controls, and self-healing configuration.
 - Production frontend compilation succeeds with Vite.
 - `npm run config-check` validates YAML parsing, structural repair, permission dependencies, and protected privilege ceilings.
 - `npm run verify-data` checks SQLite integrity, foreign keys, duplicate rolls, administrator availability, and record totals without modifying data.

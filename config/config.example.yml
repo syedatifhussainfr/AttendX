@@ -50,6 +50,7 @@ permissions:
       create: false
       download: false
       restore: false
+      delete: false
   ADMIN:
     dashboard:
       view: true
@@ -98,6 +99,7 @@ permissions:
       create: true
       download: true
       restore: true
+      delete: false
   ADMIN_PLUS:
     dashboard:
       view: true
@@ -146,3 +148,4 @@ permissions:
       create: true
       download: true
       restore: true
+      delete: true

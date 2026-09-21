@@ -87,16 +87,17 @@ export function AttendanceSessionPage() {
   );
   const mark = async (e) => {
     e.preventDefault();
-    if (!roll.trim()) return;
+    const submittedRoll = roll.trim();
+    if (!submittedRoll) return;
+    setRoll("");
     setBusy(true);
     try {
       const r = await api.post(`/attendance/sessions/${id}/mark`, {
-        rollNumber: roll.trim(),
+        rollNumber: submittedRoll,
       });
       toast(
         `Roll ${r.data.student.rollNumber} marked ${r.data.record.status}.`,
       );
-      setRoll("");
       await load(true);
     } catch (err) {
       toast(messageOf(err), "error");
@@ -321,13 +322,13 @@ export function AttendanceSessionPage() {
       {s.status === "OPEN" && can("attendance.mark") && (
         <section className="mark-console">
           <form onSubmit={mark}>
-            <label>Rapid roll entry</label>
+            <label>Quick roll entry</label>
             <div>
               <input
                 ref={inputRef}
                 value={roll}
                 onChange={(e) => setRoll(e.target.value)}
-                placeholder="Type roll number — e.g. 01"
+                placeholder="Enter roll number"
                 inputMode="numeric"
                 aria-label="Roll number"
               />
@@ -336,7 +337,7 @@ export function AttendanceSessionPage() {
                 Mark attendance
               </button>
             </div>
-            <p>Press Enter to mark · Status is assigned by the server clock</p>
+            <p>Press Enter · the field clears immediately · server time decides Present or Late</p>
           </form>
         </section>
       )}

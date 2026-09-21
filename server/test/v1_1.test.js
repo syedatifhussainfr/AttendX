@@ -231,6 +231,44 @@ test("backup creation produces a valid, downloadable SQLite snapshot", async () 
   assert.equal(validation.students, 2);
 });
 
+test("only elevated Admin++ deletes backups and audit logs export as text", async () => {
+  const disposable = await backup.createBackup({ label: "delete-test" });
+  const endpoint = `/api/admin/backups/${encodeURIComponent(disposable.filename)}`;
+  await request(app)
+    .delete(endpoint)
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .send({ confirmation: "DELETE BACKUP", reason: "Cleanup test file" })
+    .expect(403);
+  await request(app)
+    .delete(endpoint)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .send({ confirmation: "DELETE BACKUP", reason: "Cleanup test file" })
+    .expect(403);
+  await request(app)
+    .delete(endpoint)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .send({ confirmation: "DELETE BACKUP", reason: "Cleanup test file" })
+    .expect(204);
+  await assert.rejects(fs.access(backup.backupPath(disposable.filename)));
+  assert.ok(
+    await db.AuditLog.findOne({
+      where: { action: "DATABASE_BACKUP_DELETED" },
+    }),
+  );
+  await request(app)
+    .get("/api/admin/audit-logs/export")
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .expect(200)
+    .expect("Content-Type", /text\/plain/)
+    .expect("Cache-Control", "private, no-store")
+    .expect("Content-Disposition", /attendx-audit-\d{4}-\d{2}-\d{2}\.txt/)
+    .expect((response) => {
+      assert.match(response.text, /DATABASE BACKUP DELETED/);
+      assert.match(response.text, /Cleanup test file/);
+    });
+});
+
 test("student reconciliation normalizes rolls and detects duplicates", async () => {
   const review = await studentImport.reconcileStudentRows([
     { rowNumber: 2, rollNumber: "1", name: "Original One" },
