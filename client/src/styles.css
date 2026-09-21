@@ -262,20 +262,40 @@ button:disabled {
   justify-content: space-between;
   min-height: 100vh;
   overflow: hidden;
-  padding: clamp(2rem, 4vw, 4.5rem);
+  padding: clamp(2rem, 4vw, 4.25rem);
   color: #f7f9fb;
   background:
-    linear-gradient(145deg, rgba(4, 20, 37, 0.95), rgba(7, 44, 75, 0.91)),
-    url("/brand/ekcle.png") center 72% / 70% auto no-repeat,
-    #061a2e;
+    linear-gradient(118deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 100%) 0 0 / 96px 96px,
+    linear-gradient(145deg, #04182c 0%, #062844 54%, #073555 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@media (min-width: 961px) {
+  .security-context {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    align-self: start;
+  }
 }
 
 .security-context::before {
-  content: none;
+  content: "";
+  position: absolute;
+  inset: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  pointer-events: none;
 }
 
 .security-context::after {
-  content: none;
+  content: "";
+  position: absolute;
+  right: clamp(2rem, 4vw, 4.25rem);
+  bottom: 0;
+  width: 5rem;
+  height: 3px;
+  background: #d97539;
+  pointer-events: none;
 }
 
 .security-brand,
@@ -288,7 +308,8 @@ button:disabled {
 .security-brand {
   display: flex;
   align-items: center;
-  gap: 0.9rem;
+  justify-content: space-between;
+  gap: 1.5rem;
 }
 
 .security-brand img {
@@ -300,8 +321,10 @@ button:disabled {
   background: rgba(255, 255, 255, 0.94);
 }
 
-.security-brand div {
-  display: grid;
+.security-brand-lockup {
+  display: flex !important;
+  align-items: center;
+  gap: 0.85rem;
 }
 .security-brand strong {
   font-size: 1.2rem;
@@ -317,7 +340,7 @@ button:disabled {
 .security-copy {
   max-width: 35rem;
   margin: auto 0;
-  padding: 4rem 0;
+  padding: 3.5rem 0;
 }
 .security-kicker {
   display: inline-flex;
@@ -847,6 +870,16 @@ button:disabled {
 
 @media (max-width: 620px) {
   .security-context {
+    display: flex;
+    min-height: auto;
+    padding: 1rem 1.15rem;
+  }
+  .security-context::before {
+    inset: 0.45rem;
+  }
+  .security-context::after,
+  .security-copy,
+  .security-foot {
     display: none;
   }
   .security-form-side {
@@ -1442,6 +1475,57 @@ select:focus,
 textarea:focus {
   border-color: #2870a7;
   box-shadow: 0 0 0 3px #2870a717;
+}
+
+@media (max-height: 650px) and (min-width: 961px) {
+  .security-context {
+    padding: 1.35rem 2.5rem;
+  }
+  .security-context::before {
+    inset: 0.75rem;
+  }
+  .security-brand-primary,
+  .security-brand-partner {
+    height: 46px;
+  }
+  .security-brand-primary {
+    width: 46px;
+  }
+  .security-brand-partner {
+    width: 92px;
+  }
+  .security-copy {
+    padding: 1rem 0 0.75rem;
+  }
+  .security-copy h1 {
+    max-width: 27rem;
+    margin: 0.6rem 0 0.7rem;
+    font-size: clamp(2.2rem, 3vw, 3rem);
+  }
+  .security-copy > p {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+  .security-points {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.8rem;
+    margin-top: 1rem;
+  }
+  .security-points > div {
+    grid-template-columns: 1.35rem 1fr;
+    gap: 0.45rem;
+    padding-top: 0.5rem;
+  }
+  .security-points span {
+    font-size: 0.68rem;
+  }
+  .security-points b {
+    font-size: 0.74rem;
+  }
+  .security-foot {
+    display: none;
+  }
 }
 .dialog-backdrop {
   position: fixed;
@@ -3753,6 +3837,8 @@ textarea {
   grid-template-columns: 46px 1fr;
   gap: 14px;
   align-items: start;
+  padding-top: 0.7rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.075);
   padding: 16px;
   overflow: hidden;
   border: 1px solid rgba(172, 71, 59, 0.18);
@@ -5247,30 +5333,26 @@ body.sidebar-resizing * {
     inset 0 0 0 1px rgba(28, 67, 94, 0.05);
 }
 
-.security-brand-marks {
-  display: flex !important;
-  align-items: center;
-  gap: 7px;
-}
-
 .security-brand-primary,
 .security-brand-partner {
   display: grid;
-  height: 52px;
+  height: 58px;
   place-items: center;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.68);
-  border-radius: 11px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 8px 22px rgba(0, 17, 32, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow:
+    0 8px 22px rgba(0, 17, 32, 0.18),
+    inset 0 0 0 1px rgba(26, 63, 90, 0.04);
 }
 
 .security-brand-primary {
-  width: 52px;
+  width: 58px;
 }
 
 .security-brand-partner {
-  width: 74px;
+  width: 116px;
 }
 
 .security-brand-primary img,
@@ -5321,12 +5403,41 @@ body.sidebar-resizing * {
   }
 
   .security-brand-partner {
-    width: 62px;
+    width: 86px;
+    height: 48px;
+  }
+
+  .security-brand-primary {
+    width: 48px;
+    height: 48px;
+  }
+
+  .security-brand-copy strong {
+    font-size: 1rem;
+  }
+
+  .security-brand-copy span {
+    font-size: 0.58rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .route-loading i {
     animation-duration: 1.5s;
+  }
+}
+
+@media (max-height: 650px) and (min-width: 961px) {
+  .security-brand-primary,
+  .security-brand-partner {
+    height: 46px;
+  }
+
+  .security-brand-primary {
+    width: 46px;
+  }
+
+  .security-brand-partner {
+    width: 92px;
   }
 }

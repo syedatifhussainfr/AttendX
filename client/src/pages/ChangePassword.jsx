@@ -97,18 +97,18 @@ export function ChangePassword() {
     <main className="security-page">
       <section className="security-context">
         <div className="security-brand">
-          <div className="security-brand-marks" aria-label="Institution marks">
+          <div className="security-brand-lockup">
             <span className="security-brand-primary">
               <img src="/brand/eiilm.png" alt="EIILM Kolkata" />
             </span>
-            <span className="security-brand-partner">
-              <img src="/brand/ekcle.png" alt="EKCLE" />
-            </span>
+            <div className="security-brand-copy">
+              <strong>AttendX</strong>
+              <span>Secure account centre</span>
+            </div>
           </div>
-          <div className="security-brand-copy">
-            <strong>AttendX</strong>
-            <span>Secure account centre</span>
-          </div>
+          <span className="security-brand-partner">
+            <img src="/brand/ekcle.png" alt="EKCLE" />
+          </span>
         </div>
         <div className="security-copy">
           <span className="security-kicker">
