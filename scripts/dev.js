@@ -31,7 +31,7 @@ const labelStyle = {
 
 function writeWelcome() {
   const title = paint("AttendX", ansi.bold, ansi.white);
-  const version = paint("V1.1.6 development", ansi.cyan);
+  const version = paint("V1.1.7 development", ansi.cyan);
   const line = paint("─".repeat(48), ansi.dim, ansi.blue);
   process.stdout.write(`\n${line}\n`);
   process.stdout.write(`  ${paint("◆", ansi.blue)}  ${title}  ${version}\n`);

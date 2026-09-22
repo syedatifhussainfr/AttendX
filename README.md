@@ -4,30 +4,61 @@
 
 AttendX replaces slow roll calls with a controlled attendance workflow for class representatives, administrators, and service operators. It combines timetable-aware session creation, server-authoritative attendance rules, accountable corrections, human-readable reports, backup tooling, and tiered administration in one responsive application.
 
-![Version](https://img.shields.io/badge/version-1.1.6-0a4a7f)
+![Version](https://img.shields.io/badge/version-1.1.7-0a4a7f)
 ![Status](https://img.shields.io/badge/status-stable-2f855a)
 ![Runtime](https://img.shields.io/badge/node-20%2B-43853d)
 ![Database](https://img.shields.io/badge/database-SQLite%20%7C%20PostgreSQL-315b7d)
 
 ## Product position
 
-AttendX is designed for a managed-service model: an operator deploys and maintains an isolated instance for an institution, configures its academic data, protects backups, and manages privileged access. Version 1.1.6 is single-institution per deployment. A shared multi-tenant control plane, billing, and institution self-provisioning are future product work and are not falsely represented as existing features.
+AttendX is designed for a managed-service model: an operator deploys and maintains an isolated instance for an institution, configures its academic data, protects backups, and manages privileged access. Version 1.1.7 is single-institution per deployment. A shared multi-tenant control plane, billing, and institution self-provisioning are future product work and are not falsely represented as existing features.
 
-Brand assets, institution name, class name, academic session, subjects, timetable, and administrator accounts are deployment configuration—not hard-coded product identity.
+Operational records, credentials, local policy, institution settings, subjects, timetables, and administrator accounts belong to each deployment and are not source-controlled. Replace the bundled presentation assets and labels when preparing a differently branded deployment.
 
 ## Release status
 
 | Version | Status | Summary |
 | --- | --- | --- |
 | `v1.0.0` | Released baseline | Core attendance workflow, basic administration, CSV onboarding, exports, and audit history. |
-| `v1.1.6` | Current release | Reliability, reporting, secure sessions, responsive UX, Admin++ controls, database visibility, self-healing permissions, and operational tooling. |
+| `v1.1.6` | Previous release | Secure sessions, Admin++ controls, database visibility, self-healing permissions, reporting, and responsive operations. |
+| `v1.1.7` | Current release | Recoverable live attendance, stronger privilege boundaries, safer token rotation, configurable permissions, validated timetables, and refined operational UX. |
 | `v1.2.0` | Planned | Faculty, programme/semester/section modelling, academic calendar, alerting, and service-management foundations. |
 
-The published [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.0.0) remains the reproducible baseline for the comparison below.
+The published [`v1.1.6` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.1.6) is the reproducible starting point for the V1.1.7 comparison. The [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.0.0) remains the original stable baseline.
 
-## V1.0 compared with V1.1.6
+## V1.1.6 compared with V1.1.7
 
-| Area | V1.0 | V1.1.6 |
+| Area | V1.1.6 | V1.1.7 |
+| --- | --- | --- |
+| Live attendance | Server writes with duplicate protection | Browser-local write-ahead queue, optimistic status, reconnect/reload replay, and closure blocked while changes remain unsynced |
+| Marking workflow | Rapid roll entry and individual correction | Persistent Present/Late/Remove tools, pending-roll review, clean overrides, and unattended-to-Absent finalization at closure |
+| Session refresh | Rotating hashed refresh tokens with reuse detection | Same-browser parallel-refresh recovery window while cross-device reuse still revokes sessions |
+| Protected areas | Admin++ elevation for destructive operations | ADMIN password gate for Users; Admin++ gate for Database, Backups, permission policy, and destructive operations |
+| Role management | ADMIN and CR account management | Admin++ may change ordinary accounts between ADMIN and CR; Admin++ assignment/revocation remains CLI-only |
+| Permission policy | Self-healing YAML capability matrix | Glass Settings editor for CR/ADMIN, backend-enforced all-true Admin++, protected ceilings, and immediate policy application |
+| Timetable safety | Duplicate/overlap protection when opening attendance | Strict clock parsing, active-subject enforcement, and overlap rejection when creating or editing timetable entries |
+| Late policy | Fixed threshold-based behavior | Admin++ Late Mode switch, per-session inheritance, disabled threshold control when Late Mode is off, and optional CR live-correction policy |
+| Backups | Validated create/download/restore | Stronger schema/admin validation, deletion with reason and audit, improved upload picker, and managed backup inventory command |
+| Audit and history | Browser audit records and correction history | Structured audit table, text export, guarded attendance-history deletion with retained audit snapshot, and normalized legacy timestamps |
+| Dialog accessibility | Standard modal behavior | Focus trapping, focus restoration, keyboard containment, scroll locking, and overlap prevention |
+| Operations | Config and database verification commands | Unified `npm run doctor`, timetable validation, backup listing, config archive organization, and readiness-gated development output |
+
+### Upgrade from V1.1.6
+
+```bash
+git pull origin main
+npm install
+npm run config-check
+npm run backup
+npm run doctor
+npm run dev
+```
+
+`config-check` preserves valid local choices, restores missing structure, and moves historical recovery copies into `config/archive/`. Review the permission matrix in Settings after upgrading. Existing attendance and timetable data are migrated in place; keep a tested backup before every deployment update.
+
+## V1.0 compared with V1.1.7
+
+| Area | V1.0 | V1.1.7 |
 | --- | --- | --- |
 | Authentication | JWT login | Short-lived in-memory access tokens plus rotating, hashed refresh sessions in `HttpOnly`, `SameSite=Strict` cookies |
 | Logout | Client sign-out | Server-side session revocation, trusted-origin validation, popup flow, and dedicated `/logout` route |
@@ -116,13 +147,26 @@ The published [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/re
 - Privilege ceilings prevent CR/ADMIN from receiving Admin++ deletion or session-control authority.
 - Read-only in-memory defaults keep startup safe if the configuration directory cannot be written.
 - `npm run config-check` validates and reports the effective policy before deployment.
+
+### V1.1.7 — recoverable attendance and hardened operations
+
+- Present, Late, and Remove tools support rapid roll-card marking and clean live overrides.
+- Unmarked students remain pending until reviewed; confirmation converts them to Absent when the session closes.
+- A browser-local write-ahead queue preserves attendance changes before network transmission and replays them after refresh, reconnection, or browser recovery.
+- Session closure is blocked while local attendance changes remain unsynchronized.
+- Same-browser refresh races recover safely without weakening cross-device refresh-token reuse detection.
 - Settings includes a glass permission editor for CR and ADMIN after Admin++ password verification.
 - ADMIN++ capabilities are always enabled in backend policy and cannot be reduced by YAML or browser edits.
 - Users requires an ADMIN password check; Database and Backup & restore require an Admin++ password check.
 - Admin++ can promote ordinary CR/ADMIN accounts between those roles; Admin++ assignment and revocation remain CLI-only.
-- Attendance marks are saved locally before transmission and replayed after refresh, reconnect, or a browser crash.
-- Refresh-token rotation tolerates a same-browser parallel refresh race without weakening cross-device reuse detection.
 - Timetable writes reject invalid clock values, inactive subjects, and overlapping active entries.
+- Late Mode is inherited by new sessions; disabling it also disables the irrelevant threshold control.
+- Backup restore validation now checks SQLite integrity, foreign keys, required user schema, and active administrator availability.
+- Managed backup deletion, attendance-history deletion, and audit-log text export retain accountable reasons and snapshots.
+- Modal focus trapping, focus restoration, keyboard containment, and background scroll locking prevent overlapping protected dialogs.
+- Legacy audit timestamps are normalized without losing readable historical records.
+- Configuration recovery artifacts are organized under ignored `archive/broken`, `archive/repaired`, and `archive/replaced` folders.
+- `npm run timetable-check`, `npm run backup:list`, and `npm run doctor` provide repeatable operator checks.
 
 ## Permission model
 
@@ -146,7 +190,7 @@ The published [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/re
 | Enable or disable Late Mode for new sessions | — | — | ✓ |
 | Promote or revoke Admin++ | — | — | CLI only |
 
-Raw database records remain read-only for both ADMIN and ADMIN++. Data changes go through validated API workflows so authorization, relationships, and audit rules cannot be bypassed.
+The Admin++ database browser remains strictly read-only. Data changes go through validated API workflows so authorization, relationships, and audit rules cannot be bypassed.
 
 ## Architecture
 
@@ -388,7 +432,7 @@ Credited attendance percentage is `PRESENT / classes conducted × 100`. Physical
 - Audit logs can be downloaded as a human-readable `.txt` record from the Audit page.
 - Self-disable, self-delete, and last-active-Admin++ protections prevent avoidable lockout.
 
-## V1.1.6 verification
+## V1.1.7 verification
 
 - 36 automated tests cover attendance rules and recovery queues, Late Mode, imports, exports, refresh races, authorization gates, backup retention, audit export, Admin++, role changes, timetable validation, destructive history controls, archive migration, and self-healing configuration.
 - Production frontend compilation succeeds with Vite.
@@ -419,4 +463,4 @@ Planned product work includes:
 
 ## Important scope statement
 
-V1.1.6 is suitable for controlled pilot evaluation and service-operated deployment after the final checklist passes. It is not yet a self-service multi-tenant SaaS platform. Each institution should receive an isolated deployment and database until tenant isolation, provisioning, billing, and operator tooling are deliberately implemented and independently reviewed.
+V1.1.7 is suitable for controlled pilot evaluation and service-operated deployment after the final checklist passes. It is not yet a self-service multi-tenant SaaS platform. Each institution should receive an isolated deployment and database until tenant isolation, provisioning, billing, and operator tooling are deliberately implemented and independently reviewed.

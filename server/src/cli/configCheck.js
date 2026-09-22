@@ -10,7 +10,7 @@ const color = (code, value) =>
 const ok = (value) => color("1;32", value);
 const info = (value) => color("1;36", value);
 
-console.log(`\n${info("AttendX V1.1.6 · Configuration check")}`);
+console.log(`\n${info("AttendX V1.1.7 · Configuration check")}`);
 console.log("─".repeat(54));
 console.log(`  Policy version             ${permissionPolicy.version}`);
 console.log(`  YAML parsing               ${ok("PASS")}`);
