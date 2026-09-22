@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Database, ShieldCheck } from "lucide-react";
+import { ArrowRight, LockKeyhole, ShieldCheck } from "lucide-react";
 import {
   api,
   hasAdminElevation,
@@ -44,20 +44,25 @@ export function AdminPlusGate({
   return (
     <div className="page admin-plus-lock">
       <section className="admin-plus-lock-card">
-        <span className="admin-plus-lock-icon">
-          <Database />
-        </span>
-        <span className="eyebrow">
-          {adminPlus ? "ADMIN++" : "ADMIN"} · PROTECTED AREA
-        </span>
-        <h1>Unlock {area}</h1>
-        <p>
-          Confirm the password for <b>{user.email}</b>. Access stays unlocked
-          for five minutes in this tab and is bound to this login session.
-        </p>
-        <form onSubmit={unlock} className="form-stack">
+        <header className="admin-plus-lock-header">
+          <span className="admin-plus-lock-icon" aria-hidden="true">
+            <LockKeyhole />
+          </span>
+          <div>
+            <span className="eyebrow">PROTECTED AREA</span>
+            <small>{adminPlus ? "Admin++ verification" : "Administrator verification"}</small>
+          </div>
+        </header>
+        <div className="admin-plus-lock-copy">
+          <h1>Unlock {area}</h1>
+          <p>
+            Confirm the password for <b>{user.email}</b>. Access is limited to
+            this login session and expires after five minutes.
+          </p>
+        </div>
+        <form onSubmit={unlock} className="form-stack admin-plus-lock-form">
           <label>
-            Current password
+            <span>Current password</span>
             <input
               name="password"
               type="password"
@@ -68,14 +73,17 @@ export function AdminPlusGate({
           </label>
           {error && <div className="danger-note">{error}</div>}
           <button className="primary" disabled={busy}>
-            <ShieldCheck />
+            {busy ? <ShieldCheck /> : <ArrowRight />}
             {busy ? "Verifying…" : `Unlock ${area}`}
           </button>
         </form>
-        <small>
-          Nothing is stored in the browser. Refreshing or signing out removes
-          this verification immediately.
-        </small>
+        <footer className="admin-plus-lock-footer">
+          <ShieldCheck aria-hidden="true" />
+          <small>
+            Verification stays in memory only. Refreshing or signing out locks
+            this area again.
+          </small>
+        </footer>
       </section>
     </div>
   );

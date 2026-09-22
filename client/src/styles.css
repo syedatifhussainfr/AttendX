@@ -4537,66 +4537,169 @@ body.sidebar-resizing * {
   min-height: calc(100vh - 90px);
   display: grid;
   place-items: center;
+  padding-block: clamp(24px, 6vh, 72px);
 }
 
 .admin-plus-lock-card {
-  position: relative;
-  overflow: hidden;
-  width: min(100%, 460px);
-  padding: clamp(24px, 4vw, 38px);
-  border: 1px solid rgba(255, 255, 255, 0.82);
-  border-radius: 17px;
-  background: rgba(255, 255, 255, 0.64);
+  width: min(100%, 520px);
+  padding: clamp(24px, 4vw, 40px);
+  border: 1px solid rgba(255, 255, 255, 0.74);
+  border-radius: 18px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.72), rgba(238, 246, 249, 0.52)),
+    rgba(244, 249, 251, 0.58);
   box-shadow:
-    0 24px 65px rgba(19, 49, 71, 0.12),
-    inset 0 1px rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(24px) saturate(125%);
+    0 24px 64px rgba(20, 48, 68, 0.11),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(26px) saturate(118%);
+  -webkit-backdrop-filter: blur(26px) saturate(118%);
 }
 
-.admin-plus-lock-card::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto;
-  height: 3px;
-  background: linear-gradient(90deg, #d77831, rgba(215, 120, 49, 0.08));
+.admin-plus-lock-header {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(37, 76, 102, 0.1);
 }
 
 .admin-plus-lock-icon {
-  width: 50px;
-  height: 50px;
+  width: 42px;
+  height: 42px;
   display: grid;
+  flex: 0 0 auto;
   place-items: center;
-  margin-bottom: 22px;
-  color: #174f77;
-  border: 1px solid rgba(25, 79, 118, 0.13);
-  border-radius: 13px;
-  background: rgba(229, 239, 244, 0.76);
+  color: #245d80;
+  border: 1px solid rgba(38, 86, 117, 0.12);
+  border-radius: 11px;
+  background: rgba(226, 238, 244, 0.7);
 }
 
 .admin-plus-lock-icon svg {
-  width: 21px;
+  width: 19px;
+  height: 19px;
 }
 
-.admin-plus-lock-card h1 {
-  margin: 8px 0 8px;
+.admin-plus-lock-header .eyebrow,
+.admin-plus-lock-header small {
+  display: block;
+}
+
+.admin-plus-lock-header .eyebrow {
+  margin: 0 0 3px;
+  color: #315f7d;
+  letter-spacing: 0.13em;
+}
+
+.admin-plus-lock-header small {
+  color: #788b98;
+  font-size: 10px;
+}
+
+.admin-plus-lock-copy {
+  padding-top: 25px;
+}
+
+.admin-plus-lock-copy h1 {
+  margin: 0 0 9px;
   color: #102f48;
-  font-size: 28px;
+  font-size: clamp(25px, 4vw, 31px);
+  letter-spacing: -0.035em;
 }
 
-.admin-plus-lock-card > p,
-.admin-plus-lock-card > small {
+.admin-plus-lock-copy p {
+  margin: 0;
   color: #687c8c;
-  font-size: 12px;
-  line-height: 1.6;
+  font-size: 12.5px;
+  line-height: 1.65;
 }
 
-.admin-plus-lock-card form {
-  margin: 22px 0 16px;
+.admin-plus-lock-copy p b {
+  color: #264c67;
+  font-weight: 650;
+  overflow-wrap: anywhere;
 }
 
-.admin-plus-lock-card form button {
+.admin-plus-lock-form {
+  margin: 24px 0 18px;
+  gap: 13px;
+}
+
+.admin-plus-lock-form label > span {
+  display: block;
+  margin-bottom: 7px;
+  color: #38576d;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.admin-plus-lock-form input {
+  min-height: 47px;
+  border-color: rgba(42, 83, 110, 0.14);
+  background: rgba(255, 255, 255, 0.66);
+  box-shadow: inset 0 1px 3px rgba(26, 58, 80, 0.04);
+}
+
+.admin-plus-lock-form input:focus {
+  border-color: rgba(45, 104, 139, 0.42);
+  box-shadow: 0 0 0 3px rgba(57, 118, 153, 0.09);
+}
+
+.admin-plus-lock-form button {
   justify-content: center;
+  min-height: 45px;
   width: 100%;
+  margin-top: 2px;
+}
+
+.admin-plus-lock-form button:hover:not(:disabled) {
+  transform: none;
+}
+
+.admin-plus-lock-footer {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(37, 76, 102, 0.08);
+  color: #718491;
+}
+
+.admin-plus-lock-footer svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: #527991;
+}
+
+.admin-plus-lock-footer small {
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+@media (max-width: 600px) {
+  .admin-plus-lock {
+    min-height: auto;
+    padding-block: 16px 28px;
+  }
+
+  .admin-plus-lock-card {
+    padding: 22px 18px;
+    border-radius: 15px;
+  }
+
+  .admin-plus-lock-header {
+    padding-bottom: 17px;
+  }
+
+  .admin-plus-lock-copy {
+    padding-top: 20px;
+  }
+
+  .admin-plus-lock-copy h1 {
+    font-size: 25px;
+  }
 }
 
 .page,
@@ -4802,11 +4905,6 @@ body.sidebar-resizing * {
   .toolbox-heading {
     padding-bottom: 0;
   }
-}
-
-.admin-plus-lock-card > p b {
-  color: #264c67;
-  overflow-wrap: anywhere;
 }
 
 .permission-policy-panel {
