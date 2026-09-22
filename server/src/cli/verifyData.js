@@ -93,12 +93,25 @@ try {
      HAVING COUNT(*) > 1`,
     { type: QueryTypes.SELECT },
   );
+  const duplicateEnrollments = await sequelize.query(
+    `SELECT enrollment_number, COUNT(*) AS count
+       FROM students
+      WHERE enrollment_number IS NOT NULL AND TRIM(enrollment_number) <> ''
+      GROUP BY enrollment_number
+     HAVING COUNT(*) > 1`,
+    { type: QueryTypes.SELECT },
+  );
 
   row("Active administrator", activeAdmins ? ok(`${activeAdmins} found`) : fail("MISSING"));
   if (!activeAdmins) exitCode = 1;
   row("Active Admin++", activeAdminPlus ? ok(String(activeAdminPlus)) : warn("0"));
   row("Duplicate roll numbers", duplicateRolls.length ? fail(String(duplicateRolls.length)) : ok("0"));
   if (duplicateRolls.length) exitCode = 1;
+  row(
+    "Duplicate enrolments",
+    duplicateEnrollments.length ? fail(String(duplicateEnrollments.length)) : ok("0"),
+  );
+  if (duplicateEnrollments.length) exitCode = 1;
 
   console.log(`\n${info("Record summary")}`);
   row("Users", users);

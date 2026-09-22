@@ -34,6 +34,7 @@ export function SettingsPage() {
           ? Number(f.lateThresholdMinutes)
           : Number(data.lateThresholdMinutes),
         crCanCorrectRecent: f.crCanCorrectRecent === "on",
+        attendanceTargetPercentage: Number(f.attendanceTargetPercentage),
       };
       const response = await api.put("/admin/settings", payload);
       setData((current) => ({ ...current, ...response.data }));
@@ -186,6 +187,19 @@ export function SettingsPage() {
               disabled={!can("settings.manage")}
             />
             <span>Allow CR correction during active sessions</span>
+          </label>
+          <label>
+            Attendance target (%)
+            <input
+              name="attendanceTargetPercentage"
+              type="number"
+              min="1"
+              max="100"
+              defaultValue={data.attendanceTargetPercentage ?? 75}
+              disabled={!can("settings.manage")}
+              required
+            />
+            <small>Used for student risk labels and recovery guidance.</small>
           </label>
         </section>
         <section className="panel settings-panel">

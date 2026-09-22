@@ -22,7 +22,6 @@ import {
   AuthSession,
 } from "../db/index.js";
 import {
-  compareRollNumbers,
   normalizeRollNumber,
 } from "../utils/rollNumber.js";
 import {
@@ -45,23 +44,56 @@ import {
   revokeSessionById,
   revokeUserSessions,
 } from "../services/authSessionService.js";
+import {
+  publicStudent,
+  studentDirectory,
+  studentProfile,
+} from "../services/studentService.js";
 
 const router = Router();
 router.use(requireAuth);
 router.get("/students", requirePermission("students.view"), async (req, res) => {
-  const q = req.query.q || "";
-  const students = await Student.findAll({
-    where: q
-      ? {
-          [Op.or]: [
-            { rollNumber: { [Op.like]: `%${q}%` } },
-            { name: { [Op.like]: `%${q}%` } },
-          ],
-        }
-      : {},
-  });
-  res.json(students.sort(compareRollNumbers));
+  const q = z.string().trim().max(100).catch("").parse(req.query.q || "");
+  res.json(
+    await studentDirectory({ q, sensitive: req.user.role === "ADMIN" }),
+  );
 });
+router.get(
+  "/students/:id/profile",
+  requirePermission("students.view"),
+  async (req, res) => {
+    const profile = await studentProfile(req.params.id, {
+      sensitive: req.user.role === "ADMIN",
+    });
+    if (!profile) return res.status(404).json({ message: "Student not found." });
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(profile);
+  },
+);
+const optionalText = (max) =>
+  z.preprocess(
+    (value) => (value == null || String(value).trim() === "" ? null : value),
+    z.string().trim().max(max).nullable(),
+  );
+const optionalPhone = z.preprocess(
+  (value) => (value == null || String(value).trim() === "" ? null : value),
+  z
+    .string()
+    .trim()
+    .regex(/^\+?[0-9]{8,15}$/, "Use 8–15 digits with an optional country code.")
+    .nullable(),
+);
+const studentDetailsSchema = {
+  enrollmentNumber: optionalText(50).optional(),
+  section: optionalText(80).optional(),
+  phoneNumber: optionalPhone.optional(),
+  guardianPhone: optionalPhone.optional(),
+  notes: optionalText(1000).optional(),
+  admissionDate: z.preprocess(
+    (value) => (value == null || value === "" ? null : value),
+    z.string().date().nullable(),
+  ).optional(),
+};
 router.post("/students", requirePermission("students.create"), async (req, res) => {
   const data = z
     .object({
@@ -69,10 +101,25 @@ router.post("/students", requirePermission("students.create"), async (req, res) 
       name: z.string().trim().min(2),
       cardToken: z.string().trim().min(16).nullable().optional(),
       photoUrl: z.string().url().nullable().optional(),
+      ...studentDetailsSchema,
     })
     .parse(req.body);
   data.rollNumber = normalizeRollNumber(data.rollNumber);
-  res.status(201).json(await Student.create(data));
+  const created = await sequelize.transaction(async (transaction) => {
+    const row = await Student.create(data, { transaction });
+    await AuditLog.create(
+      {
+        entityType: "STUDENT",
+        entityId: row.id,
+        action: "STUDENT_CREATED",
+        newValue: JSON.stringify(publicStudent(row)),
+        UserId: req.user.id,
+      },
+      { transaction },
+    );
+    return row;
+  });
+  res.status(201).json(publicStudent(created, { sensitive: true }));
 });
 router.patch("/students/:id", requirePermission("students.update"), async (req, res) => {
   const row = await Student.findByPk(req.params.id);
@@ -84,11 +131,26 @@ router.patch("/students/:id", requirePermission("students.update"), async (req, 
       active: z.boolean().optional(),
       cardToken: z.string().trim().min(16).nullable().optional(),
       photoUrl: z.string().url().nullable().optional(),
+      ...studentDetailsSchema,
     })
     .parse(req.body);
   if (data.rollNumber) data.rollNumber = normalizeRollNumber(data.rollNumber);
-  await row.update(data);
-  res.json(row);
+  const before = publicStudent(row, { sensitive: true });
+  await sequelize.transaction(async (transaction) => {
+    await row.update(data, { transaction });
+    await AuditLog.create(
+      {
+        entityType: "STUDENT",
+        entityId: row.id,
+        action: "STUDENT_UPDATED",
+        oldValue: JSON.stringify(before),
+        newValue: JSON.stringify(publicStudent(row, { sensitive: true })),
+        UserId: req.user.id,
+      },
+      { transaction },
+    );
+  });
+  res.json(publicStudent(row, { sensitive: true }));
 });
 router.delete(
   "/students/:id",
@@ -351,6 +413,7 @@ router.get("/settings", requirePermission("settings.view"), async (req, res) => 
   res.json(
     {
       lateModeEnabled: true,
+      attendanceTargetPercentage: 75,
       ...Object.fromEntries(
         rows.map((row) => [row.key, settingValue(row)]),
       ),
@@ -398,6 +461,7 @@ router.put("/settings", requirePermission("settings.manage"), async (req, res) =
       academicSession: z.string().min(2),
       timezone: z.literal("Asia/Kolkata"),
       crCanCorrectRecent: z.boolean().optional(),
+      attendanceTargetPercentage: z.number().int().min(1).max(100).optional(),
     })
     .parse(req.body);
   const before = Object.fromEntries(

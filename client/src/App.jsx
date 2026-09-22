@@ -14,6 +14,10 @@ const AttendanceSessionPage = lazyNamed(
 );
 const History = lazyNamed(() => import("./pages/History.jsx"), "History");
 const Students = lazyNamed(() => import("./pages/Students.jsx"), "Students");
+const StudentProfile = lazyNamed(
+  () => import("./pages/StudentProfile.jsx"),
+  "StudentProfile",
+);
 const Subjects = lazyNamed(() => import("./pages/Subjects.jsx"), "Subjects");
 const Timetable = lazyNamed(() => import("./pages/Timetable.jsx"), "Timetable");
 const UsersPage = lazyNamed(() => import("./pages/Users.jsx"), "UsersPage");
@@ -112,6 +116,7 @@ export function App() {
           <Route path="attendance/:id" element={<Deferred><AttendanceSessionPage /></Deferred>} />
           <Route path="history" element={<Deferred><History /></Deferred>} />
           <Route path="students" element={<Deferred><Students /></Deferred>} />
+          <Route path="students/:id" element={<Deferred><StudentProfile /></Deferred>} />
           <Route
             path="subjects"
             element={

@@ -85,6 +85,7 @@ export async function seed() {
     academicSession: "2026–27",
     timezone: "Asia/Kolkata",
     crCanCorrectRecent: true,
+    attendanceTargetPercentage: 75,
   };
   for (const [key, value] of Object.entries(settings))
     await Setting.findOrCreate({

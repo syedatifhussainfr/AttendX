@@ -112,6 +112,15 @@ test("versioned migration adds V1.1 columns and records itself", async () => {
   assert.ok(authSessionsTable.expires_at);
   assert.ok(users.admin_plus);
   assert.ok(users.phone_number);
+  const studentsTable = await db.sequelize
+    .getQueryInterface()
+    .describeTable("students");
+  assert.ok(studentsTable.enrollment_number);
+  assert.ok(studentsTable.section);
+  assert.ok(studentsTable.phone_number);
+  assert.ok(studentsTable.guardian_phone);
+  assert.ok(studentsTable.notes);
+  assert.ok(studentsTable.admission_date);
   const [migrations] = await db.sequelize.query(
     "SELECT id FROM app_migrations WHERE id = '001-v1.1-core-safety'",
   );
@@ -132,6 +141,10 @@ test("versioned migration adds V1.1 columns and records itself", async () => {
     "SELECT id FROM app_migrations WHERE id = '005-normalize-sqlite-timestamps'",
   );
   assert.equal(timestampMigrations.length, 1);
+  const [studentProfileMigrations] = await db.sequelize.query(
+    "SELECT id FROM app_migrations WHERE id = '006-student-profile'",
+  );
+  assert.equal(studentProfileMigrations.length, 1);
 });
 
 test("secure browser sessions rotate, reject stale access, and revoke on logout", async () => {
@@ -503,6 +516,63 @@ test("review export is authenticated, validated and securely named", async () =>
     .expect("Content-Type", /spreadsheetml/)
     .expect("Cache-Control", "private, no-store")
     .expect("Content-Disposition", 'attachment; filename="attendance_2026-09-18.xlsx"');
+});
+
+test("student workspace summarizes attendance and protects personal fields", async () => {
+  const student = await db.Student.findOne({ where: { rollNumber: "01" } });
+  await student.update({
+    enrollmentNumber: "ENROL-001",
+    section: "A",
+    phoneNumber: "+919111111111",
+    guardianPhone: "+919222222222",
+    notes: "Synthetic test note",
+    admissionDate: "2026-07-01",
+    cardToken: "synthetic-card-token-0001",
+  });
+  await db.Setting.upsert({
+    key: "attendanceTargetPercentage",
+    value: "75",
+  });
+
+  await request(app)
+    .get("/api/admin/students")
+    .set("Authorization", `Bearer ${crToken}`)
+    .expect(200)
+    .expect((response) => {
+      const row = response.body.students.find((item) => item.id === student.id);
+      assert.ok(row.attendance);
+      assert.equal(row.attendance.target, 75);
+      assert.equal("phoneNumber" in row, false);
+      assert.equal("guardianPhone" in row, false);
+      assert.equal("notes" in row, false);
+      assert.equal("cardToken" in row, false);
+    });
+
+  await request(app)
+    .get(`/api/admin/students/${student.id}/profile`)
+    .set("Authorization", `Bearer ${crToken}`)
+    .expect(200)
+    .expect((response) => {
+      assert.equal(response.body.student.enrollmentNumber, "ENROL-001");
+      assert.equal("phoneNumber" in response.body.student, false);
+      assert.ok(Array.isArray(response.body.subjects));
+      assert.ok(Array.isArray(response.body.records));
+    });
+
+  await request(app)
+    .get(`/api/admin/students/${student.id}/profile`)
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .expect(200)
+    .expect((response) => {
+      assert.equal(response.body.student.phoneNumber, "+919111111111");
+      assert.equal(response.body.student.notes, "Synthetic test note");
+    });
+
+  await request(app)
+    .get(`/api/attendance/export/review?studentId=${student.id}`)
+    .set("Authorization", `Bearer ${crToken}`)
+    .expect(200)
+    .expect("Content-Disposition", /attendance_student_\d+_\d{4}-\d{2}-\d{2}\.xlsx/);
 });
 
 test("ADMIN manages accounts while Admin++ elevation protects destructive actions", async () => {

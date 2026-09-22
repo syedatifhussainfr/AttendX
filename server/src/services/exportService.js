@@ -36,7 +36,17 @@ async function loadSessions(filters, closedOnly = false) {
       ["sessionDate", "ASC"],
       ["scheduledStartTime", "ASC"],
     ],
-    include: [Subject, { model: AttendanceRecord, include: [Student] }],
+    include: [
+      Subject,
+      {
+        model: AttendanceRecord,
+        ...(filters.studentId && {
+          where: { StudentId: filters.studentId },
+          required: true,
+        }),
+        include: [Student],
+      },
+    ],
   });
   const recordCount = sessions.reduce(
     (total, session) => total + session.AttendanceRecords.length,
@@ -157,7 +167,8 @@ export function attendanceExportFilename(filters, sessions, machine = false) {
   else if (filters.from) period = `${filters.from}_onwards`;
   else if (filters.to) period = `through_${filters.to}`;
   else period = new Date().toISOString().slice(0, 10);
-  return `attendance_${machine ? "data_" : ""}${period}.xlsx`;
+  const student = filters.studentId ? `student_${filters.studentId}_` : "";
+  return `attendance_${student}${machine ? "data_" : ""}${period}.xlsx`;
 }
 
 export async function buildAttendanceWorkbook(filters) {
@@ -206,7 +217,10 @@ export async function buildAttendanceWorkbook(filters) {
 export async function buildAttendanceReviewWorkbook(filters) {
   const [sessions, activeStudents] = await Promise.all([
     loadSessions(filters, true),
-    Student.findAll({ where: { active: true }, order: [["id", "ASC"]] }),
+    Student.findAll({
+      where: filters.studentId ? { id: filters.studentId } : { active: true },
+      order: [["id", "ASC"]],
+    }),
   ]);
   if (sessions.length > MAX_REVIEW_SESSIONS) {
     const error = new Error(

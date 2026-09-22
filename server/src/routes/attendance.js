@@ -40,6 +40,7 @@ import {
   normalizeRollNumber,
 } from "../utils/rollNumber.js";
 import { CLOCK_TIME_PATTERN } from "../utils/schedule.js";
+import { studentProfile } from "../services/studentService.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -58,6 +59,7 @@ const exportFiltersSchema = z
     from: optionalExportDate,
     to: optionalExportDate,
     subjectId: optionalExportId,
+    studentId: optionalExportId,
   })
   .refine((value) => !value.from || !value.to || value.from <= value.to, {
     path: ["to"],
@@ -381,20 +383,12 @@ router.get(
   "/analytics/students/:id",
   requirePermission("reports.view"),
   async (req, res) => {
-  const student = await Student.findByPk(req.params.id);
-  if (!student) return res.status(404).json({ message: "Student not found." });
-  const records = await AttendanceRecord.findAll({
-    where: { StudentId: student.id },
-    include: [
-      {
-        model: AttendanceSession,
-        where: { status: "CLOSED" },
-        include: [Subject],
-      },
-    ],
-    order: [[AttendanceSession, "sessionDate", "DESC"]],
+  const profile = await studentProfile(req.params.id, {
+    sensitive: req.user.role === "ADMIN",
   });
-  res.json({ student, summary: summarize(records), records });
+  if (!profile) return res.status(404).json({ message: "Student not found." });
+  res.setHeader("Cache-Control", "private, no-store");
+  res.json(profile);
   },
 );
 export default router;

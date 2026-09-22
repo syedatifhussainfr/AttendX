@@ -22,6 +22,7 @@ Operational records, credentials, local policy, institution settings, subjects, 
 | `v1.0.0` | Released baseline | Core attendance workflow, basic administration, CSV onboarding, exports, and audit history. |
 | `v1.1.6` | Previous release | Secure sessions, Admin++ controls, database visibility, self-healing permissions, reporting, and responsive operations. |
 | `v1.1.7` | Current release | Recoverable live attendance, stronger privilege boundaries, safer token rotation, configurable permissions, validated timetables, and refined operational UX. |
+| Unreleased | Local development | Student profiles, attendance standing, subject breakdowns, calendars, individual reports, and privacy-aware student information. |
 | `v1.2.0` | Planned | Faculty, programme/semester/section modelling, academic calendar, alerting, and service-management foundations. |
 
 The published [`v1.1.6` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.1.6) is the reproducible starting point for the V1.1.7 comparison. The [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.0.0) remains the original stable baseline.
@@ -167,6 +168,16 @@ npm run dev
 - Legacy audit timestamps are normalized without losing readable historical records.
 - Configuration recovery artifacts are organized under ignored `archive/broken`, `archive/repaired`, and `archive/replaced` folders.
 - `npm run timetable-check`, `npm run backup:list`, and `npm run doctor` provide repeatable operator checks.
+
+### Unreleased — student workspace
+
+- Redesigned roster with glass cards, compact table mode, natural roll ordering, search, filters, and persistent view preference.
+- Backend-calculated attendance standing using a configurable target: Good, Needs attention, Critical, or No data.
+- Present, Late, Absent, recorded-class, physical-appearance, recovery, and absence-streak summaries.
+- Dedicated student profiles with subject-level percentages, monthly attendance calendar, recent timeline, and individual review workbook export.
+- Optional enrolment number, section, admission date, contact, guardian contact, and administrative notes.
+- Phone, guardian, notes, and card-token fields are omitted from CR API responses and exposed only to administrators.
+- Additive `006-student-profile` migration, duplicate-enrolment protection, and integrity verification.
 
 ## Permission model
 
@@ -401,6 +412,8 @@ A release-ready SQLite database must pass `PRAGMA integrity_check`, have zero fo
 ## Attendance rules
 
 The default late threshold is 15 minutes and is configurable. Its value is copied into each attendance session when opened, so later configuration changes cannot rewrite history. The threshold control is disabled in Settings while Late Mode is off because it has no effect in that mode.
+
+The student attendance target defaults to 75% and is configurable in Settings. Student standing, recovery guidance, and subject risk labels are calculated by the backend from closed attendance records; Late represents a physical appearance but does not grant attendance credit.
 
 Admin++ can enable or disable **Late Mode** from Settings. The choice is copied into each newly opened session: enabled sessions classify arrivals after the threshold as Late, while disabled sessions record every marked arrival as Present. Existing sessions and historical records retain the mode under which they were created.
 

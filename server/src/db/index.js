@@ -87,6 +87,16 @@ export const Student = sequelize.define(
     active: { type: DataTypes.BOOLEAN, defaultValue: true },
     cardToken: { type: DataTypes.STRING, unique: true, allowNull: true },
     photoUrl: { type: DataTypes.STRING, allowNull: true },
+    enrollmentNumber: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      unique: true,
+    },
+    section: { type: DataTypes.STRING(80), allowNull: true },
+    phoneNumber: { type: DataTypes.STRING(20), allowNull: true },
+    guardianPhone: { type: DataTypes.STRING(20), allowNull: true },
+    notes: { type: DataTypes.TEXT, allowNull: true },
+    admissionDate: { type: DataTypes.DATEONLY, allowNull: true },
   },
   common,
 );
