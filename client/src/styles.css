@@ -5141,22 +5141,36 @@ body.sidebar-resizing * {
 
 .backup-actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 7px;
+  min-width: max-content;
 }
 
-.backup-delete {
-  display: grid;
+.backup-actions .secondary {
+  min-height: 38px;
+}
+
+.backups-page th:last-child,
+.backups-page td:last-child {
+  text-align: right;
+}
+
+.table-panel td .backup-delete {
+  display: inline-grid;
   width: 38px;
   height: 38px;
+  flex: 0 0 38px;
   place-items: center;
+  padding: 0;
+  line-height: 0;
   color: #a13d45;
   border: 1px solid rgba(167, 62, 70, 0.17);
   border-radius: 9px;
   background: rgba(255, 243, 244, 0.58);
 }
 
-.backup-delete:hover {
+.table-panel td .backup-delete:hover {
   transform: none;
   border-color: rgba(167, 62, 70, 0.36);
   background: rgba(255, 231, 233, 0.82);
@@ -5207,16 +5221,97 @@ body.sidebar-resizing * {
 }
 
 .restore-file-field {
-  padding: 13px;
-  border: 1px dashed rgba(46, 91, 122, 0.24);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.34);
+  display: grid;
+  gap: 7px;
 }
 
-.restore-file-field small {
+.restore-file-label {
+  color: #38506a;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.restore-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.restore-file-trigger {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 12px 13px;
+  cursor: pointer;
+  border: 1px dashed rgba(46, 91, 122, 0.3);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.44);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.82);
+  transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.restore-file-trigger:hover,
+.restore-file-input:focus-visible + .restore-file-trigger {
+  border-color: rgba(31, 94, 137, 0.52);
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 0 0 3px rgba(40, 112, 167, 0.08), inset 0 1px rgba(255, 255, 255, 0.9);
+}
+
+.restore-file-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  color: #2d668b;
+  border: 1px solid rgba(45, 102, 139, 0.14);
+  border-radius: 10px;
+  background: rgba(222, 237, 246, 0.68);
+}
+
+.restore-file-icon svg {
+  width: 19px;
+}
+
+.restore-file-copy {
+  display: block;
+  min-width: 0;
+}
+
+.restore-file-copy strong,
+.restore-file-copy small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.restore-file-copy strong {
+  color: #1b3d56;
+  font-size: 12px;
+}
+
+.restore-file-copy small {
+  margin-top: 3px;
   color: #778997;
   font-size: 9px;
   font-weight: 500;
+}
+
+.restore-file-browse {
+  padding: 7px 10px;
+  color: #285c7e;
+  border: 1px solid rgba(45, 102, 139, 0.17);
+  border-radius: 8px;
+  background: rgba(238, 247, 251, 0.76);
+  font-size: 10px;
+  font-weight: 800;
 }
 
 .backup-delete-form textarea {
@@ -5490,6 +5585,22 @@ body.sidebar-resizing * {
     grid-template-columns: 28px 1fr;
     gap: 8px;
     padding: 11px;
+  }
+
+  .restore-file-trigger {
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 9px;
+    min-height: 66px;
+    padding: 10px;
+  }
+
+  .restore-file-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .restore-file-browse {
+    display: none;
   }
 
   .security-brand-partner {

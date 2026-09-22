@@ -4,6 +4,7 @@ import {
   DatabaseBackup,
   Download,
   FileCheck2,
+  FileUp,
   HardDrive,
   Plus,
   ShieldAlert,
@@ -25,6 +26,7 @@ export function BackupsPage() {
   const [rows, setRows] = useState([]);
   const [busy, setBusy] = useState(false);
   const [restoreOpen, setRestoreOpen] = useState(false);
+  const [restoreFile, setRestoreFile] = useState(null);
   const [deleteRow, setDeleteRow] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const toast = useToast();
@@ -39,6 +41,11 @@ export function BackupsPage() {
   useEffect(() => {
     load();
   }, []);
+  const closeRestore = () => {
+    if (busy) return;
+    setRestoreOpen(false);
+    setRestoreFile(null);
+  };
   const create = async () => {
     setBusy(true);
     try {
@@ -75,6 +82,7 @@ export function BackupsPage() {
       const { data } = await api.post("/admin/backups/restore", form);
       toast(data.message);
       setRestoreOpen(false);
+      setRestoreFile(null);
     } catch (error) {
       toast(messageOf(error), "error");
       setBusy(false);
@@ -117,7 +125,10 @@ export function BackupsPage() {
           </p>
         </div>
         <div className="button-row">
-          {can("backups.restore") && <button className="secondary" onClick={() => setRestoreOpen(true)}>
+          {can("backups.restore") && <button className="secondary" onClick={() => {
+            setRestoreFile(null);
+            setRestoreOpen(true);
+          }}>
             <ArchiveRestore /> Restore
           </button>}
           {can("backups.create") && <button className="primary" onClick={create} disabled={busy}>
@@ -179,23 +190,37 @@ export function BackupsPage() {
       <Dialog
         open={restoreOpen}
         title="Restore SQLite database"
-        onClose={() => !busy && setRestoreOpen(false)}
+        onClose={closeRestore}
       >
         <form className="form-stack restore-backup-form" onSubmit={restore}>
           <div className="restore-warning">
             <ShieldAlert />
             <div><strong>Current data will be replaced</strong><p>AttendX validates the file and creates a safety backup before restoration. The API then stops for a clean restart.</p></div>
           </div>
-          <label className="restore-file-field">
-            <span>SQLite backup file</span>
+          <div className="restore-file-field">
+            <span className="restore-file-label">SQLite backup file</span>
             <input
+              id="restore-backup-file"
+              className="restore-file-input"
               name="backup"
               type="file"
               accept=".sqlite,.db,application/x-sqlite3"
+              onChange={(event) => setRestoreFile(event.target.files?.[0] || null)}
               required
             />
-            <small>Accepted: .sqlite or .db · maximum 100 MB</small>
-          </label>
+            <label className="restore-file-trigger" htmlFor="restore-backup-file">
+              <span className="restore-file-icon"><FileUp /></span>
+              <span className="restore-file-copy">
+                <strong>{restoreFile?.name || "Choose a downloaded backup"}</strong>
+                <small>
+                  {restoreFile
+                    ? `${sizeOf(restoreFile.size)} · ready for validation`
+                    : "AttendX .sqlite or .db file · maximum 100 MB"}
+                </small>
+              </span>
+              <span className="restore-file-browse">{restoreFile ? "Change" : "Browse"}</span>
+            </label>
+          </div>
           <label>
             Your ADMIN password
             <input
@@ -216,7 +241,7 @@ export function BackupsPage() {
             />
           </label>
           <div className="dialog-actions">
-            <button type="button" className="secondary" disabled={busy} onClick={() => setRestoreOpen(false)}>Cancel</button>
+            <button type="button" className="secondary" disabled={busy} onClick={closeRestore}>Cancel</button>
             <button className="danger" disabled={busy}>
               <ArchiveRestore /> {busy ? "Validating and restoring…" : "Restore and stop API"}
             </button>
