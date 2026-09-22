@@ -69,6 +69,7 @@ export function Layout() {
     }
   };
   const requestLogout = () => {
+    if (passwordPrompt) return;
     setOpen(false);
     setLogoutPrompt(true);
   };
@@ -96,6 +97,7 @@ export function Layout() {
       localStorage.getItem(passwordPromptKey) !== "true"
     ) {
       event.preventDefault();
+      setLogoutPrompt(false);
       setSkipPasswordPrompt(false);
       setPasswordPrompt(true);
     }
