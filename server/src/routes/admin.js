@@ -26,10 +26,20 @@ import {
   normalizeRollNumber,
 } from "../utils/rollNumber.js";
 import {
+  CLOCK_TIME_PATTERN,
+  schedulesOverlap,
+  validateScheduleWindow,
+} from "../utils/schedule.js";
+import {
   applyStudentImport,
   reconcileStudentRows,
 } from "../services/studentImportService.js";
 import { passwordSchema, publicUser } from "../utils/password.js";
+import { hasPermission } from "../policy/policyService.js";
+import {
+  permissionPolicySnapshot,
+  savePermissionPolicy,
+} from "../policy/policyService.js";
 import {
   listUserSessions,
   revokeSessionById,
@@ -229,6 +239,46 @@ router.delete(
     res.status(204).end();
   },
 );
+async function validateTimetableChange(data, current = null) {
+  const dayOfWeek = data.dayOfWeek ?? current?.dayOfWeek;
+  const startTime = data.startTime ?? current?.startTime;
+  const endTime = data.endTime ?? current?.endTime;
+  const subjectId = data.subjectId ?? current?.SubjectId;
+  const active = data.active ?? current?.active ?? true;
+  const windowError = validateScheduleWindow(startTime, endTime);
+  if (windowError) {
+    const error = new Error(windowError);
+    error.status = 400;
+    error.code = "INVALID_TIMETABLE_WINDOW";
+    throw error;
+  }
+  const subject = await Subject.findOne({ where: { id: subjectId, active: true } });
+  if (!subject) {
+    const error = new Error("Choose an active subject for this timetable entry.");
+    error.status = 400;
+    error.code = "SUBJECT_UNAVAILABLE";
+    throw error;
+  }
+  if (!active) return;
+  const candidates = await Timetable.findAll({
+    where: {
+      dayOfWeek,
+      active: true,
+      ...(current && { id: { [Op.ne]: current.id } }),
+    },
+  });
+  const conflict = candidates.find((entry) =>
+    schedulesOverlap(startTime, endTime, entry.startTime, entry.endTime),
+  );
+  if (conflict) {
+    const error = new Error(
+      `This time overlaps timetable entry ${conflict.startTime}–${conflict.endTime}.`,
+    );
+    error.status = 409;
+    error.code = "TIMETABLE_CONFLICT";
+    throw error;
+  }
+}
 router.get("/timetable", requirePermission("timetable.view"), async (req, res) =>
   res.json(
     await Timetable.findAll({
@@ -244,15 +294,17 @@ router.post("/timetable", requirePermission("timetable.manage"), async (req, res
   const data = z
     .object({
       dayOfWeek: z.number().int().min(1).max(7),
-      startTime: z.string().regex(/^\d{2}:\d{2}$/),
-      endTime: z.string().regex(/^\d{2}:\d{2}$/),
+      startTime: z.string().regex(CLOCK_TIME_PATTERN),
+      endTime: z.string().regex(CLOCK_TIME_PATTERN),
       subjectId: z.number().int(),
       faculty: z.string().trim().max(120).nullable().optional(),
     })
     .parse(req.body);
+  await validateTimetableChange(data);
+  const { subjectId, ...values } = data;
   res
     .status(201)
-    .json(await Timetable.create({ ...data, SubjectId: data.subjectId }));
+    .json(await Timetable.create({ ...values, SubjectId: subjectId }));
 });
 router.patch("/timetable/:id", requirePermission("timetable.manage"), async (req, res) => {
   const row = await Timetable.findByPk(req.params.id);
@@ -262,17 +314,18 @@ router.patch("/timetable/:id", requirePermission("timetable.manage"), async (req
       dayOfWeek: z.number().int().min(1).max(7).optional(),
       startTime: z
         .string()
-        .regex(/^\d{2}:\d{2}$/)
+        .regex(CLOCK_TIME_PATTERN)
         .optional(),
       endTime: z
         .string()
-        .regex(/^\d{2}:\d{2}$/)
+        .regex(CLOCK_TIME_PATTERN)
         .optional(),
       subjectId: z.number().int().optional(),
       faculty: z.string().trim().max(120).nullable().optional(),
       active: z.boolean().optional(),
     })
     .parse(req.body);
+  await validateTimetableChange(data, row);
   await row.update({
     ...data,
     ...(data.subjectId && { SubjectId: data.subjectId }),
@@ -285,13 +338,21 @@ router.delete("/timetable/:id", requirePermission("timetable.manage"), async (re
   await row.destroy();
   res.status(204).end();
 });
+function settingValue(row) {
+  try {
+    return JSON.parse(row.value);
+  } catch {
+    return row.value;
+  }
+}
+
 router.get("/settings", requirePermission("settings.view"), async (req, res) => {
   const rows = await Setting.findAll();
   res.json(
     {
       lateModeEnabled: true,
       ...Object.fromEntries(
-        rows.map((row) => [row.key, JSON.parse(row.value)]),
+        rows.map((row) => [row.key, settingValue(row)]),
       ),
     },
   );
@@ -303,7 +364,7 @@ router.put(
   async (req, res) => {
     const { enabled } = z.object({ enabled: z.boolean() }).parse(req.body);
     const current = await Setting.findByPk("lateModeEnabled");
-    const oldValue = current ? JSON.parse(current.value) : true;
+    const oldValue = current ? settingValue(current) : true;
     await sequelize.transaction(async (transaction) => {
       await Setting.upsert(
         { key: "lateModeEnabled", value: JSON.stringify(enabled) },
@@ -339,10 +400,60 @@ router.put("/settings", requirePermission("settings.manage"), async (req, res) =
       crCanCorrectRecent: z.boolean().optional(),
     })
     .parse(req.body);
-  for (const [key, value] of Object.entries(data))
-    await Setting.upsert({ key, value: JSON.stringify(value) });
+  const before = Object.fromEntries(
+    (await Setting.findAll()).map((row) => [row.key, settingValue(row)]),
+  );
+  await sequelize.transaction(async (transaction) => {
+    for (const [key, value] of Object.entries(data))
+      await Setting.upsert(
+        { key, value: JSON.stringify(value) },
+        { transaction },
+      );
+    await AuditLog.create(
+      {
+        entityType: "SETTING",
+        entityId: 0,
+        action: "SETTINGS_UPDATED",
+        oldValue: JSON.stringify(before),
+        newValue: JSON.stringify(data),
+        UserId: req.user.id,
+      },
+      { transaction },
+    );
+  });
   res.json(data);
 });
+router.get(
+  "/settings/permissions",
+  requirePermission("settings.managePermissions"),
+  requireAdminPlus,
+  requireAdminElevation,
+  (req, res) => res.json(permissionPolicySnapshot()),
+);
+router.put(
+  "/settings/permissions",
+  requirePermission("settings.managePermissions"),
+  requireAdminPlus,
+  requireAdminElevation,
+  async (req, res) => {
+    const { policy } = z.object({ policy: z.unknown() }).parse(req.body);
+    const before = permissionPolicySnapshot();
+    const saved = savePermissionPolicy(policy);
+    await AuditLog.create({
+      entityType: "PERMISSION_POLICY",
+      entityId: 0,
+      action: "PERMISSION_POLICY_UPDATED",
+      oldValue: JSON.stringify(before),
+      newValue: JSON.stringify(saved.policy),
+      reason: saved.repairs.length
+        ? `Secure policy repair: ${saved.repairs.join("; ")}`
+        : "Permission policy updated from Settings",
+      UserId: req.user.id,
+    });
+    res.json(saved);
+  },
+);
+router.use("/users", requireAdminElevation);
 router.get("/users", requirePermission("users.view"), async (req, res) => {
   const rows = await User.findAll({
     attributes: { exclude: ["passwordHash"] },
@@ -407,6 +518,19 @@ router.patch("/users/:id", requirePermission("users.update"), async (req, res) =
       code: "ADMIN_PLUS_REQUIRED",
       message: "Only Admin++ can change an Admin++ account.",
     });
+  const roleChanged = data.role && data.role !== row.role;
+  if (roleChanged && !hasPermission(req.user, "users.changeRole"))
+    return res.status(403).json({
+      code: "PERMISSION_REQUIRED",
+      permission: "users.changeRole",
+      message: "Admin++ permission is required to change account roles.",
+    });
+  if (roleChanged && row.adminPlus)
+    return res.status(409).json({
+      code: "ADMIN_PLUS_CLI_REQUIRED",
+      message:
+        "Admin++ roles are fixed in the browser. Revoke Admin++ with npm run admin-pp first.",
+    });
   if (row.id === req.user.id && data.active === false)
     return res.status(409).json({
       code: "SELF_DISABLE_BLOCKED",
@@ -429,6 +553,7 @@ router.patch("/users/:id", requirePermission("users.update"), async (req, res) =
       message: "The last active Admin++ account cannot be disabled.",
     });
   const before = publicUser(row);
+  if (roleChanged) data.tokenVersion = (row.tokenVersion || 0) + 1;
   await sequelize.transaction(async (transaction) => {
     await row.update(data, { transaction });
     await AuditLog.create(
@@ -443,7 +568,7 @@ router.patch("/users/:id", requirePermission("users.update"), async (req, res) =
       { transaction },
     );
   });
-  if (data.active === false) await revokeUserSessions(row.id);
+  if (data.active === false || roleChanged) await revokeUserSessions(row.id);
   res.json(publicUser(row));
 });
 router.post(
@@ -705,7 +830,7 @@ const databaseTables = {
   app_migrations: { model: AppMigration, order: [["appliedAt", "DESC"]] },
 };
 
-router.get("/database/overview", requirePermission("database.view"), async (req, res) => {
+router.get("/database/overview", requirePermission("database.view"), requireAdminPlus, requireAdminElevation, async (req, res) => {
   const entries = await Promise.all(
     Object.entries(databaseTables).map(async ([name, definition]) => [
       name,
@@ -722,6 +847,8 @@ router.get("/database/overview", requirePermission("database.view"), async (req,
 router.get(
   "/database/tables/:table",
   requirePermission("database.view"),
+  requireAdminPlus,
+  requireAdminElevation,
   async (req, res) => {
     const definition = databaseTables[req.params.table];
     if (!definition)

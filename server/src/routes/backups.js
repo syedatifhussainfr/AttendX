@@ -24,6 +24,7 @@ const upload = multer({
   limits: { fileSize: 100 * 1024 * 1024, files: 1 },
 });
 router.use(requireAuth);
+router.use(requireAdminPlus, requireAdminElevation);
 
 router.get("/", requirePermission("backups.view"), async (req, res) =>
   res.json(await listBackups()),

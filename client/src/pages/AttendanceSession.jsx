@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Check,
   CheckCircle2,
+  CloudOff,
   Clock3,
   Download,
   Eraser,
@@ -18,6 +19,13 @@ import { useToast } from "../state/ToastContext.jsx";
 import { Dialog } from "../components/Dialog.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
 import { downloadAttendanceExport } from "../utils/download.js";
+import {
+  clearAttendanceDrafts,
+  queueAttendanceDraft,
+  readAttendanceDrafts,
+  removeAttendanceDraft,
+  syncAttendanceDrafts,
+} from "../utils/attendanceDraft.js";
 const fmt = (t) =>
   new Date(t).toLocaleTimeString("en-IN", {
     hour: "2-digit",
@@ -36,6 +44,8 @@ export function AttendanceSessionPage() {
     [busy, setBusy] = useState(false),
     [markTool, setMarkTool] = useState("PRESENT"),
     [applying, setApplying] = useState(() => new Set()),
+    [draftCount, setDraftCount] = useState(0),
+    [saveState, setSaveState] = useState("saved"),
     [selected, setSelected] = useState(null),
     [closing, setClosing] = useState(false),
     [reopening, setReopening] = useState(false),
@@ -44,16 +54,81 @@ export function AttendanceSessionPage() {
     try {
       const r = await api.get(`/attendance/sessions/${id}`);
       setData(r.data);
+      if (r.data.session.status === "CLOSED") clearAttendanceDrafts(id);
+      setDraftCount(readAttendanceDrafts(id).length);
       if (!silent) setTimeout(() => inputRef.current?.focus(), 50);
     } catch (e) {
       toast(messageOf(e), "error");
     }
   };
+  const transientFailure = (error) =>
+    !error.response || error.response.status >= 500 || error.response.status === 429;
+  const updateLocalRecord = (studentId, record) =>
+    setData((current) => {
+      if (!current) return current;
+      const rows = current.session.AttendanceRecords || [];
+      const next = record
+        ? rows.some((item) => item.StudentId === studentId)
+          ? rows.map((item) => (item.StudentId === studentId ? record : item))
+          : [...rows, record]
+        : rows.filter((item) => item.StudentId !== studentId);
+      return {
+        ...current,
+        session: { ...current.session, AttendanceRecords: next },
+      };
+    });
+  const recoverDrafts = async ({ announce = false } = {}) => {
+    const before = readAttendanceDrafts(id).length;
+    if (!before) {
+      setDraftCount(0);
+      setSaveState("saved");
+      return [];
+    }
+    setSaveState("saving");
+    const remaining = await syncAttendanceDrafts(id, async (draft) => {
+      try {
+        if (draft.kind === "SELECTION")
+          await api.patch(
+            `/attendance/sessions/${id}/students/${draft.studentId}/selection`,
+            { status: draft.status },
+          );
+        else
+          await api.post(`/attendance/sessions/${id}/mark`, {
+            rollNumber: draft.rollNumber,
+          });
+        return "SAVED";
+      } catch (error) {
+        if (
+          draft.kind === "ROLL" &&
+          error.response?.status === 409 &&
+          error.response?.data?.existing
+        )
+          return "SAVED";
+        if (transientFailure(error)) return "RETRY";
+        toast(`Skipped an invalid saved mark: ${messageOf(error)}`, "error");
+        return "DISCARD";
+      }
+    });
+    setDraftCount(remaining.length);
+    setSaveState(remaining.length ? "pending" : "saved");
+    await load(true);
+    if (announce && before && !remaining.length)
+      toast(`${before} recovered attendance mark${before === 1 ? "" : "s"} saved.`);
+    return remaining;
+  };
   useEffect(() => {
-    load();
+    load().then(() => recoverDrafts({ announce: true }));
     const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
+    const reconnect = () => recoverDrafts({ announce: true });
+    window.addEventListener("online", reconnect);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("online", reconnect);
+    };
   }, [id]);
+  const canCorrectOpen =
+    can("attendance.correctOpen") &&
+    data?.capabilities?.canCorrectOpen !== false;
   useEffect(() => {
     const selectTool = (event) => {
       if (data?.session.status !== "OPEN") return;
@@ -69,7 +144,7 @@ export function AttendanceSessionPage() {
       if (
         !shortcut ||
         (shortcut === "LATE" && !data?.session.lateModeEnabled) ||
-        (shortcut === "REMOVE" && !can("attendance.correctOpen"))
+        (shortcut === "REMOVE" && !canCorrectOpen)
       )
         return;
       event.preventDefault();
@@ -77,7 +152,7 @@ export function AttendanceSessionPage() {
     };
     window.addEventListener("keydown", selectTool);
     return () => window.removeEventListener("keydown", selectTool);
-  }, [data?.session.status, data?.session.lateModeEnabled, can]);
+  }, [data?.session.status, data?.session.lateModeEnabled, canCorrectOpen]);
   const records = useMemo(
     () =>
       new Map(
@@ -93,6 +168,12 @@ export function AttendanceSessionPage() {
     e.preventDefault();
     const submittedRoll = roll.trim();
     if (!submittedRoll) return;
+    const draft = queueAttendanceDraft(id, {
+      kind: "ROLL",
+      rollNumber: submittedRoll,
+    });
+    setDraftCount(readAttendanceDrafts(id).length);
+    setSaveState("saving");
     setRoll("");
     setBusy(true);
     try {
@@ -102,10 +183,19 @@ export function AttendanceSessionPage() {
       toast(
         `Roll ${r.data.student.rollNumber} marked ${r.data.record.status}.`,
       );
+      removeAttendanceDraft(id, draft.id);
       await load(true);
     } catch (err) {
-      toast(messageOf(err), "error");
+      if (transientFailure(err))
+        toast("Network unavailable. This roll is saved locally and will retry.", "error");
+      else {
+        removeAttendanceDraft(id, draft.id);
+        toast(messageOf(err), "error");
+      }
     } finally {
+      const pending = readAttendanceDrafts(id).length;
+      setDraftCount(pending);
+      setSaveState(pending ? "pending" : "saved");
       setBusy(false);
       inputRef.current?.focus();
     }
@@ -132,34 +222,51 @@ export function AttendanceSessionPage() {
     const existing = records.get(student.id);
     const status = markTool === "REMOVE" ? null : markTool;
     if ((!existing && status === null) || existing?.status === status) return;
-    if (existing && !can("attendance.correctOpen")) {
+    if (existing && !canCorrectOpen) {
       toast("You do not have permission to overwrite or remove this mark.", "error");
       return;
     }
+    const draft = queueAttendanceDraft(id, {
+      kind: "SELECTION",
+      studentId: student.id,
+      status,
+    });
+    setDraftCount(readAttendanceDrafts(id).length);
+    setSaveState("saving");
+    updateLocalRecord(
+      student.id,
+      status
+        ? {
+            ...(existing || {}),
+            id: existing?.id || `draft-${student.id}`,
+            StudentId: student.id,
+            status,
+            attendanceCredit: status === "PRESENT",
+            markedAt: existing?.markedAt || new Date().toISOString(),
+            pendingSave: true,
+          }
+        : null,
+    );
     setApplying((current) => new Set(current).add(student.id));
     try {
       const { data: result } = await api.patch(
         `/attendance/sessions/${id}/students/${student.id}/selection`,
         { status },
       );
-      setData((current) => {
-        if (!current) return current;
-        const currentRecords = current.session.AttendanceRecords || [];
-        const nextRecords = result.record
-          ? currentRecords.some((record) => record.StudentId === student.id)
-            ? currentRecords.map((record) =>
-                record.StudentId === student.id ? result.record : record,
-              )
-            : [...currentRecords, result.record]
-          : currentRecords.filter((record) => record.StudentId !== student.id);
-        return {
-          ...current,
-          session: { ...current.session, AttendanceRecords: nextRecords },
-        };
-      });
+      removeAttendanceDraft(id, draft.id);
+      updateLocalRecord(student.id, result.record);
     } catch (error) {
-      toast(messageOf(error), "error");
+      if (transientFailure(error))
+        toast("Network unavailable. This change is saved locally and will retry.", "error");
+      else {
+        removeAttendanceDraft(id, draft.id);
+        toast(messageOf(error), "error");
+        await load(true);
+      }
     } finally {
+      const pending = readAttendanceDrafts(id).length;
+      setDraftCount(pending);
+      setSaveState(pending ? "pending" : "saved");
       setApplying((current) => {
         const next = new Set(current);
         next.delete(student.id);
@@ -170,6 +277,14 @@ export function AttendanceSessionPage() {
   const close = async () => {
     setBusy(true);
     try {
+      const remaining = await recoverDrafts();
+      if (remaining.length) {
+        toast(
+          "Attendance still has locally saved changes. Reconnect before closing this session.",
+          "error",
+        );
+        return;
+      }
       await api.post(`/attendance/sessions/${id}/close`);
       toast(`Session closed. ${missing.length} students marked absent.`);
       setClosing(false);
@@ -371,6 +486,21 @@ export function AttendanceSessionPage() {
             />
           </div>
         </div>
+        {s.status === "OPEN" && (
+          <div className={`attendance-autosave ${saveState}`} aria-live="polite">
+            {saveState === "pending" ? <CloudOff /> : <CheckCircle2 />}
+            <span>
+              <strong>
+                {saveState === "saving"
+                  ? "Saving…"
+                  : saveState === "pending"
+                    ? `${draftCount} saved locally`
+                    : "All changes saved"}
+              </strong>
+              <small>{saveState === "pending" ? "Retries when online" : "SQLite + recovery queue"}</small>
+            </span>
+          </div>
+        )}
         {s.status === "OPEN" && can("attendance.mark") && (
           <div className="attendance-toolbox" role="toolbar" aria-label="Attendance marking tools">
             <div className="toolbox-heading">
@@ -409,7 +539,7 @@ export function AttendanceSessionPage() {
                 className={`attendance-tool remove ${markTool === "REMOVE" ? "active" : ""}`}
                 aria-pressed={markTool === "REMOVE"}
                 aria-keyshortcuts="3"
-                disabled={!can("attendance.correctOpen")}
+                disabled={!canCorrectOpen}
                 onClick={() => setMarkTool("REMOVE")}
               >
                 <Eraser />
@@ -466,7 +596,7 @@ export function AttendanceSessionPage() {
                 <button
                   type="button"
                   key={student.id}
-                  disabled={markTool === "REMOVE"}
+                  disabled={markTool === "REMOVE" || applying.has(student.id)}
                   onClick={() => applyMarkTool(student)}
                   title={
                     markTool === "REMOVE"
@@ -515,7 +645,7 @@ export function AttendanceSessionPage() {
             )}
           </div>
           {records.has(selected?.id) &&
-            ((s.status === "OPEN" && can("attendance.correctOpen")) ||
+            ((s.status === "OPEN" && canCorrectOpen) ||
               (s.status === "CLOSED" && can("attendance.correctClosed"))) && (
             <form onSubmit={correct} className="form-stack">
               <label>

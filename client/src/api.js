@@ -71,6 +71,15 @@ async function refreshAccessToken() {
         );
         return data.accessToken;
       })
+      .catch(async (error) => {
+        if (error.response?.data?.code !== "REFRESH_RACE") throw error;
+        await wait(350);
+        const data = await requestSessionResume();
+        window.dispatchEvent(
+          new CustomEvent("attendx:session-refreshed", { detail: data.user }),
+        );
+        return data.accessToken;
+      })
       .finally(() => {
         refreshPromise = null;
       });

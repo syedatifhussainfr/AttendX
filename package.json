@@ -18,6 +18,9 @@
     "normalize-rolls": "npm run normalize-rolls -w server",
     "verify-data": "npm run verify-data -w server",
     "config-check": "npm run config-check -w server",
+    "timetable-check": "npm run timetable-check -w server",
+    "backup:list": "npm run backup-list -w server",
+    "doctor": "node scripts/doctor.js",
     "test": "npm test -w server",
     "start": "npm start -w server"
   },

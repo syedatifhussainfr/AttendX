@@ -9,6 +9,7 @@ import {
   Smartphone,
   Trash2,
   UserRound,
+  UserRoundCog,
 } from "lucide-react";
 import { api, messageOf, setAdminElevation } from "../api.js";
 import { Dialog } from "../components/Dialog.jsx";
@@ -22,6 +23,7 @@ export function UsersPage() {
   const [rows, setRows] = useState([]),
     [open, setOpen] = useState(false),
     [resetUser, setResetUser] = useState(null),
+    [roleUser, setRoleUser] = useState(null),
     [deleteUser, setDeleteUser] = useState(null),
     [deleting, setDeleting] = useState(false),
     [sessionsUser, setSessionsUser] = useState(null),
@@ -78,6 +80,18 @@ export function UsersPage() {
       load();
     } catch (e) {
       toast(messageOf(e), "error");
+    }
+  };
+  const changeRole = async (event) => {
+    event.preventDefault();
+    const role = new FormData(event.currentTarget).get("role");
+    try {
+      await api.patch(`/admin/users/${roleUser.id}`, { role });
+      toast(`${roleUser.name} is now ${role}. Existing sessions were revoked.`);
+      setRoleUser(null);
+      load();
+    } catch (error) {
+      toast(messageOf(error), "error");
     }
   };
   const remove = async (event) => {
@@ -203,6 +217,11 @@ export function UsersPage() {
                   <KeyRound /> Reset password
                 </button>
               )}
+              {can("users.changeRole") && !u.adminPlus && u.id !== user.id && (
+                <button className="secondary" onClick={() => setRoleUser(u)}>
+                  <UserRoundCog /> Change role
+                </button>
+              )}
               {can("users.update") && <button
                 className="secondary"
                 onClick={() => toggle(u)}
@@ -265,6 +284,35 @@ export function UsersPage() {
             </small>
           </label>
           <button className="primary">Create account</button>
+        </form>
+      </Dialog>
+      <Dialog
+        open={!!roleUser}
+        title={roleUser ? `Change role · ${roleUser.name}` : "Change role"}
+        onClose={() => setRoleUser(null)}
+      >
+        <form className="form-stack" onSubmit={changeRole}>
+          <p>
+            Role changes are available only to Admin++. The account will be
+            signed out everywhere so its new permissions apply immediately.
+          </p>
+          <label>
+            Account role
+            <select name="role" defaultValue={roleUser?.role || "CR"}>
+              <option value="CR">CR · Attendance operations</option>
+              <option value="ADMIN">ADMIN · Management access</option>
+            </select>
+          </label>
+          <div className="danger-note">
+            ADMIN++ cannot be assigned or removed here. Use <code>npm run
+            admin-pp</code> on the server for promotion or revocation.
+          </div>
+          <div className="dialog-actions">
+            <button type="button" className="secondary" onClick={() => setRoleUser(null)}>
+              Cancel
+            </button>
+            <button className="primary"><UserRoundCog /> Apply role</button>
+          </div>
         </form>
       </Dialog>
       <Dialog

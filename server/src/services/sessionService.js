@@ -7,8 +7,7 @@ import {
   AuditLog,
 } from "../db/index.js";
 import { getSessionDetail } from "./attendanceService.js";
-
-const overlaps = (startA, endA, startB, endB) => startA < endB && endA > startB;
+import { schedulesOverlap } from "../utils/schedule.js";
 
 export async function inspectSessionConflicts({
   sessionDate,
@@ -45,7 +44,7 @@ export async function inspectSessionConflicts({
       session.scheduledEndTime === scheduledEndTime,
   );
   const conflicting = sessions.filter((session) =>
-    overlaps(
+    schedulesOverlap(
       scheduledStartTime,
       scheduledEndTime,
       session.scheduledStartTime,

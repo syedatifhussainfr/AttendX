@@ -34,6 +34,7 @@ permissions:
       view: false
       manage: false
       manageLateMode: false
+      managePermissions: false
     users:
       view: false
       create: false
@@ -42,6 +43,7 @@ permissions:
       delete: false
       manageSessions: false
       modifyAdminPlus: false
+      changeRole: false
     database:
       view: false
     audit:
@@ -84,6 +86,7 @@ permissions:
       view: true
       manage: true
       manageLateMode: false
+      managePermissions: false
     users:
       view: true
       create: true
@@ -92,15 +95,16 @@ permissions:
       delete: false
       manageSessions: false
       modifyAdminPlus: false
+      changeRole: false
     database:
-      view: true
+      view: false
     audit:
       view: true
     backups:
-      view: true
-      create: true
-      download: true
-      restore: true
+      view: false
+      create: false
+      download: false
+      restore: false
       delete: false
   ADMIN_PLUS:
     dashboard:
@@ -134,6 +138,7 @@ permissions:
       view: true
       manage: true
       manageLateMode: true
+      managePermissions: true
     users:
       view: true
       create: true
@@ -142,6 +147,7 @@ permissions:
       delete: true
       manageSessions: true
       modifyAdminPlus: true
+      changeRole: true
     database:
       view: true
     audit:

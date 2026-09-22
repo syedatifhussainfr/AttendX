@@ -13,6 +13,8 @@
     "normalize-rolls": "node src/cli/normalizeRolls.js",
     "verify-data": "node src/cli/verifyData.js",
     "config-check": "node src/cli/configCheck.js",
+    "timetable-check": "node src/cli/timetableCheck.js",
+    "backup-list": "node src/cli/backupList.js",
     "test": "cross-env NODE_ENV=test node --test --test-concurrency=1"
   },
   "dependencies": {

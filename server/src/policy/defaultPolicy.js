@@ -22,7 +22,12 @@ const crPermissions = {
   subjects: { view: true, manage: false, delete: false },
   timetable: { view: true, manage: false },
   reports: { view: true, export: true },
-  settings: { view: false, manage: false, manageLateMode: false },
+  settings: {
+    view: false,
+    manage: false,
+    manageLateMode: false,
+    managePermissions: false,
+  },
   users: {
     view: false,
     create: false,
@@ -31,6 +36,7 @@ const crPermissions = {
     delete: false,
     manageSessions: false,
     modifyAdminPlus: false,
+    changeRole: false,
   },
   database: { view: false },
   audit: { view: false },
@@ -64,18 +70,30 @@ const adminPermissions = rolePermissions(crPermissions, {
     update: true,
     resetCrPassword: true,
   },
-  database: { view: true },
+  database: { view: false },
   audit: { view: true },
-  backups: { view: true, create: true, download: true, restore: true },
+  backups: { view: false, create: false, download: false, restore: false },
 });
 
 const adminPlusPermissions = rolePermissions(adminPermissions, {
   attendance: { delete: true },
   students: { delete: true },
   subjects: { delete: true },
-  users: { delete: true, manageSessions: true, modifyAdminPlus: true },
-  backups: { delete: true },
-  settings: { manageLateMode: true },
+  users: {
+    delete: true,
+    manageSessions: true,
+    modifyAdminPlus: true,
+    changeRole: true,
+  },
+  database: { view: true },
+  backups: {
+    view: true,
+    create: true,
+    download: true,
+    restore: true,
+    delete: true,
+  },
+  settings: { manageLateMode: true, managePermissions: true },
 });
 
 export const defaultPolicy = {
@@ -101,6 +119,13 @@ export const protectedPermissions = {
   "users.modifyAdminPlus": { CR: false, ADMIN: false },
   "backups.delete": { CR: false, ADMIN: false },
   "settings.manageLateMode": { CR: false, ADMIN: false },
+  "settings.managePermissions": { CR: false, ADMIN: false },
+  "users.changeRole": { CR: false, ADMIN: false },
+  "database.view": { CR: false, ADMIN: false },
+  "backups.view": { CR: false, ADMIN: false },
+  "backups.create": { CR: false, ADMIN: false },
+  "backups.download": { CR: false, ADMIN: false },
+  "backups.restore": { CR: false, ADMIN: false },
 };
 
 export const permissionDependencies = {
@@ -121,11 +146,13 @@ export const permissionDependencies = {
   "reports.export": ["reports.view"],
   "settings.manage": ["settings.view"],
   "settings.manageLateMode": ["settings.view"],
+  "settings.managePermissions": ["settings.view"],
   "users.create": ["users.view"],
   "users.update": ["users.view"],
   "users.resetCrPassword": ["users.view"],
   "users.delete": ["users.view"],
   "users.manageSessions": ["users.view"],
+  "users.changeRole": ["users.view"],
   "backups.create": ["backups.view"],
   "backups.download": ["backups.view"],
   "backups.restore": ["backups.view"],

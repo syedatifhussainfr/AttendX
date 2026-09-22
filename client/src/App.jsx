@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./state/AuthContext.jsx";
 import { Layout } from "./components/Layout.jsx";
 import { Login } from "./pages/Login.jsx";
+import { AdminPlusGate } from "./components/AdminPlusGate.jsx";
 
 const lazyNamed = (loader, name) =>
   lazy(() => loader().then((module) => ({ default: module[name] })));
@@ -131,7 +132,9 @@ export function App() {
             path="users"
             element={
               <Protected permission="users.view">
-                <Deferred><UsersPage /></Deferred>
+                <AdminPlusGate adminPlus={false} area="Users & CR access">
+                  <Deferred><UsersPage /></Deferred>
+                </AdminPlusGate>
               </Protected>
             }
           />
@@ -147,7 +150,9 @@ export function App() {
             path="database"
             element={
               <Protected permission="database.view">
-                <Deferred><DatabasePage /></Deferred>
+                <AdminPlusGate area="Database console">
+                  <Deferred><DatabasePage /></Deferred>
+                </AdminPlusGate>
               </Protected>
             }
           />
@@ -155,7 +160,9 @@ export function App() {
             path="backups"
             element={
               <Protected permission="backups.view">
-                <Deferred><BackupsPage /></Deferred>
+                <AdminPlusGate area="Backup & restore">
+                  <Deferred><BackupsPage /></Deferred>
+                </AdminPlusGate>
               </Protected>
             }
           />

@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -28,9 +34,38 @@ test("broken YAML is preserved and replaced without stopping startup", () => {
   const result = initializePolicyFiles({ directory });
   assert.deepEqual(result.policy, defaultPolicy);
   assert.ok(
-    readdirSync(directory).some((name) => name.startsWith("config.yml.broken-")),
+    readdirSync(join(directory, "archive", "broken")).some((name) =>
+      name.startsWith("config.yml.broken-"),
+    ),
+  );
+  assert.deepEqual(
+    readdirSync(directory).filter((name) => name.includes(".broken-")),
+    [],
   );
   assert.doesNotThrow(() => parse(readFileSync(join(directory, "config.yml"), "utf8")));
+});
+
+test("loose legacy recovery files are organized into archive subfolders", () => {
+  const directory = mkdtempSync(join(tmpdir(), "attendx-policy-archive-"));
+  initializePolicyFiles({ directory });
+  const files = [
+    "default.yml.broken-2026-01-01T00-00-00-000Z",
+    "config.yml.repaired-2026-01-01T00-00-00-000Z",
+    "config.example.yml.replaced-2026-01-01T00-00-00-000Z",
+  ];
+  for (const filename of files)
+    writeFileSync(join(directory, filename), "archived content", "utf8");
+  const result = initializePolicyFiles({ directory });
+  for (const filename of files) {
+    const kind = filename.match(/\.(broken|repaired|replaced)-/)[1];
+    assert.equal(existsSync(join(directory, filename)), false);
+    assert.equal(existsSync(join(directory, "archive", kind, filename)), true);
+  }
+  assert.equal(
+    result.events.filter((event) => event.includes("archived legacy recovery file"))
+      .length,
+    3,
+  );
 });
 
 test("repair keeps valid choices while restoring structure and boundaries", () => {

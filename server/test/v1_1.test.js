@@ -10,6 +10,7 @@ const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "attendx-v11-"));
 process.env.DB_DIALECT = "sqlite";
 process.env.SQLITE_PATH = path.join(tempDir, "attendx.sqlite");
 process.env.BACKUP_DIR = path.join(tempDir, "backups");
+process.env.ATTENDX_CONFIG_DIR = path.join(tempDir, "config");
 process.env.JWT_SECRET = "v1.1-test-secret";
 process.env.NODE_ENV = "test";
 
@@ -30,6 +31,7 @@ let adminToken;
 let normalAdminToken;
 let crToken;
 let adminElevationToken;
+let normalAdminElevationToken;
 
 before(async () => {
   await db.initDatabase({ force: true });
@@ -72,6 +74,12 @@ before(async () => {
     .send({ password: "AdminTest@123" })
     .expect(200);
   adminElevationToken = elevation.body.elevationToken;
+  const normalElevation = await request(app)
+    .post("/api/auth/elevate")
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .send({ password: "StandardAdmin@123" })
+    .expect(200);
+  normalAdminElevationToken = normalElevation.body.elevationToken;
   subject = await db.Subject.create({ code: "V11", name: "V1.1 Safety" });
   await db.Setting.create({ key: "lateThresholdMinutes", value: "15" });
   await db.Student.bulkCreate([
@@ -189,9 +197,20 @@ test("secure browser sessions rotate, reject stale access, and revoke on logout"
     .set("Authorization", `Bearer ${refresh.body.accessToken}`)
     .expect(200);
 
+  const raced = await request(app)
+    .post("/api/auth/refresh")
+    .set("Cookie", firstRefreshCookie)
+    .expect(409);
+  assert.equal(raced.body.code, "REFRESH_RACE");
+  await agent
+    .get("/api/auth/me")
+    .set("Authorization", `Bearer ${refresh.body.accessToken}`)
+    .expect(200);
+
   const reused = await request(app)
     .post("/api/auth/refresh")
     .set("Cookie", firstRefreshCookie)
+    .set("User-Agent", "Different attacker device")
     .expect(401);
   assert.equal(reused.body.code, "REFRESH_TOKEN_REUSED");
   await agent
@@ -246,6 +265,20 @@ test("backup creation produces a valid, downloadable SQLite snapshot", async () 
 test("only elevated Admin++ deletes backups and audit logs export as text", async () => {
   const disposable = await backup.createBackup({ label: "delete-test" });
   const endpoint = `/api/admin/backups/${encodeURIComponent(disposable.filename)}`;
+  await request(app)
+    .get("/api/admin/backups")
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .set("X-Admin-Elevation", normalAdminElevationToken)
+    .expect(403);
+  await request(app)
+    .get("/api/admin/backups")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .expect(403);
+  await request(app)
+    .get("/api/admin/backups")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .expect(200);
   await request(app)
     .delete(endpoint)
     .set("Authorization", `Bearer ${normalAdminToken}`)
@@ -377,6 +410,38 @@ test("session service blocks duplicates and requires overlap confirmation", asyn
   await attendance.closeSession({ sessionId: second.id, userId: cr.id });
 });
 
+test("timetable rejects invalid clocks and overlapping active entries", async () => {
+  const base = {
+    dayOfWeek: 7,
+    startTime: "09:30",
+    endTime: "10:30",
+    subjectId: subject.id,
+    faculty: "Safety test",
+  };
+  await request(app)
+    .post("/api/admin/timetable")
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .send({ ...base, startTime: "29:99" })
+    .expect(400);
+  const created = await request(app)
+    .post("/api/admin/timetable")
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .send(base)
+    .expect(201);
+  await request(app)
+    .post("/api/admin/timetable")
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .send({ ...base, startTime: "10:00", endTime: "11:00" })
+    .expect(409)
+    .expect((response) => {
+      assert.equal(response.body.code, "TIMETABLE_CONFLICT");
+    });
+  await request(app)
+    .delete(`/api/admin/timetable/${created.body.id}`)
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .expect(204);
+});
+
 test("CR cannot reopen while ADMIN can reopen with a required reason", async () => {
   const closed = await db.AttendanceSession.findOne({
     where: { status: "CLOSED" },
@@ -444,6 +509,7 @@ test("ADMIN manages accounts while Admin++ elevation protects destructive action
   await request(app)
     .get("/api/admin/users")
     .set("Authorization", `Bearer ${normalAdminToken}`)
+    .set("X-Admin-Elevation", normalAdminElevationToken)
     .expect(200)
     .expect((response) => {
       const elevated = response.body.find((row) => row.id === admin.id);
@@ -452,10 +518,12 @@ test("ADMIN manages accounts while Admin++ elevation protects destructive action
   await request(app)
     .get("/api/admin/database/overview")
     .set("Authorization", `Bearer ${normalAdminToken}`)
-    .expect(200);
+    .set("X-Admin-Elevation", normalAdminElevationToken)
+    .expect(403);
   await request(app)
     .get("/api/admin/database/tables/users")
-    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
     .expect(200)
     .expect((response) => {
       assert.equal("passwordHash" in response.body.rows[0], false);
@@ -479,6 +547,7 @@ test("ADMIN manages accounts while Admin++ elevation protects destructive action
   const created = await request(app)
     .post("/api/admin/users")
     .set("Authorization", `Bearer ${normalAdminToken}`)
+    .set("X-Admin-Elevation", normalAdminElevationToken)
     .send({
       name: "Disposable User",
       email: "disposable@test.local",
@@ -489,11 +558,13 @@ test("ADMIN manages accounts while Admin++ elevation protects destructive action
   await request(app)
     .patch(`/api/admin/users/${created.body.id}`)
     .set("Authorization", `Bearer ${normalAdminToken}`)
+    .set("X-Admin-Elevation", normalAdminElevationToken)
     .send({ active: false })
     .expect(200);
   await request(app)
     .delete(`/api/admin/users/${created.body.id}`)
     .set("Authorization", `Bearer ${normalAdminToken}`)
+    .set("X-Admin-Elevation", normalAdminElevationToken)
     .expect(403);
   await request(app)
     .delete(`/api/admin/users/${created.body.id}`)
@@ -508,6 +579,7 @@ test("ADMIN manages accounts while Admin++ elevation protects destructive action
   await request(app)
     .patch(`/api/admin/users/${admin.id}`)
     .set("Authorization", `Bearer ${normalAdminToken}`)
+    .set("X-Admin-Elevation", normalAdminElevationToken)
     .send({ active: false })
     .expect(403);
   await request(app)
@@ -520,6 +592,98 @@ test("ADMIN manages accounts while Admin++ elevation protects destructive action
     .set("Authorization", `Bearer ${adminToken}`)
     .set("X-Admin-Elevation", adminElevationToken)
     .expect(409);
+});
+
+test("only Admin++ changes browser roles and Admin++ status remains CLI-only", async () => {
+  const created = await request(app)
+    .post("/api/admin/users")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .send({
+      name: "Role Change Test",
+      email: "role-change@test.local",
+      password: "RoleChange@123",
+      role: "CR",
+    })
+    .expect(201);
+  await request(app)
+    .patch(`/api/admin/users/${created.body.id}`)
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .set("X-Admin-Elevation", normalAdminElevationToken)
+    .send({ role: "ADMIN" })
+    .expect(403);
+  await request(app)
+    .patch(`/api/admin/users/${created.body.id}`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .send({ role: "ADMIN" })
+    .expect(200)
+    .expect((response) => assert.equal(response.body.role, "ADMIN"));
+  await request(app)
+    .patch(`/api/admin/users/${admin.id}`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .send({ role: "CR" })
+    .expect(409)
+    .expect((response) => assert.equal(response.body.code, "ADMIN_PLUS_CLI_REQUIRED"));
+  await request(app)
+    .delete(`/api/admin/users/${created.body.id}`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .expect(204);
+});
+
+test("permission editor is elevated Admin++ only and preserves security ceilings", async () => {
+  await request(app)
+    .get("/api/admin/settings/permissions")
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .set("X-Admin-Elevation", normalAdminElevationToken)
+    .expect(403);
+  const current = await request(app)
+    .get("/api/admin/settings/permissions")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .expect(200);
+  const attempted = structuredClone(current.body);
+  attempted.permissions.ADMIN.database.view = true;
+  attempted.permissions.ADMIN_PLUS.backups.restore = false;
+  await request(app)
+    .put("/api/admin/settings/permissions")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .send({ policy: attempted })
+    .expect(200)
+    .expect((response) => {
+      assert.equal(response.body.policy.permissions.ADMIN.database.view, false);
+      assert.equal(
+        response.body.policy.permissions.ADMIN_PLUS.backups.restore,
+        true,
+      );
+      assert.ok(response.body.repairs.length >= 2);
+    });
+});
+
+test("disabling CR correction blocks open-session overrides", async () => {
+  const session = await db.AttendanceSession.findOne({ where: { status: "OPEN" } });
+  const existing = await db.AttendanceRecord.findOne({
+    where: { AttendanceSessionId: session.id },
+  });
+  await db.Setting.upsert({ key: "crCanCorrectRecent", value: "false" });
+  await request(app)
+    .get(`/api/attendance/sessions/${session.id}`)
+    .set("Authorization", `Bearer ${crToken}`)
+    .expect(200)
+    .expect((response) => {
+      assert.equal(response.body.capabilities.canCorrectOpen, false);
+    });
+  await request(app)
+    .patch(
+      `/api/attendance/sessions/${session.id}/students/${existing.StudentId}/selection`,
+    )
+    .set("Authorization", `Bearer ${crToken}`)
+    .send({ status: existing.status === "PRESENT" ? "LATE" : "PRESENT" })
+    .expect(403);
+  await db.Setting.upsert({ key: "crCanCorrectRecent", value: "true" });
 });
 
 test("Admin++ permanently deletes only students and subjects without history", async () => {
@@ -785,12 +949,14 @@ test("ADMIN cannot disable their own account but can disable another account", a
   await request(app)
     .patch(`/api/admin/users/${normalAdmin.id}`)
     .set("Authorization", `Bearer ${normalAdminToken}`)
+    .set("X-Admin-Elevation", normalAdminElevationToken)
     .send({ active: false })
     .expect(409);
   assert.equal((await db.User.findByPk(normalAdmin.id)).active, true);
   await request(app)
     .patch(`/api/admin/users/${cr.id}`)
     .set("Authorization", `Bearer ${normalAdminToken}`)
+    .set("X-Admin-Elevation", normalAdminElevationToken)
     .send({ active: false })
     .expect(200);
   assert.equal((await db.User.findByPk(cr.id)).active, false);

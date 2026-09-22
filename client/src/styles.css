@@ -4540,6 +4540,8 @@ body.sidebar-resizing * {
 }
 
 .admin-plus-lock-card {
+  position: relative;
+  overflow: hidden;
   width: min(100%, 460px);
   padding: clamp(24px, 4vw, 38px);
   border: 1px solid rgba(255, 255, 255, 0.82);
@@ -4549,6 +4551,14 @@ body.sidebar-resizing * {
     0 24px 65px rgba(19, 49, 71, 0.12),
     inset 0 1px rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(24px) saturate(125%);
+}
+
+.admin-plus-lock-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, #d77831, rgba(215, 120, 49, 0.08));
 }
 
 .admin-plus-lock-icon {
@@ -4791,6 +4801,174 @@ body.sidebar-resizing * {
 
   .toolbox-heading {
     padding-bottom: 0;
+  }
+}
+
+.admin-plus-lock-card > p b {
+  color: #264c67;
+  overflow-wrap: anywhere;
+}
+
+.permission-policy-panel {
+  margin-top: 18px;
+  background: rgba(255, 255, 255, 0.56);
+  backdrop-filter: blur(22px) saturate(125%);
+}
+
+.permission-unlock {
+  display: grid;
+  grid-template-columns: 42px minmax(150px, 1fr) minmax(180px, 0.65fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid rgba(42, 91, 124, 0.12);
+  border-radius: 12px;
+  background: rgba(239, 247, 250, 0.62);
+}
+
+.permission-unlock > span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  color: #2c6488;
+  border-radius: 10px;
+  background: rgba(218, 234, 243, 0.78);
+}
+
+.permission-unlock svg {
+  width: 18px;
+}
+
+.permission-unlock strong,
+.permission-unlock small {
+  display: block;
+}
+
+.permission-unlock small {
+  margin-top: 3px;
+  color: #748796;
+  font-size: 10px;
+}
+
+.permission-matrix-wrap {
+  max-height: 560px;
+  margin-top: 18px;
+  overflow: auto;
+  border: 1px solid rgba(35, 76, 105, 0.1);
+  border-radius: 12px;
+}
+
+.permission-matrix {
+  min-width: 640px;
+}
+
+.permission-matrix th:not(:first-child),
+.permission-matrix td:not(:first-child) {
+  width: 110px;
+  text-align: center;
+}
+
+.permission-matrix thead th {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  background: rgba(232, 241, 246, 0.96);
+  backdrop-filter: blur(12px);
+}
+
+.permission-matrix .permission-area td {
+  padding: 9px 16px;
+  color: #315b78;
+  background: rgba(227, 238, 244, 0.62);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.permission-matrix input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  accent-color: #1e668f;
+}
+
+.permission-policy-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 14px;
+}
+
+.permission-policy-actions > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #708493;
+  font-size: 10px;
+}
+
+.permission-policy-actions svg {
+  width: 15px;
+}
+
+.attendance-autosave {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  padding: 7px 10px;
+  color: #2f6a58;
+  border: 1px solid rgba(38, 126, 96, 0.15);
+  border-radius: 10px;
+  background: rgba(235, 248, 243, 0.66);
+  backdrop-filter: blur(14px);
+}
+
+.attendance-autosave.pending {
+  color: #9a5a22;
+  border-color: rgba(183, 100, 35, 0.2);
+  background: rgba(255, 244, 228, 0.72);
+}
+
+.attendance-autosave svg {
+  width: 17px;
+  flex: 0 0 auto;
+}
+
+.attendance-autosave span,
+.attendance-autosave strong,
+.attendance-autosave small {
+  display: block;
+}
+
+.attendance-autosave strong {
+  font-size: 10px;
+}
+
+.attendance-autosave small {
+  margin-top: 1px;
+  color: currentColor;
+  font-size: 8px;
+  opacity: 0.76;
+}
+
+@media (max-width: 760px) {
+  .permission-unlock {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .permission-unlock input,
+  .permission-unlock button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .permission-policy-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 

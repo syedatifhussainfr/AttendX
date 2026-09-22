@@ -17,6 +17,7 @@ import {
   Subject,
   Timetable,
   User,
+  Setting,
 } from "../db/index.js";
 import {
   markAttendance,
@@ -38,6 +39,7 @@ import {
   compareRollNumbers,
   normalizeRollNumber,
 } from "../utils/rollNumber.js";
+import { CLOCK_TIME_PATTERN } from "../utils/schedule.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -78,6 +80,12 @@ function exportHeaders(res, filename) {
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
   res.setHeader("Cache-Control", "private, no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
+}
+async function canCorrectOpenAttendance(user) {
+  if (!hasPermission(user, "attendance.correctOpen")) return false;
+  if (user.role !== "CR") return true;
+  const setting = await Setting.findByPk("crCanCorrectRecent");
+  return setting ? JSON.parse(setting.value) === true : true;
 }
 router.get("/dashboard", requirePermission("dashboard.view"), async (req, res) => {
   const now = DateTime.now().setZone(config.timezone),
@@ -124,8 +132,8 @@ router.post("/sessions", requirePermission("attendance.open"), async (req, res) 
     .object({
       subjectId: z.number().int(),
       scheduledSubjectId: z.number().int().nullable().optional(),
-      scheduledStartTime: z.string().regex(/^\d{2}:\d{2}$/),
-      scheduledEndTime: z.string().regex(/^\d{2}:\d{2}$/),
+      scheduledStartTime: z.string().regex(CLOCK_TIME_PATTERN),
+      scheduledEndTime: z.string().regex(CLOCK_TIME_PATTERN),
       faculty: z.string().trim().max(120).nullable().optional(),
       sessionType: z
         .enum(["SCHEDULED", "REPLACEMENT", "EXTRA"])
@@ -187,7 +195,10 @@ router.get("/sessions", requirePermission("attendance.view"), async (req, res) =
   );
 });
 router.get("/sessions/:id", requirePermission("attendance.view"), async (req, res) => {
-  const session = await getSessionDetail(req.params.id);
+  const [session, canCorrectOpen] = await Promise.all([
+    getSessionDetail(req.params.id),
+    canCorrectOpenAttendance(req.user),
+  ]);
   const activeStudents = await Student.findAll({ where: { active: true } });
   const studentsById = new Map(
     session.AttendanceRecords.filter((record) => record.Student).map(
@@ -202,6 +213,7 @@ router.get("/sessions/:id", requirePermission("attendance.view"), async (req, re
     students,
     serverTime: new Date().toISOString(),
     summary: summarize(session.AttendanceRecords),
+    capabilities: { canCorrectOpen },
   });
 });
 router.post(
@@ -258,7 +270,7 @@ router.patch(
         studentId: Number(req.params.studentId),
         status,
         markedById: req.user.id,
-        allowCorrection: hasPermission(req.user, "attendance.correctOpen"),
+        allowCorrection: await canCorrectOpenAttendance(req.user),
       }),
     );
   },
@@ -277,7 +289,10 @@ router.patch("/sessions/:id/students/:studentId", async (req, res) => {
     session.status === "OPEN"
       ? "attendance.correctOpen"
       : "attendance.correctClosed";
-  const allow = hasPermission(req.user, requiredPermission);
+  const allow =
+    session.status === "OPEN"
+      ? await canCorrectOpenAttendance(req.user)
+      : hasPermission(req.user, requiredPermission);
   if (!allow)
     return res
       .status(403)

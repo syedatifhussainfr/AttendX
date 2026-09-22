@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
-import { Clock3, Save, ShieldCheck, TimerReset } from "lucide-react";
-import { api, messageOf } from "../api.js";
+import { Clock3, KeyRound, Save, ShieldCheck, SlidersHorizontal, TimerReset } from "lucide-react";
+import { api, messageOf, setAdminElevation } from "../api.js";
 import { useToast } from "../state/ToastContext.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
 export function SettingsPage() {
   const [data, setData] = useState(null),
     [saving, setSaving] = useState(false),
     [lateBusy, setLateBusy] = useState(false),
+    [policy, setPolicy] = useState(null),
+    [policyBusy, setPolicyBusy] = useState(false),
     toast = useToast(),
     { can } = useAuth();
   useEffect(() => {
@@ -15,6 +17,12 @@ export function SettingsPage() {
       .then((r) => setData(r.data))
       .catch((e) => toast(messageOf(e), "error"));
   }, []);
+  useEffect(() => {
+    const lockPolicy = () => setPolicy(null);
+    window.addEventListener("attendx:admin-elevation-ended", lockPolicy);
+    return () =>
+      window.removeEventListener("attendx:admin-elevation-ended", lockPolicy);
+  }, []);
   const save = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -22,7 +30,9 @@ export function SettingsPage() {
     try {
       const payload = {
         ...f,
-        lateThresholdMinutes: Number(f.lateThresholdMinutes),
+        lateThresholdMinutes: data.lateModeEnabled
+          ? Number(f.lateThresholdMinutes)
+          : Number(data.lateThresholdMinutes),
         crCanCorrectRecent: f.crCanCorrectRecent === "on",
       };
       const response = await api.put("/admin/settings", payload);
@@ -32,6 +42,53 @@ export function SettingsPage() {
       toast(messageOf(x), "error");
     } finally {
       setSaving(false);
+    }
+  };
+  const unlockPolicy = async (event) => {
+    event.preventDefault();
+    setPolicyBusy(true);
+    try {
+      const password = new FormData(event.currentTarget).get("password");
+      const { data: elevation } = await api.post("/auth/elevate", { password });
+      setAdminElevation(elevation.elevationToken, elevation.expiresInSeconds);
+      setPolicy((await api.get("/admin/settings/permissions")).data);
+      toast("Permission policy unlocked for five minutes.");
+    } catch (error) {
+      toast(messageOf(error), "error");
+    } finally {
+      setPolicyBusy(false);
+    }
+  };
+  const setPermission = (role, area, permission, enabled) =>
+    setPolicy((current) => ({
+      ...current,
+      permissions: {
+        ...current.permissions,
+        [role]: {
+          ...current.permissions[role],
+          [area]: {
+            ...current.permissions[role][area],
+            [permission]: enabled,
+          },
+        },
+      },
+    }));
+  const savePolicy = async () => {
+    setPolicyBusy(true);
+    try {
+      const { data: saved } = await api.put("/admin/settings/permissions", {
+        policy,
+      });
+      setPolicy(saved.policy);
+      toast(
+        saved.repairs.length
+          ? `Permissions saved with ${saved.repairs.length} secure repair(s).`
+          : "Permission policy saved and applied immediately.",
+      );
+    } catch (error) {
+      toast(messageOf(error), "error");
+    } finally {
+      setPolicyBusy(false);
     }
   };
   const toggleLateMode = async () => {
@@ -112,12 +169,13 @@ export function SettingsPage() {
               min="1"
               max="120"
               defaultValue={data.lateThresholdMinutes}
-              disabled={!can("settings.manage")}
+              disabled={!can("settings.manage") || !data.lateModeEnabled}
               required
             />
             <small>
-              Used only when Late Mode is enabled. The value is copied into
-              each newly opened session.
+              {data.lateModeEnabled
+                ? "Copied into each newly opened session."
+                : "Disabled because Late Mode is off."}
             </small>
           </label>
           <label className="check">
@@ -173,6 +231,81 @@ export function SettingsPage() {
           </button>}
         </div>
       </form>
+      {can("settings.managePermissions") && (
+        <section className="panel permission-policy-panel">
+          <div className="settings-heading">
+            <SlidersHorizontal />
+            <div>
+              <span className="eyebrow">CONFIG.YML</span>
+              <h2>Permission policy</h2>
+              <p>
+                Configure ADMIN and CR access. ADMIN++ is CLI-controlled and
+                permanently retains every capability.
+              </p>
+            </div>
+          </div>
+          {!policy ? (
+            <form className="permission-unlock" onSubmit={unlockPolicy}>
+              <span><KeyRound /></span>
+              <div>
+                <strong>Protected configuration</strong>
+                <small>Confirm your Admin++ password to edit config.yml.</small>
+              </div>
+              <input
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                placeholder="Admin++ password"
+                required
+              />
+              <button className="primary" disabled={policyBusy}>
+                {policyBusy ? "Verifying…" : "Unlock policy"}
+              </button>
+            </form>
+          ) : (
+            <>
+              <div className="permission-matrix-wrap">
+                <table className="permission-matrix">
+                  <thead>
+                    <tr><th>Capability</th><th>CR</th><th>ADMIN</th><th>ADMIN++</th></tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(policy.permissions.ADMIN_PLUS).flatMap(
+                      ([area, permissions]) => [
+                        <tr className="permission-area" key={`${area}-heading`}>
+                          <td colSpan="4">{area.replace(/([A-Z])/g, " $1")}</td>
+                        </tr>,
+                        ...Object.keys(permissions).map((permission) => (
+                          <tr key={`${area}.${permission}`}>
+                            <td>{permission.replace(/([A-Z])/g, " $1")}</td>
+                            {['CR', 'ADMIN', 'ADMIN_PLUS'].map((role) => (
+                              <td key={role}>
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(policy.permissions[role]?.[area]?.[permission])}
+                                  disabled={role === 'ADMIN_PLUS' || policyBusy}
+                                  aria-label={`${role} ${area}.${permission}`}
+                                  onChange={(event) => setPermission(role, area, permission, event.target.checked)}
+                                />
+                              </td>
+                            ))}
+                          </tr>
+                        )),
+                      ],
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="permission-policy-actions">
+                <span><ShieldCheck /> Protected boundaries and dependencies are enforced on save.</span>
+                <button className="primary" type="button" disabled={policyBusy} onClick={savePolicy}>
+                  <Save /> {policyBusy ? "Saving…" : "Save permission policy"}
+                </button>
+              </div>
+            </>
+          )}
+        </section>
+      )}
     </div>
   );
 }

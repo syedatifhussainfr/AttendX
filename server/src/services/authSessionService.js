@@ -8,6 +8,7 @@ import { publicUser } from "../utils/password.js";
 const REFRESH_BYTES = 48;
 const MAX_TOKEN_HISTORY = 8;
 const MAX_ACTIVE_SESSIONS = 10;
+const REFRESH_RACE_GRACE_MS = 10_000;
 
 function sessionError(status, code, message) {
   const error = new Error(message);
@@ -52,17 +53,18 @@ function issueAccessToken(user, session) {
 }
 
 export function issueAdminElevationToken(user, session) {
-  if (user.role !== "ADMIN" || !user.adminPlus)
+  if (user.role !== "ADMIN")
     throw sessionError(
       403,
-      "ADMIN_PLUS_REQUIRED",
-      "Admin++ permission is required.",
+      "ADMIN_REQUIRED",
+      "Administrator permission is required.",
     );
   return jwt.sign(
     {
       sub: String(user.id),
       type: "admin-elevation",
       scope: "database-management",
+      level: user.adminPlus ? "ADMIN_PLUS" : "ADMIN",
       sid: session.id,
       gen: session.generation,
       ver: user.tokenVersion || 0,
@@ -130,13 +132,22 @@ async function resolveRefreshSession(rawToken, transaction) {
   });
   if (current) return { session: current, reused: false };
   const sessions = await AuthSession.findAll({
-    attributes: ["id", "UserId", "tokenHistory"],
+    attributes: [
+      "id",
+      "UserId",
+      "tokenHistory",
+      "userAgent",
+      "ipHash",
+    ],
     transaction,
   });
-  const reused = sessions.find((session) =>
-    tokenHistory(session).some((entry) => entry.hash === tokenHash),
-  );
-  return reused ? { session: reused, reused: true } : null;
+  for (const session of sessions) {
+    const historyEntry = tokenHistory(session).find(
+      (entry) => entry.hash === tokenHash,
+    );
+    if (historyEntry) return { session, reused: true, historyEntry };
+  }
+  return null;
 }
 
 async function enabledUser(session, transaction) {
@@ -211,8 +222,19 @@ export async function resumeAuthSession(
         "SESSION_INVALID",
         "This session is invalid. Sign in again.",
       );
-    const { session, reused } = resolved;
+    const { session, reused, historyEntry } = resolved;
     if (reused) {
+      const incoming = metadataOf(metadata);
+      const rotatedAt = new Date(historyEntry?.rotatedAt || 0).getTime();
+      const sameDevice =
+        session.userAgent === incoming.userAgent &&
+        (!session.ipHash || !incoming.ipHash || session.ipHash === incoming.ipHash);
+      if (
+        sameDevice &&
+        Number.isFinite(rotatedAt) &&
+        Date.now() - rotatedAt <= REFRESH_RACE_GRACE_MS
+      )
+        return { refreshRace: true };
       await AuthSession.update(
         { revokedAt: new Date() },
         { where: { UserId: session.UserId, revokedAt: null }, transaction },
@@ -239,6 +261,7 @@ export async function resumeAuthSession(
       history.push({
         hash: session.currentTokenHash,
         expiresAt: session.expiresAt,
+        rotatedAt: new Date().toISOString(),
       });
       Object.assign(updates, {
         currentTokenHash: hashToken(refreshToken),
@@ -255,6 +278,12 @@ export async function resumeAuthSession(
       user: publicUser(user),
     };
   });
+  if (result.refreshRace)
+    throw sessionError(
+      409,
+      "REFRESH_RACE",
+      "Another browser tab already refreshed this session. Retrying safely.",
+    );
   if (result.compromised)
     throw sessionError(
       401,
@@ -344,7 +373,16 @@ export async function validateAccessSession(payload) {
     Number(user.tokenVersion || 0) !== Number(payload.ver || 0)
   )
     return null;
-  if (Date.now() - new Date(session.lastUsedAt).getTime() > 5 * 60_000)
-    await session.update({ lastUsedAt: new Date() });
+  if (Date.now() - new Date(session.lastUsedAt).getTime() > 5 * 60_000) {
+    try {
+      await session.update({ lastUsedAt: new Date() });
+    } catch (error) {
+      if (
+        error.name !== "SequelizeTimeoutError" &&
+        error.original?.code !== "SQLITE_BUSY"
+      )
+        throw error;
+    }
+  }
   return { user, session };
 }

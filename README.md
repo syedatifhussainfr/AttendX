@@ -34,9 +34,9 @@ The published [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/re
 | Passwords | Hashed passwords | Strong-password policy, forced temporary-password replacement, self-service changes, CR resets, and session invalidation |
 | Administration | `ADMIN` / `CR` | `CR`, `ADMIN`, and elevated `ADMIN++` authority with five-minute password elevation for destructive tools |
 | User management | Basic account controls | ADMIN account management; ADMIN++ permanent deletion and per-user device-session control |
-| Database visibility | Local SQLite file | ADMIN/ADMIN++ read-only browser with redacted credentials and validated management links |
+| Database visibility | Local SQLite file | Password-gated Admin++ read-only browser with redacted credentials and validated management links |
 | Student import | Direct CSV import | Preview and reconciliation for additions, changes, duplicates, invalid rows, and missing students |
-| Attendance safety | Standard session flow | Explicit roll-click Present/Late marking, pending-to-Absent closure, duplicate/overlap detection, opener/closer ownership, reopen reasons, and race-safe operations |
+| Attendance safety | Standard session flow | Explicit roll-click Present/Late marking, crash-safe local autosave/replay, pending-to-Absent closure, duplicate/overlap detection, opener/closer ownership, reopen reasons, and race-safe operations |
 | Corrections | Basic edits | Mandatory reason, before/after state, actor, time, and permanent audit history |
 | Reporting | Basic export | Machine export and organized review workbook with overall and subject-level student percentages |
 | Backups | Manual file handling | Managed SQLite snapshots, validation, guarded restore, pre-restore backup, download, and audit logging |
@@ -116,6 +116,13 @@ The published [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/re
 - Privilege ceilings prevent CR/ADMIN from receiving Admin++ deletion or session-control authority.
 - Read-only in-memory defaults keep startup safe if the configuration directory cannot be written.
 - `npm run config-check` validates and reports the effective policy before deployment.
+- Settings includes a glass permission editor for CR and ADMIN after Admin++ password verification.
+- ADMIN++ capabilities are always enabled in backend policy and cannot be reduced by YAML or browser edits.
+- Users requires an ADMIN password check; Database and Backup & restore require an Admin++ password check.
+- Admin++ can promote ordinary CR/ADMIN accounts between those roles; Admin++ assignment and revocation remain CLI-only.
+- Attendance marks are saved locally before transmission and replayed after refresh, reconnect, or a browser crash.
+- Refresh-token rotation tolerates a same-browser parallel refresh race without weakening cross-device reuse detection.
+- Timetable writes reject invalid clock values, inactive subjects, and overlapping active entries.
 
 ## Permission model
 
@@ -128,7 +135,9 @@ The published [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/re
 | Manage students, subjects, timetable, and settings | — | ✓ | ✓ |
 | Create users and reset CR passwords | — | ✓ | ✓ |
 | Enable/disable ordinary managed accounts | — | ✓ | ✓ |
-| View the redacted, read-only database browser | — | ✓ | ✓ |
+| View the redacted, read-only database browser | — | — | ✓ |
+| View, create, download, restore, or delete managed backups | — | — | ✓ |
+| Change an ordinary account between CR and ADMIN | — | — | ✓ |
 | Modify an Admin++ account | — | — | ✓ |
 | Inspect/revoke another user’s browser sessions | — | — | ✓ |
 | Permanently delete eligible users/students/subjects | — | — | ✓ |
@@ -233,9 +242,9 @@ npm run config-check
 npm run dev
 ```
 
-Each role has a complete independent permission matrix. Missing files are recreated, malformed files are preserved as timestamped `.broken-*` copies, and structurally invalid files are preserved as `.repaired-*` copies before normalization. Missing keys use secure defaults, unknown keys are removed, invalid types are replaced, and required permission dependencies are restored.
+Each role has a complete independent permission matrix. Missing files are recreated, malformed files are preserved as timestamped `.broken-*` copies, and structurally invalid files are preserved as `.repaired-*` copies before normalization. Recovery artifacts are kept out of the active config root under `config/archive/broken/`, `config/archive/repaired/`, and `config/archive/replaced/`; older loose artifacts are migrated there automatically. Missing keys use secure defaults, unknown keys are removed, invalid types are replaced, and required permission dependencies are restored.
 
-Permanent deletion, other-user session control, and Admin++ modification remain protected security boundaries. Configuration may disable these capabilities for Admin++, but cannot grant them to CR or ordinary ADMIN. Self-disable, self-delete, last-active-Admin++, secret-redaction, elevation, and audit safeguards are enforced in code and are not YAML switches.
+Permanent deletion, database access, backup management, role changes, other-user session control, and Admin++ modification remain protected security boundaries. They cannot be granted to CR or ordinary ADMIN. Every Admin++ capability is forced on by the backend, while the Settings matrix may configure valid CR/ADMIN choices below their security ceilings. Self-disable, self-delete, last-active-Admin++, secret-redaction, elevation, and audit safeguards are enforced in code and are not YAML switches.
 
 Secrets never belong in YAML. Keep JWT, database, SMTP, and provider credentials in environment variables.
 
@@ -285,6 +294,9 @@ Production requirements:
 | `npm run backup` | Create and validate a timestamped SQLite snapshot. |
 | `npm run verify-data` | Run read-only integrity, foreign-key, duplicate-roll, administrator, and count checks. |
 | `npm run config-check` | Repair and validate YAML policy files, then print effective permission counts. |
+| `npm run timetable-check` | Validate the live timetable, subjects, clock windows, and overlaps without changing data. |
+| `npm run backup:list` | List managed backups with size, creation time, and validation state. |
+| `npm run doctor` | Run config repair, timetable/data validation, all tests, and the production build. |
 | `npm run demo-attendance -- 12` | Create deterministic closed sessions for existing students after a backup. |
 | `npm run normalize-rolls` | Normalize numeric rolls imported by older builds. |
 | `npm run seed` | Populate local development accounts and academic configuration; never students. |
@@ -320,7 +332,7 @@ Create a backup from **Backup & restore** or:
 npm run backup
 ```
 
-Restoration requires an ADMIN password plus the exact confirmation phrase. AttendX validates the upload, creates a pre-restore snapshot, restores the database, revokes sessions, and stops the API. Restart the service only after the restore response completes.
+Opening **Backup & restore** requires an Admin++ password check. Restoration also requires the exact confirmation phrase. AttendX validates the upload, checks database integrity and required schema, confirms an active administrator remains, creates a pre-restore snapshot, restores the database, revokes sessions, and stops the API. Restart the service only after the restore response completes.
 
 Admin++ may remove obsolete managed backup files from **Backup & restore** after password elevation, an exact confirmation phrase, and a mandatory reason. File deletion is restricted to validated filenames inside the configured backup directory and creates a permanent audit entry. Keep at least one tested off-machine recovery point before cleaning local backups.
 
@@ -344,7 +356,7 @@ A release-ready SQLite database must pass `PRAGMA integrity_check`, have zero fo
 
 ## Attendance rules
 
-The default late threshold is 15 minutes and is configurable. Its value is copied into each attendance session when opened, so later configuration changes cannot rewrite history.
+The default late threshold is 15 minutes and is configurable. Its value is copied into each attendance session when opened, so later configuration changes cannot rewrite history. The threshold control is disabled in Settings while Late Mode is off because it has no effect in that mode.
 
 Admin++ can enable or disable **Late Mode** from Settings. The choice is copied into each newly opened session: enabled sessions classify arrivals after the threshold as Late, while disabled sessions record every marked arrival as Present. Existing sessions and historical records retain the mode under which they were created.
 
@@ -354,7 +366,7 @@ For a class beginning at `09:30` with a 15-minute threshold:
 - `09:45:00` onward: `LATE`, no attendance credit.
 - Unmarked when the session closes: `ABSENT`, no attendance credit.
 
-During an open session, choose the persistent **Present**, **Late**, or **Remove mark** tool and then select as many roll cards as needed. Present and Late can overwrite one another, while Remove mark returns a roll to pending; those live changes preserve actor, time, and before/after audit history. Leaving a roll untouched keeps it pending, and AttendX does not silently mark it absent while the session is live. The close review lists all pending rolls, and only confirmation converts them to **Absent**. Authorized closed-session corrections still require an explicit reason.
+During an open session, choose the persistent **Present**, **Late**, or **Remove mark** tool and then select as many roll cards as needed. Present and Late can overwrite one another, while Remove mark returns a roll to pending; those live changes preserve actor, time, and before/after audit history. Each selection is written to a browser-local recovery queue before its API request. Pending changes replay after reconnect or reload, duplicate replay is safe, and AttendX refuses to close the session while unsynced changes remain. Leaving a roll untouched keeps it pending, and AttendX does not silently mark it absent while the session is live. The close review lists all pending rolls, and only confirmation converts them to **Absent**. Authorized closed-session corrections still require an explicit reason.
 
 Admin++ may permanently delete a closed attendance session from **Attendance history**. This destructive workflow requires fresh password elevation, the exact confirmation phrase, and a reason. Open sessions cannot be deleted, ordinary ADMIN cannot use the action, and a permanent audit snapshot of the deleted session and its totals remains available.
 
@@ -365,11 +377,11 @@ Credited attendance percentage is `PRESENT / classes conducted × 100`. Physical
 - Passwords are bcrypt hashes and are never returned by the API.
 - Access tokens are short-lived and memory-only.
 - Refresh tokens are high entropy, rotated, sent only as secure cookies, and stored only as hashes.
-- Reusing a rotated refresh token revokes the account’s sessions.
-- Login and Admin++ password elevation are rate limited.
+- Same-browser parallel refreshes receive a short race-safe recovery window; reuse from another device still revokes the account’s sessions.
+- Login and administrator password elevation are rate limited.
 - Helmet security headers and exact-origin credentialed CORS are enabled.
 - Logout is POST-only, checks request origin, clears the cookie, and revokes the database session.
-- Admin++ elevation is password-confirmed, memory-only, tied to the current session, and expires after five minutes.
+- Administrator elevation is password-confirmed, memory-only, tied to the current session, and expires after five minutes. Users uses ADMIN elevation; Database and Backups require Admin++ elevation.
 - Database browsing redacts password, refresh-token, token-history, and IP-hash material.
 - Destructive deletion is refused when historical relationships require deactivation instead.
 - Closed attendance deletion preserves an audit snapshot even after its detailed records are removed.
@@ -378,10 +390,11 @@ Credited attendance percentage is `PRESENT / classes conducted × 100`. Physical
 
 ## V1.1.6 verification
 
-- 29 backend tests cover attendance rules, Late Mode, imports, exports, sessions, authorization, backup retention, audit export, Admin++, destructive history controls, and self-healing configuration.
+- 36 automated tests cover attendance rules and recovery queues, Late Mode, imports, exports, refresh races, authorization gates, backup retention, audit export, Admin++, role changes, timetable validation, destructive history controls, archive migration, and self-healing configuration.
 - Production frontend compilation succeeds with Vite.
 - `npm run config-check` validates YAML parsing, structural repair, permission dependencies, and protected privilege ceilings.
 - `npm run verify-data` checks SQLite integrity, foreign keys, duplicate rolls, administrator availability, and record totals without modifying data.
+- `npm run timetable-check` validates the current database timetable without changing it; `npm run doctor` runs the complete release check.
 
 Deployment owners should still perform browser role checks, export review, a restore rehearsal on a disposable copy, HTTPS configuration, secret rotation, monitoring, and backup-retention validation in their own environment.
 

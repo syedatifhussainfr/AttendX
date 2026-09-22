@@ -80,8 +80,42 @@ export async function validateBackup(filename) {
       throw new Error(
         `Backup is missing required tables: ${missing.join(", ")}.`,
       );
+    const foreignKeyErrors = await all(db, "PRAGMA foreign_key_check");
+    if (foreignKeyErrors.length)
+      throw new Error(
+        `Backup contains ${foreignKeyErrors.length} broken relationship(s).`,
+      );
+    const userColumns = new Set(
+      (await all(db, "PRAGMA table_info(users)")).map((column) => column.name),
+    );
+    const requiredUserColumns = [
+      "id",
+      "email",
+      "password_hash",
+      "role",
+      "active",
+      "admin_plus",
+    ];
+    const missingUserColumns = requiredUserColumns.filter(
+      (column) => !userColumns.has(column),
+    );
+    if (missingUserColumns.length)
+      throw new Error(
+        `Backup user schema is outdated: ${missingUserColumns.join(", ")}.`,
+      );
+    const administrators = await get(
+      db,
+      "SELECT COUNT(*) AS count FROM users WHERE role = 'ADMIN' AND active = 1",
+    );
+    if (!administrators.count)
+      throw new Error("Backup has no active administrator account.");
     const students = await get(db, "SELECT COUNT(*) AS count FROM students");
-    return { valid: true, size: stat.size, students: students.count };
+    return {
+      valid: true,
+      size: stat.size,
+      students: students.count,
+      administrators: administrators.count,
+    };
   } catch (error) {
     error.status = 400;
     throw error;

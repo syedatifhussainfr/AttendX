@@ -13,6 +13,7 @@ config/*.secret.yml
 config/*.broken-*
 config/*.repaired-*
 config/*.replaced-*
+config/archive/
 server/data/*.sqlite
 server/data/*.sqlite-*
 server/backups/*.sqlite

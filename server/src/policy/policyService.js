@@ -3,11 +3,13 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   renameSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { tmpdir } from "node:os";
 import { parse, stringify } from "yaml";
 import {
   defaultPolicy,
@@ -18,13 +20,46 @@ import {
 
 const sourceRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 export const policyDirectory = resolve(
-  process.env.ATTENDX_CONFIG_DIR || join(sourceRoot, "config"),
+  process.env.ATTENDX_CONFIG_DIR ||
+    (process.env.NODE_ENV === "test"
+      ? join(tmpdir(), `attendx-policy-runtime-${process.pid}`)
+      : join(sourceRoot, "config")),
 );
 
 const clone = (value) => structuredClone(value);
 const isObject = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 const timestamp = () => new Date().toISOString().replace(/[:.]/g, "-");
+const artifactKinds = ["broken", "repaired", "replaced"];
+
+function availableArtifactPath(directory, kind, filename) {
+  const targetDirectory = join(directory, "archive", kind);
+  mkdirSync(targetDirectory, { recursive: true });
+  const initial = join(targetDirectory, filename);
+  if (!existsSync(initial)) return initial;
+  let counter = 2;
+  while (existsSync(join(targetDirectory, `${filename}.${counter}`))) counter += 1;
+  return join(targetDirectory, `${filename}.${counter}`);
+}
+
+function artifactPath(sourcePath, kind) {
+  return availableArtifactPath(
+    dirname(sourcePath),
+    kind,
+    `${basename(sourcePath)}.${kind}-${timestamp()}`,
+  );
+}
+
+function migrateLegacyArtifacts(directory, events) {
+  for (const filename of readdirSync(directory)) {
+    const match = filename.match(/\.(broken|repaired|replaced)-/);
+    if (!match || !artifactKinds.includes(match[1])) continue;
+    const source = join(directory, filename);
+    const target = availableArtifactPath(directory, match[1], filename);
+    renameSync(source, target);
+    events.push(`archived legacy recovery file ${filename}`);
+  }
+}
 
 function sameValue(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
@@ -92,6 +127,18 @@ export function normalizePolicy(input) {
       }
     }
 
+  // ADMIN++ is assigned only through the local CLI and always retains the
+  // complete capability set, even if a YAML or browser edit tries to reduce it.
+  for (const capability of Object.keys(
+    flattenPermissions(defaultPolicy.permissions.ADMIN_PLUS),
+  )) {
+    const path = `permissions.ADMIN_PLUS.${capability}`;
+    if (getPath(normalized, path) !== true) {
+      setPath(normalized, path, true);
+      repairs.push(`${path}: enforced ADMIN++ capability`);
+    }
+  }
+
   for (const role of Object.keys(normalized.permissions))
     for (const [capability, dependencies] of Object.entries(
       permissionDependencies,
@@ -129,13 +176,13 @@ function ensureCanonicalFile(path, description, events) {
   try {
     const parsed = parse(readFileSync(path, "utf8"));
     if (!sameValue(parsed, defaultPolicy)) {
-      const saved = `${path}.replaced-${timestamp()}`;
+      const saved = artifactPath(path, "replaced");
       copyFileSync(path, saved);
       writeCanonicalFile(path, description);
       events.push(`restored ${path}; previous file saved as ${saved}`);
     }
   } catch {
-    const saved = `${path}.broken-${timestamp()}`;
+    const saved = artifactPath(path, "broken");
     renameSync(path, saved);
     writeCanonicalFile(path, description);
     events.push(`repaired ${path}; broken file saved as ${saved}`);
@@ -145,6 +192,7 @@ function ensureCanonicalFile(path, description, events) {
 function repairPolicyFiles(directory) {
   mkdirSync(directory, { recursive: true });
   const events = [];
+  migrateLegacyArtifacts(directory, events);
   const defaultPath = join(directory, "default.yml");
   const examplePath = join(directory, "config.example.yml");
   const configPath = join(directory, "config.yml");
@@ -173,7 +221,7 @@ function repairPolicyFiles(directory) {
   try {
     parsed = parse(readFileSync(configPath, "utf8"));
   } catch (error) {
-    const saved = `${configPath}.broken-${timestamp()}`;
+    const saved = artifactPath(configPath, "broken");
     renameSync(configPath, saved);
     writeFileSync(
       configPath,
@@ -186,7 +234,7 @@ function repairPolicyFiles(directory) {
 
   const { policy, repairs } = normalizePolicy(parsed);
   if (repairs.length) {
-    const saved = `${configPath}.repaired-${timestamp()}`;
+    const saved = artifactPath(configPath, "repaired");
     copyFileSync(configPath, saved);
     writeFileSync(
       configPath,
@@ -241,6 +289,25 @@ function resolveRolePermissions(policy, roleName, seen = new Set()) {
 const initialized = initializePolicyFiles();
 export const permissionPolicy = initialized.policy;
 export const policyStartupReport = initialized;
+
+export function savePermissionPolicy(input) {
+  const { policy, repairs } = normalizePolicy(input);
+  const target = initialized.paths.configPath;
+  const temporary = `${target}.tmp-${process.pid}`;
+  writeFileSync(
+    temporary,
+    policyText(policy, "AttendX local permission configuration."),
+    "utf8",
+  );
+  renameSync(temporary, target);
+  for (const key of Object.keys(permissionPolicy)) delete permissionPolicy[key];
+  Object.assign(permissionPolicy, policy);
+  return { policy: clone(permissionPolicy), repairs };
+}
+
+export function permissionPolicySnapshot() {
+  return clone(permissionPolicy);
+}
 
 export function roleNameForUser(user) {
   return user?.role === "ADMIN" && user?.adminPlus ? "ADMIN_PLUS" : user?.role;

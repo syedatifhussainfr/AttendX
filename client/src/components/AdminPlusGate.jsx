@@ -6,8 +6,14 @@ import {
   messageOf,
   setAdminElevation,
 } from "../api.js";
+import { useAuth } from "../state/AuthContext.jsx";
 
-export function AdminPlusGate({ children }) {
+export function AdminPlusGate({
+  children,
+  adminPlus = true,
+  area = "protected tools",
+}) {
+  const { user } = useAuth();
   const [unlocked, setUnlocked] = useState(hasAdminElevation);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -41,11 +47,13 @@ export function AdminPlusGate({ children }) {
         <span className="admin-plus-lock-icon">
           <Database />
         </span>
-        <span className="eyebrow">ADMIN++ · PROTECTED AREA</span>
-        <h1>Confirm it’s you</h1>
+        <span className="eyebrow">
+          {adminPlus ? "ADMIN++" : "ADMIN"} · PROTECTED AREA
+        </span>
+        <h1>Unlock {area}</h1>
         <p>
-          Enter your current AttendX password to unlock database and account
-          management for five minutes on this device.
+          Confirm the password for <b>{user.email}</b>. Access stays unlocked
+          for five minutes in this tab and is bound to this login session.
         </p>
         <form onSubmit={unlock} className="form-stack">
           <label>
@@ -61,12 +69,12 @@ export function AdminPlusGate({ children }) {
           {error && <div className="danger-note">{error}</div>}
           <button className="primary" disabled={busy}>
             <ShieldCheck />
-            {busy ? "Verifying…" : "Unlock protected tools"}
+            {busy ? "Verifying…" : `Unlock ${area}`}
           </button>
         </form>
         <small>
-          The unlock is held only in memory and disappears on sign-out or page
-          refresh.
+          Nothing is stored in the browser. Refreshing or signing out removes
+          this verification immediately.
         </small>
       </section>
     </div>

@@ -175,10 +175,10 @@ router.get("/capabilities", requireAuth, (req, res) => {
 });
 
 router.post("/elevate", requireAuth, elevationLimiter, async (req, res) => {
-  if (req.user.role !== "ADMIN" || !req.user.adminPlus)
+  if (req.user.role !== "ADMIN")
     return res.status(403).json({
-      code: "ADMIN_PLUS_REQUIRED",
-      message: "Admin++ permission is required.",
+      code: "ADMIN_REQUIRED",
+      message: "Administrator permission is required.",
     });
   const { password } = z.object({ password: z.string().min(1).max(128) }).parse(req.body);
   const user = await User.findByPk(req.user.id);
