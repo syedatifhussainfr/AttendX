@@ -56,6 +56,9 @@ const close = (db) =>
     db.close((error) => (error ? reject(error) : resolve())),
   );
 
+const sqliteTimestamp = (date = new Date()) =>
+  date.toISOString().replace("T", " ").replace("Z", " +00:00");
+
 export async function validateBackup(filename) {
   const stat = await fs.stat(filename);
   if (!stat.isFile() || stat.size < 100)
@@ -193,7 +196,9 @@ export async function restoreStagedBackup({ stagedPath, userId, sourceName }) {
     const db = await openSqlite(livePath, sqlite3.OPEN_READWRITE);
     try {
       const user = await get(db, "SELECT id FROM users WHERE id = ?", [userId]);
-      const now = new Date().toISOString();
+      // Match Sequelize's SQLite DATE serialization so restored rows hydrate as
+      // valid Date objects after the API restarts.
+      const now = sqliteTimestamp();
       const tables = await all(db, "SELECT name FROM sqlite_master WHERE type = 'table'");
       if (tables.some((table) => table.name === "auth_sessions"))
         await run(db, "UPDATE auth_sessions SET revoked_at = ?, updated_at = ? WHERE revoked_at IS NULL", [now, now]);

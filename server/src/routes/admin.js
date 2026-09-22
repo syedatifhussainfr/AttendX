@@ -628,6 +628,11 @@ function readableAuditValue(value) {
   }
 }
 
+function readableAuditTimestamp(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? "Timestamp unavailable" : date.toISOString();
+}
+
 router.get(
   "/audit-logs/export",
   requirePermission("audit.view"),
@@ -647,7 +652,7 @@ router.get(
             : `${row.entityType} #${row.entityId}`;
         return [
           "",
-          `[${new Date(row.createdAt).toISOString()}] ${row.action.replaceAll("_", " ")}`,
+          `[${readableAuditTimestamp(row.createdAt)}] ${row.action.replaceAll("_", " ")}`,
           `Actor: ${row.User?.name || "System"}`,
           `Target: ${target}`,
           `Reason: ${row.reason || "—"}`,

@@ -120,6 +120,10 @@ test("versioned migration adds V1.1 columns and records itself", async () => {
     "SELECT id FROM app_migrations WHERE id = '004-session-late-mode'",
   );
   assert.equal(lateModeMigrations.length, 1);
+  const [timestampMigrations] = await db.sequelize.query(
+    "SELECT id FROM app_migrations WHERE id = '005-normalize-sqlite-timestamps'",
+  );
+  assert.equal(timestampMigrations.length, 1);
 });
 
 test("secure browser sessions rotate, reject stale access, and revoke on logout", async () => {
@@ -264,6 +268,13 @@ test("only elevated Admin++ deletes backups and audit logs export as text", asyn
       where: { action: "DATABASE_BACKUP_DELETED" },
     }),
   );
+  await db.sequelize.query(
+    `INSERT INTO audit_logs
+      (entity_type, entity_id, action, user_id, created_at, updated_at)
+     VALUES ('DATABASE', 0, 'LEGACY_TIMESTAMP_TEST', :userId,
+       '2026-09-18T12:33:47.060Z', '2026-09-18T12:33:47.060Z')`,
+    { replacements: { userId: admin.id } },
+  );
   await request(app)
     .get("/api/admin/audit-logs/export")
     .set("Authorization", `Bearer ${normalAdminToken}`)
@@ -274,6 +285,8 @@ test("only elevated Admin++ deletes backups and audit logs export as text", asyn
     .expect((response) => {
       assert.match(response.text, /DATABASE BACKUP DELETED/);
       assert.match(response.text, /Cleanup test file/);
+      assert.match(response.text, /LEGACY TIMESTAMP TEST/);
+      assert.match(response.text, /Timestamp unavailable/);
     });
 });
 
