@@ -33,6 +33,7 @@ permissions:
     settings:
       view: false
       manage: false
+      manageLateMode: false
     users:
       view: false
       create: false
@@ -82,6 +83,7 @@ permissions:
     settings:
       view: true
       manage: true
+      manageLateMode: false
     users:
       view: true
       create: true
@@ -131,6 +133,7 @@ permissions:
     settings:
       view: true
       manage: true
+      manageLateMode: true
     users:
       view: true
       create: true

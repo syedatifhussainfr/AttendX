@@ -133,6 +133,11 @@ export const AttendanceSession = sequelize.define(
     reason: { type: DataTypes.STRING, allowNull: true },
     faculty: { type: DataTypes.STRING, allowNull: true },
     lateThresholdMinutes: { type: DataTypes.INTEGER, allowNull: false },
+    lateModeEnabled: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+    },
     scheduledSubjectId: { type: DataTypes.INTEGER, allowNull: true },
     reopenedAt: { type: DataTypes.DATE, allowNull: true },
     reopenReason: { type: DataTypes.STRING(250), allowNull: true },

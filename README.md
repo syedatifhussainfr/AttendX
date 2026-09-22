@@ -134,6 +134,7 @@ The published [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/re
 | Permanently delete eligible users/students/subjects | — | — | ✓ |
 | Permanently delete closed attendance history with an audit snapshot | — | — | ✓ |
 | Permanently delete managed backup files with an audit entry | — | — | ✓ |
+| Enable or disable Late Mode for new sessions | — | — | ✓ |
 | Promote or revoke Admin++ | — | — | CLI only |
 
 Raw database records remain read-only for both ADMIN and ADMIN++. Data changes go through validated API workflows so authorization, relationships, and audit rules cannot be bypassed.
@@ -345,6 +346,8 @@ A release-ready SQLite database must pass `PRAGMA integrity_check`, have zero fo
 
 The default late threshold is 15 minutes and is configurable. Its value is copied into each attendance session when opened, so later configuration changes cannot rewrite history.
 
+Admin++ can enable or disable **Late Mode** from Settings. The choice is copied into each newly opened session: enabled sessions classify arrivals after the threshold as Late, while disabled sessions record every marked arrival as Present. Existing sessions and historical records retain the mode under which they were created.
+
 For a class beginning at `09:30` with a 15-minute threshold:
 
 - `09:30:00`–`09:44:59`: `PRESENT`, attendance credit granted.
@@ -375,7 +378,7 @@ Credited attendance percentage is `PRESENT / classes conducted × 100`. Physical
 
 ## V1.1.6 verification
 
-- 28 backend tests cover attendance rules, imports, exports, sessions, authorization, backup retention, audit export, Admin++, destructive history controls, and self-healing configuration.
+- 29 backend tests cover attendance rules, Late Mode, imports, exports, sessions, authorization, backup retention, audit export, Admin++, destructive history controls, and self-healing configuration.
 - Production frontend compilation succeeds with Vite.
 - `npm run config-check` validates YAML parsing, structural repair, permission dependencies, and protected privilege ceilings.
 - `npm run verify-data` checks SQLite integrity, foreign keys, duplicate rolls, administrator availability, and record totals without modifying data.

@@ -22,7 +22,7 @@ const crPermissions = {
   subjects: { view: true, manage: false, delete: false },
   timetable: { view: true, manage: false },
   reports: { view: true, export: true },
-  settings: { view: false, manage: false },
+  settings: { view: false, manage: false, manageLateMode: false },
   users: {
     view: false,
     create: false,
@@ -75,6 +75,7 @@ const adminPlusPermissions = rolePermissions(adminPermissions, {
   subjects: { delete: true },
   users: { delete: true, manageSessions: true, modifyAdminPlus: true },
   backups: { delete: true },
+  settings: { manageLateMode: true },
 });
 
 export const defaultPolicy = {
@@ -99,6 +100,7 @@ export const protectedPermissions = {
   "users.manageSessions": { CR: false, ADMIN: false },
   "users.modifyAdminPlus": { CR: false, ADMIN: false },
   "backups.delete": { CR: false, ADMIN: false },
+  "settings.manageLateMode": { CR: false, ADMIN: false },
 };
 
 export const permissionDependencies = {
@@ -118,6 +120,7 @@ export const permissionDependencies = {
   "timetable.manage": ["timetable.view", "subjects.view"],
   "reports.export": ["reports.view"],
   "settings.manage": ["settings.view"],
+  "settings.manageLateMode": ["settings.view"],
   "users.create": ["users.view"],
   "users.update": ["users.view"],
   "users.resetCrPassword": ["users.view"],

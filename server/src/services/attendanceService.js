@@ -14,8 +14,10 @@ export function deriveAttendanceStatus({
   scheduledStartTime,
   thresholdMinutes,
   markedAt,
+  lateModeEnabled = true,
   timezone = config.timezone,
 }) {
+  if (!lateModeEnabled) return "PRESENT";
   const start = DateTime.fromISO(`${sessionDate}T${scheduledStartTime}`, {
     zone: timezone,
   });
@@ -95,8 +97,17 @@ export async function markAttendance({
         sessionDate: session.sessionDate,
         scheduledStartTime: session.scheduledStartTime,
         thresholdMinutes: session.lateThresholdMinutes,
+        lateModeEnabled: session.lateModeEnabled,
         markedAt: now,
       });
+    if (resolvedStatus === "LATE" && !session.lateModeEnabled) {
+      const error = new Error(
+        "Late marking is disabled for this attendance session.",
+      );
+      error.status = 409;
+      error.code = "LATE_MODE_DISABLED";
+      throw error;
+    }
     if (existing && !allowCorrection) {
       const error = new Error(
         `Roll ${student.rollNumber} was already marked ${existing.status}.`,
@@ -174,6 +185,14 @@ export async function setLiveAttendanceSelection({
       );
       error.status = 409;
       error.code = "SESSION_CLOSED";
+      throw error;
+    }
+    if (status === "LATE" && !session.lateModeEnabled) {
+      const error = new Error(
+        "Late marking is disabled for this attendance session.",
+      );
+      error.status = 409;
+      error.code = "LATE_MODE_DISABLED";
       throw error;
     }
 

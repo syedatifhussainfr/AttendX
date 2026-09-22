@@ -79,6 +79,7 @@ export async function seed() {
       });
   const settings = {
     lateThresholdMinutes: 15,
+    lateModeEnabled: true,
     institutionName: "EIILM Kolkata",
     className: "Semester I",
     academicSession: "2026–27",

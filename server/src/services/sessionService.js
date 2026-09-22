@@ -68,6 +68,10 @@ export async function openAttendanceSession({ input, userId, now }) {
       transaction,
       lock: transaction.LOCK.UPDATE,
     });
+    const lateModeSetting = await Setting.findByPk("lateModeEnabled", {
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
     const subject = await Subject.findOne({
       where: { id: input.subjectId, active: true },
       transaction,
@@ -152,6 +156,9 @@ export async function openAttendanceSession({ input, userId, now }) {
         lateThresholdMinutes: thresholdSetting
           ? JSON.parse(thresholdSetting.value)
           : 15,
+        lateModeEnabled: lateModeSetting
+          ? JSON.parse(lateModeSetting.value)
+          : true,
         faculty: input.faculty,
         sessionType: input.sessionType,
         reason: input.reason,

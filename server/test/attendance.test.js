@@ -59,6 +59,16 @@ test("15-minute boundary is exact: 09:44:59 present, 09:45:00 late", () => {
     }),
     "LATE",
   );
+  assert.equal(
+    service.deriveAttendanceStatus({
+      sessionDate: "2026-09-18",
+      scheduledStartTime: "09:30",
+      thresholdMinutes: 15,
+      markedAt: at("2026-09-18T10:15:00+05:30"),
+      lateModeEnabled: false,
+    }),
+    "PRESENT",
+  );
 });
 
 test("roll numbers normalize and sort naturally", () => {

@@ -2,8 +2,9 @@ import { DataTypes } from "sequelize";
 import { migration001 } from "./migrations/001-v1-1-core.js";
 import { migration002 } from "./migrations/002-auth-sessions.js";
 import { migration003 } from "./migrations/003-admin-plus.js";
+import { migration004 } from "./migrations/004-late-mode.js";
 
-const migrations = [migration001, migration002, migration003];
+const migrations = [migration001, migration002, migration003, migration004];
 
 export async function runMigrations(sequelize) {
   const queryInterface = sequelize.getQueryInterface();

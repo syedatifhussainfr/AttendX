@@ -66,14 +66,18 @@ export function AttendanceSessionPage() {
       )
         return;
       const shortcut = { 1: "PRESENT", 2: "LATE", 3: "REMOVE" }[event.key];
-      if (!shortcut || (shortcut === "REMOVE" && !can("attendance.correctOpen")))
+      if (
+        !shortcut ||
+        (shortcut === "LATE" && !data?.session.lateModeEnabled) ||
+        (shortcut === "REMOVE" && !can("attendance.correctOpen"))
+      )
         return;
       event.preventDefault();
       setMarkTool(shortcut);
     };
     window.addEventListener("keydown", selectTool);
     return () => window.removeEventListener("keydown", selectTool);
-  }, [data?.session.status, can]);
+  }, [data?.session.status, data?.session.lateModeEnabled, can]);
   const records = useMemo(
     () =>
       new Map(
@@ -282,13 +286,15 @@ export function AttendanceSessionPage() {
             {s.createdBy?.name ? ` by ${s.createdBy.name}` : ""}
           </p>
         </div>
-        <div className={left ? "countdown" : "countdown elapsed"}>
-          <small>{left ? "ON-TIME WINDOW" : "LATE WINDOW"}</small>
-          <strong>{left ? `${min}:${sec}` : "00:00"}</strong>
+        <div className={!s.lateModeEnabled ? "countdown disabled" : left ? "countdown" : "countdown elapsed"}>
+          <small>{!s.lateModeEnabled ? "LATE MODE" : left ? "ON-TIME WINDOW" : "LATE WINDOW"}</small>
+          <strong>{!s.lateModeEnabled ? "OFF" : left ? `${min}:${sec}` : "00:00"}</strong>
           <span>
-            {left
-              ? "until late marks begin"
-              : `threshold was ${s.lateThresholdMinutes} min`}
+            {!s.lateModeEnabled
+              ? "all marked arrivals count as Present"
+              : left
+                ? "until late marks begin"
+                : `threshold was ${s.lateThresholdMinutes} min`}
           </span>
         </div>
       </section>
@@ -337,15 +343,13 @@ export function AttendanceSessionPage() {
                 Mark attendance
               </button>
             </div>
-            <p>Press Enter · the field clears immediately · server time decides Present or Late</p>
+            <p>
+              Press Enter · the field clears immediately ·{" "}
+              {s.lateModeEnabled
+                ? "server time decides Present or Late"
+                : "Late Mode is off, so every arrival is Present"}
+            </p>
           </form>
-        </section>
-      )}
-      {s.status === "OPEN" && missing.length > 0 && (
-        <section className="missing-callout">
-          <strong>Missing</strong>
-          <span>{missing.map((x) => x.rollNumber).join(", ")}</span>
-          <small>{missing.length} students still unmarked</small>
         </section>
       )}
       <section className="panel grid-panel">
@@ -370,10 +374,10 @@ export function AttendanceSessionPage() {
         {s.status === "OPEN" && can("attendance.mark") && (
           <div className="attendance-toolbox" role="toolbar" aria-label="Attendance marking tools">
             <div className="toolbox-heading">
-              <span className="toolbox-icon"><MousePointer2 /></span>
+              <MousePointer2 />
               <div>
-                <strong>Marking tool</strong>
-                <small>The active tool stays selected while you mark rolls.</small>
+                <strong>Select tool</strong>
+                <small>Then click rolls below</small>
               </div>
             </div>
             <div className="attendance-tools">
@@ -393,10 +397,11 @@ export function AttendanceSessionPage() {
                 className={`attendance-tool late ${markTool === "LATE" ? "active" : ""}`}
                 aria-pressed={markTool === "LATE"}
                 aria-keyshortcuts="2"
+                disabled={!s.lateModeEnabled}
                 onClick={() => setMarkTool("LATE")}
               >
                 <Clock3 />
-                <span><strong>Late</strong><small>Record without credit</small></span>
+                <span><strong>Late</strong><small>{s.lateModeEnabled ? "Record without credit" : "Disabled for this session"}</small></span>
                 <kbd>2</kbd>
               </button>
               <button
@@ -412,13 +417,6 @@ export function AttendanceSessionPage() {
                 <kbd>3</kbd>
               </button>
             </div>
-            <div className={`active-tool-hint ${markTool.toLowerCase()}`}>
-              <i />
-              <span>
-                <b>{markTool === "REMOVE" ? "Remove mark" : markTool.toLowerCase()}</b> tool active
-              </span>
-              <small>Click a roll to apply</small>
-            </div>
           </div>
         )}
         <div className={`roll-grid tool-${markTool.toLowerCase()}`}>
@@ -428,7 +426,7 @@ export function AttendanceSessionPage() {
             return (
               <button
                 key={student.id}
-                className={`roll-tile ${state} ${r?.correctedAt ? "corrected" : ""} ${applying.has(student.id) ? "applying" : ""}`}
+                className={`roll-tile ${state} ${applying.has(student.id) ? "applying" : ""}`}
                 disabled={applying.has(student.id)}
                 onClick={() => {
                   if (s.status === "OPEN" && can("attendance.mark"))
@@ -442,7 +440,11 @@ export function AttendanceSessionPage() {
                 }
               >
                 <strong>{student.rollNumber}</strong>
-                <span>{r?.status || "Not marked"}</span>
+                <span>
+                  {r
+                    ? `${r.status[0]}${r.status.slice(1).toLowerCase()}`
+                    : "Not marked"}
+                </span>
                 {r?.status === "PRESENT" && <Check />}
                 {r?.status === "LATE" && <Clock3 />}
                 {r?.status === "ABSENT" && <X />}
@@ -450,6 +452,34 @@ export function AttendanceSessionPage() {
             );
           })}
         </div>
+        {s.status === "OPEN" && missing.length > 0 && (
+          <section className="pending-review">
+            <div className="pending-review-head">
+              <div>
+                <strong>Pending review</strong>
+                <small>These rolls become Absent only when you confirm closure.</small>
+              </div>
+              <span>{missing.length} unmarked</span>
+            </div>
+            <div className="pending-rolls">
+              {missing.map((student) => (
+                <button
+                  type="button"
+                  key={student.id}
+                  disabled={markTool === "REMOVE"}
+                  onClick={() => applyMarkTool(student)}
+                  title={
+                    markTool === "REMOVE"
+                      ? "Choose Present or Late to mark a pending roll"
+                      : `Apply ${markTool.toLowerCase()} to roll ${student.rollNumber}`
+                  }
+                >
+                  {student.rollNumber}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
       </section>
       <Dialog
         open={!!selected}
@@ -495,7 +525,7 @@ export function AttendanceSessionPage() {
                   defaultValue={records.get(selected?.id)?.status || "PRESENT"}
                 >
                   <option>PRESENT</option>
-                  <option>LATE</option>
+                  {s.lateModeEnabled && <option>LATE</option>}
                   <option>ABSENT</option>
                 </select>
               </label>

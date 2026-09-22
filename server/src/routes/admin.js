@@ -288,9 +288,46 @@ router.delete("/timetable/:id", requirePermission("timetable.manage"), async (re
 router.get("/settings", requirePermission("settings.view"), async (req, res) => {
   const rows = await Setting.findAll();
   res.json(
-    Object.fromEntries(rows.map((row) => [row.key, JSON.parse(row.value)])),
+    {
+      lateModeEnabled: true,
+      ...Object.fromEntries(
+        rows.map((row) => [row.key, JSON.parse(row.value)]),
+      ),
+    },
   );
 });
+router.put(
+  "/settings/late-mode",
+  requirePermission("settings.manageLateMode"),
+  requireAdminPlus,
+  async (req, res) => {
+    const { enabled } = z.object({ enabled: z.boolean() }).parse(req.body);
+    const current = await Setting.findByPk("lateModeEnabled");
+    const oldValue = current ? JSON.parse(current.value) : true;
+    await sequelize.transaction(async (transaction) => {
+      await Setting.upsert(
+        { key: "lateModeEnabled", value: JSON.stringify(enabled) },
+        { transaction },
+      );
+      if (oldValue !== enabled)
+        await AuditLog.create(
+          {
+            entityType: "SETTING",
+            entityId: 0,
+            action: "LATE_MODE_CHANGED",
+            oldValue: String(oldValue),
+            newValue: String(enabled),
+            reason: enabled
+              ? "Late attendance tracking enabled"
+              : "Late attendance tracking disabled",
+            UserId: req.user.id,
+          },
+          { transaction },
+        );
+    });
+    res.json({ lateModeEnabled: enabled });
+  },
+);
 router.put("/settings", requirePermission("settings.manage"), async (req, res) => {
   const data = z
     .object({

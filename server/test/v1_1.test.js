@@ -97,6 +97,10 @@ test("versioned migration adds V1.1 columns and records itself", async () => {
   assert.ok(users.token_version);
   assert.ok(records.correction_reason);
   assert.ok(authSessionsTable.current_token_hash);
+  const attendanceSessionsTable = await db.sequelize
+    .getQueryInterface()
+    .describeTable("attendance_sessions");
+  assert.ok(attendanceSessionsTable.late_mode_enabled);
   assert.ok(authSessionsTable.expires_at);
   assert.ok(users.admin_plus);
   assert.ok(users.phone_number);
@@ -112,6 +116,10 @@ test("versioned migration adds V1.1 columns and records itself", async () => {
     "SELECT id FROM app_migrations WHERE id = '003-admin-plus-security'",
   );
   assert.equal(adminPlusMigrations.length, 1);
+  const [lateModeMigrations] = await db.sequelize.query(
+    "SELECT id FROM app_migrations WHERE id = '004-session-late-mode'",
+  );
+  assert.equal(lateModeMigrations.length, 1);
 });
 
 test("secure browser sessions rotate, reject stale access, and revoke on logout", async () => {
@@ -588,6 +596,32 @@ test("Admin++ can review and revoke another user's login sessions", async () => 
     .get("/api/auth/me")
     .set("Authorization", `Bearer ${second.accessToken}`)
     .expect(401);
+});
+
+test("only Admin++ can change Late Mode and the choice is audited", async () => {
+  await request(app)
+    .put("/api/admin/settings/late-mode")
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .send({ enabled: false })
+    .expect(403);
+  const disabled = await request(app)
+    .put("/api/admin/settings/late-mode")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .send({ enabled: false })
+    .expect(200);
+  assert.equal(disabled.body.lateModeEnabled, false);
+  assert.equal(
+    JSON.parse((await db.Setting.findByPk("lateModeEnabled")).value),
+    false,
+  );
+  assert.ok(
+    await db.AuditLog.findOne({ where: { action: "LATE_MODE_CHANGED" } }),
+  );
+  await request(app)
+    .put("/api/admin/settings/late-mode")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .send({ enabled: true })
+    .expect(200);
 });
 
 test("roll selection marks present or late, close assigns absence, and only elevated Admin++ deletes history", async () => {
