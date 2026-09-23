@@ -4,8 +4,8 @@
 
 AttendX replaces slow roll calls with a controlled attendance workflow for class representatives, administrators, and service operators. It combines timetable-aware session creation, server-authoritative attendance rules, accountable corrections, human-readable reports, backup tooling, and tiered administration in one responsive application.
 
-![Version](https://img.shields.io/badge/version-1.1.9--dev-0a4a7f)
-![Status](https://img.shields.io/badge/status-unreleased-d97706)
+![Version](https://img.shields.io/badge/version-1.1.9-0a4a7f)
+![Status](https://img.shields.io/badge/status-stable-287a5b)
 ![Runtime](https://img.shields.io/badge/node-20%2B-43853d)
 ![Database](https://img.shields.io/badge/database-SQLite%20%7C%20PostgreSQL-315b7d)
 
@@ -22,15 +22,15 @@ Operational records, credentials, local policy, institution settings, subjects, 
 | `v1.0.0` | Released baseline | Core attendance workflow, basic administration, CSV onboarding, exports, and audit history. |
 | `v1.1.6` | Previous release | Secure sessions, Admin++ controls, database visibility, self-healing permissions, reporting, and responsive operations. |
 | `v1.1.7` | Previous release | Recoverable live attendance, stronger privilege boundaries, safer token rotation, configurable permissions, validated timetables, and refined operational UX. |
-| `v1.1.8` | Current release | Student intelligence workspace, profiles, subject analytics, weighted Late credit, privacy-safe administration, and additional recovery hardening. |
-| `v1.1.9` | Unreleased development | Database-backed class workspaces, faculty and mentor assignments, class-scoped rosters, subjects, timetables, attendance, and reports. |
+| `v1.1.8` | Previous release | Student intelligence workspace, profiles, subject analytics, weighted Late credit, privacy-safe administration, and additional recovery hardening. |
+| `v1.1.9` | Current release | Database-backed class workspaces, faculty and mentor assignments, class-scoped rosters, subjects, timetables, attendance, and reports. |
 | `v1.2.0` | Planned | Academic calendar, alerting, programme templates, and service-management foundations. |
 
-The published [`v1.1.8` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.1.8) is the direct upgrade baseline for the unreleased V1.1.9 work. The [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.0.0) remains the original stable baseline.
+The published [`v1.1.9` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.1.9) is the current stable release. [`v1.1.8`](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.1.8) is its direct upgrade baseline, and [`v1.0.0`](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.0.0) remains the original stable baseline.
 
 ## V1.1.8 compared with V1.1.9
 
-| Area | V1.1.8 | V1.1.9 development |
+| Area | V1.1.8 | V1.1.9 |
 | --- | --- | --- |
 | Academic structure | One shared roster, timetable, and attendance workspace | Any number of database-defined classes with display name, code, course, specialization, semester, section, academic year, and batch |
 | Initial workspaces | No class catalogue | `ANASUYA BCA AI 3A.UG`, `3B.UG`, and `3C.UG`; existing operational data migrates safely to 3B |
@@ -214,7 +214,7 @@ The additive `006-student-profile` and `007-late-attendance-credit` migrations r
 - Invalid stored attendance settings fall back to secure operational defaults instead of interrupting session creation.
 - Failed restore attempts clean staged uploads, recover the original SQLite file, and trigger a controlled API restart when required.
 
-### V1.1.9 — database-backed class workspaces (unreleased)
+### V1.1.9 — database-backed class workspaces
 
 - Class records contain display name, unique code, course, specialization, semester, section, academic year, batch, and active state.
 - Initial A, B, and C workspaces are database rows rather than hardcoded frontend choices.
@@ -502,7 +502,7 @@ Credited attendance percentage is `sum of attendance credit values / classes con
 
 ## V1.1.9 verification
 
-- 42 automated tests cover attendance rules and recovery queues, weighted Late credit, student profiles and privacy, imports, exports, refresh races, authorization gates, backup retention, audit export, Admin++, faculty/class isolation, protected empty-class deletion, per-class roll numbers, role changes, timetable validation, destructive history controls, archive migration, filter validation, settings fallback, and self-healing configuration.
+- 43 automated tests cover attendance rules and recovery queues, weighted Late credit, student profiles and privacy, imports, exports, refresh races, authorization gates, backup retention, audit export, Admin++, faculty/class isolation, password-confirmed staff removal, protected empty-class deletion, per-class roll numbers, role changes, timetable validation, destructive history controls, archive migration, filter validation, settings fallback, and self-healing configuration.
 - Production frontend compilation succeeds with Vite.
 - `npm run config-check` validates YAML parsing, structural repair, permission dependencies, and protected privilege ceilings.
 - `npm run verify-data` checks SQLite integrity, foreign keys, attendance ownership, duplicate rolls, administrator availability, and record totals without modifying data.
@@ -521,8 +521,8 @@ Never commit real student rosters, attendance exports, production backups, acces
 Planned product work includes:
 
 - Institution onboarding and operator control plane.
-- Programme, semester, class, section, and academic-year modelling.
-- Faculty accounts and substitution history.
+- Programme templates, semester progression, and academic-year rollover tooling.
+- Faculty substitution history and workload views.
 - Holidays, closures, cancelled lectures, and special working days.
 - Attendance thresholds, alerts, and scheduled customer reports.
 - Customer-specific branding and domain configuration.
@@ -531,4 +531,4 @@ Planned product work includes:
 
 ## Important scope statement
 
-V1.1.9 remains unreleased development until class workflows receive browser-level acceptance testing. After the full checklist passes, it is suitable for controlled pilot evaluation and service-operated deployment. It is not yet a self-service multi-tenant SaaS platform; each institution should receive an isolated deployment and database until tenant isolation, provisioning, billing, and operator tooling are deliberately implemented and independently reviewed.
+V1.1.9 is a stable, service-operated release suitable for controlled pilot evaluation after deployment-specific backup, restore, role, browser, and export checks. It is not a self-service multi-tenant SaaS platform; each institution should receive an isolated deployment and database until tenant isolation, provisioning, billing, and operator tooling are deliberately implemented and independently reviewed.
