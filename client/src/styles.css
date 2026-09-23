@@ -7204,11 +7204,87 @@ body.sidebar-resizing * {
 .class-switcher-menu > header small {
   font-size: 0.62rem;
 }
-.class-switcher-menu > div {
+.class-switcher-search {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 7px;
+  padding: 0 7px;
+  border: 1px solid rgba(41, 91, 121, 0.11);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.82);
+}
+.class-switcher-search > svg {
+  width: 15px;
+  height: 15px;
+  color: #718591;
+}
+.class-switcher-search input {
+  appearance: none;
+  width: 100%;
+  min-height: 36px;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 0;
+  outline: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #183b54;
+  font-size: 0.75rem;
+}
+.class-switcher-search:focus-within {
+  border-color: rgba(39, 106, 148, 0.28);
+  box-shadow:
+    0 0 0 2px rgba(39, 106, 148, 0.1),
+    inset 0 1px rgba(255, 255, 255, 0.86);
+}
+.class-switcher-search input::placeholder {
+  color: #8a9aa4;
+}
+.class-switcher-search button {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #6b808d;
+}
+.class-switcher-search button:hover {
+  transform: none;
+  background: rgba(220, 234, 241, 0.72);
+}
+.class-switcher-search button svg {
+  width: 13px;
+  height: 13px;
+}
+.class-switcher-options {
   display: grid;
   gap: 4px;
+  max-height: min(390px, calc(100vh - 165px));
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  touch-action: pan-y;
+  padding-right: 2px;
 }
-.class-switcher-menu > div > button {
+.class-switcher-options::-webkit-scrollbar {
+  width: 7px;
+}
+.class-switcher-options::-webkit-scrollbar-track {
+  background: transparent;
+}
+.class-switcher-options::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: rgba(71, 105, 125, 0.28);
+  background-clip: padding-box;
+}
+.class-switcher-options > button {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 22px;
   align-items: center;
@@ -7221,11 +7297,13 @@ body.sidebar-resizing * {
   color: #183b54;
   text-align: left;
 }
-.class-switcher-menu > div > button:hover {
+.class-switcher-options > button:hover,
+.class-switcher-options > button:focus-visible {
   transform: none;
+  outline: 0;
   background: rgba(255, 255, 255, 0.58);
 }
-.class-switcher-menu > div > button.selected {
+.class-switcher-options > button.selected {
   border-color: rgba(39, 97, 132, 0.13);
   background: rgba(215, 234, 243, 0.62);
 }
@@ -7251,6 +7329,24 @@ body.sidebar-resizing * {
   width: 15px;
   height: 15px;
   color: #26739f;
+}
+.class-switcher-empty {
+  display: grid;
+  place-items: center;
+  gap: 5px;
+  min-height: 120px;
+  padding: 22px;
+  color: #526f81;
+  text-align: center;
+}
+.class-switcher-empty strong {
+  font-size: 0.82rem;
+}
+.class-switcher-empty small {
+  max-width: 300px;
+  color: #7b8e99;
+  font-size: 0.66rem;
+  line-height: 1.45;
 }
 
 .settings-class-handoff {
