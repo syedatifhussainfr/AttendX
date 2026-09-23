@@ -97,7 +97,7 @@ function RouteProgress() {
 
   useEffect(() => {
     if (state !== "finishing") return undefined;
-    const finished = window.setTimeout(() => setState("idle"), 210);
+    const finished = window.setTimeout(() => setState("idle"), 430);
     return () => window.clearTimeout(finished);
   }, [state]);
   return (

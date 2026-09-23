@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { ArrowRight, LockKeyhole, ShieldCheck } from "lucide-react";
 import {
   api,
@@ -14,6 +15,7 @@ export function AdminPlusGate({
   area = "protected tools",
 }) {
   const { user } = useAuth();
+  const { pathname } = useLocation();
   const [unlocked, setUnlocked] = useState(hasAdminElevation);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -23,6 +25,13 @@ export function AdminPlusGate({
     window.addEventListener("attendx:admin-elevation-ended", ended);
     return () => window.removeEventListener("attendx:admin-elevation-ended", ended);
   }, []);
+
+  useEffect(() => {
+    if (!unlocked)
+      window.dispatchEvent(
+        new CustomEvent("attendx:view-ready", { detail: { pathname } }),
+      );
+  }, [pathname, unlocked]);
 
   const unlock = async (event) => {
     event.preventDefault();

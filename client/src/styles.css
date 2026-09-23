@@ -31,7 +31,8 @@
   display: block;
   width: 0;
   height: 100%;
-  background: linear-gradient(90deg, #d96e2d, #f2ab72);
+  background: linear-gradient(90deg, #d96e2d 0%, #f2ab72 42%, #4f91b7 72%, #d96e2d 100%);
+  background-size: 220% 100%;
   box-shadow: 0 0 12px rgba(224, 117, 49, 0.72);
 }
 
@@ -40,12 +41,23 @@
   opacity: 1;
 }
 .route-progress.loading i {
-  width: 28%;
-  transition: width 0.12s ease-out;
+  width: 36%;
+  animation: route-progress-travel 1.05s cubic-bezier(0.42, 0, 0.32, 1) infinite;
 }
 .route-progress.finishing i {
   width: 100%;
+  animation: route-progress-finish-color 0.42s linear both;
   transition: width 0.42s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@keyframes route-progress-travel {
+  0% { transform: translateX(-110%); background-position: 100% 0; }
+  100% { transform: translateX(285%); background-position: -100% 0; }
+}
+
+@keyframes route-progress-finish-color {
+  from { background-position: 100% 0; }
+  to { background-position: 0 0; }
 }
 
 .user-actions {
@@ -5636,6 +5648,11 @@ body.sidebar-resizing * {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .route-progress.loading i,
+  .route-progress.finishing i {
+    animation-duration: 2.2s;
+  }
+
   .sidebar,
   .main,
   .sidebar-resizer::after {
