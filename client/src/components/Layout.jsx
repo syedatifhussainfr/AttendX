@@ -251,33 +251,44 @@ export function Layout() {
               {sidebarVisible ? <PanelLeftClose /> : <PanelLeftOpen />}
             </button>
             <label className="class-switcher">
-              <small>ACTIVE CLASS</small>
-              <span className="class-switcher-control">
-                <select
-                  value={selectedClass?.id || ""}
-                  onChange={(event) => selectClass(event.target.value)}
-                  aria-label="Choose active class"
-                >
-                  {!classes.length && <option value="">No assigned class</option>}
-                  {classes
-                    .filter((item) => item.active)
-                    .map((item) => (
-                      <option value={item.id} key={item.id}>
-                        {item.displayName}
-                      </option>
-                    ))}
-                </select>
-                <span className="class-switcher-meta">
-                  {selectedClass
-                    ? [
+              <span className="class-switcher-icon" aria-hidden="true">
+                <School />
+              </span>
+              <span className="class-switcher-content">
+                <small>
+                  <i /> Active class
+                </small>
+                <span className="class-switcher-row">
+                  <select
+                    value={selectedClass?.id || ""}
+                    onChange={(event) => selectClass(event.target.value)}
+                    aria-label="Choose active class"
+                  >
+                    {!classes.length && <option value="">No assigned class</option>}
+                    {classes
+                      .filter((item) => item.active)
+                      .map((item) => (
+                        <option value={item.id} key={item.id}>
+                          {item.displayName}
+                        </option>
+                      ))}
+                  </select>
+                  <span className="class-switcher-meta">
+                    {selectedClass ? (
+                      [
                         selectedClass.course,
                         selectedClass.specialization,
                         selectedClass.semester && `Sem ${selectedClass.semester}`,
                         selectedClass.academicYear,
                       ]
                         .filter(Boolean)
-                        .join(" · ")
-                    : "Assignment required"}
+                        .map((item, index) => (
+                          <b key={`${item}-${index}`}>{item}</b>
+                        ))
+                    ) : (
+                      <b>Assignment required</b>
+                    )}
+                  </span>
                 </span>
               </span>
             </label>
