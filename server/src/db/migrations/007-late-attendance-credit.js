@@ -14,9 +14,8 @@ export const migration007 = {
         { transaction },
       );
 
-    const recordColumns = await queryInterface.describeTable(
-      "attendance_records",
-    );
+    const recordColumns =
+      await queryInterface.describeTable("attendance_records");
     if (!recordColumns.attendance_credit_value) {
       await queryInterface.addColumn(
         "attendance_records",

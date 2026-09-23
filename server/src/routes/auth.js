@@ -19,7 +19,8 @@ import {
 
 const router = Router();
 export const REFRESH_COOKIE = "attendx_refresh";
-const DUMMY_PASSWORD_HASH = "$2b$12$4b2dQ4eZoFeYEav9ogPMt.z/j5h3z1fPvq43sPGIRH53uwoihg7em";
+const DUMMY_PASSWORD_HASH =
+  "$2b$12$4b2dQ4eZoFeYEav9ogPMt.z/j5h3z1fPvq43sPGIRH53uwoihg7em";
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -180,7 +181,9 @@ router.post("/elevate", requireAuth, elevationLimiter, async (req, res) => {
       code: "ADMIN_REQUIRED",
       message: "Administrator permission is required.",
     });
-  const { password } = z.object({ password: z.string().min(1).max(128) }).parse(req.body);
+  const { password } = z
+    .object({ password: z.string().min(1).max(128) })
+    .parse(req.body);
   const user = await User.findByPk(req.user.id);
   if (!(await bcrypt.compare(password, user.passwordHash)))
     return res.status(401).json({ message: "Password is incorrect." });

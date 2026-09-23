@@ -37,15 +37,14 @@ export async function requireAuth(req, res, next) {
     return next(error);
   }
 }
-export const requirePermission =
-  (capability) => (req, res, next) =>
-    hasPermission(req.user, capability)
-      ? next()
-      : res.status(403).json({
-          code: "PERMISSION_REQUIRED",
-          permission: capability,
-          message: `Permission ${capability} is required for this action.`,
-        });
+export const requirePermission = (capability) => (req, res, next) =>
+  hasPermission(req.user, capability)
+    ? next()
+    : res.status(403).json({
+        code: "PERMISSION_REQUIRED",
+        permission: capability,
+        message: `Permission ${capability} is required for this action.`,
+      });
 
 export function requireAdminPlus(req, res, next) {
   if (req.user.role === "ADMIN" && req.user.adminPlus) return next();

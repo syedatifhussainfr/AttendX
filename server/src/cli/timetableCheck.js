@@ -1,23 +1,24 @@
 import { initDatabase, sequelize, Timetable, Subject } from "../db/index.js";
-import {
-  schedulesOverlap,
-  validateScheduleWindow,
-} from "../utils/schedule.js";
+import { schedulesOverlap, validateScheduleWindow } from "../utils/schedule.js";
 
 try {
   await initDatabase();
   const rows = await Timetable.findAll({
     include: [Subject],
-    order: [["dayOfWeek", "ASC"], ["startTime", "ASC"]],
+    order: [
+      ["dayOfWeek", "ASC"],
+      ["startTime", "ASC"],
+    ],
   });
   const issues = [];
   for (const row of rows) {
     const windowError = validateScheduleWindow(row.startTime, row.endTime);
     if (windowError) issues.push(`#${row.id}: ${windowError}`);
-    if (!row.Subject)
-      issues.push(`#${row.id}: referenced subject is missing.`);
+    if (!row.Subject) issues.push(`#${row.id}: referenced subject is missing.`);
     else if (!row.Subject.active && row.active)
-      issues.push(`#${row.id}: active entry uses inactive subject ${row.Subject.code}.`);
+      issues.push(
+        `#${row.id}: active entry uses inactive subject ${row.Subject.code}.`,
+      );
   }
   for (let index = 0; index < rows.length; index += 1)
     for (let other = index + 1; other < rows.length; other += 1) {

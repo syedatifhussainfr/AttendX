@@ -19,10 +19,11 @@ import { defaultPolicy } from "../src/policy/defaultPolicy.js";
 test("missing policy files are generated with secure defaults", () => {
   const directory = mkdtempSync(join(tmpdir(), "attendx-policy-missing-"));
   const result = initializePolicyFiles({ directory });
-  assert.deepEqual(
-    readdirSync(directory).sort(),
-    ["config.example.yml", "config.yml", "default.yml"],
-  );
+  assert.deepEqual(readdirSync(directory).sort(), [
+    "config.example.yml",
+    "config.yml",
+    "default.yml",
+  ]);
   assert.deepEqual(result.policy, defaultPolicy);
   assert.equal(result.events.length, 3);
 });
@@ -42,7 +43,9 @@ test("broken YAML is preserved and replaced without stopping startup", () => {
     readdirSync(directory).filter((name) => name.includes(".broken-")),
     [],
   );
-  assert.doesNotThrow(() => parse(readFileSync(join(directory, "config.yml"), "utf8")));
+  assert.doesNotThrow(() =>
+    parse(readFileSync(join(directory, "config.yml"), "utf8")),
+  );
 });
 
 test("loose legacy recovery files are organized into archive subfolders", () => {
@@ -62,8 +65,9 @@ test("loose legacy recovery files are organized into archive subfolders", () => 
     assert.equal(existsSync(join(directory, "archive", kind, filename)), true);
   }
   assert.equal(
-    result.events.filter((event) => event.includes("archived legacy recovery file"))
-      .length,
+    result.events.filter((event) =>
+      event.includes("archived legacy recovery file"),
+    ).length,
     3,
   );
 });

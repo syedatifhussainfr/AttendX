@@ -100,7 +100,13 @@ function addTitle(sheet, title, subtitle, lastColumn) {
   sheet.getRow(2).height = 24;
 }
 
-const blankCounts = () => ({ total: 0, present: 0, late: 0, absent: 0, credited: 0 });
+const blankCounts = () => ({
+  total: 0,
+  present: 0,
+  late: 0,
+  absent: 0,
+  credited: 0,
+});
 function recordCredit(record) {
   if (
     record.attendanceCreditValue != null &&
@@ -711,8 +717,7 @@ export async function buildAttendanceReviewWorkbook(filters) {
   styleHeader(sessionSheet.getRow(4));
   for (const session of sessions) {
     const counts = blankCounts();
-    for (const record of session.AttendanceRecords)
-      addStatus(counts, record);
+    for (const record of session.AttendanceRecords) addStatus(counts, record);
     sessionSheet.addRow([
       excelDate(session.sessionDate),
       session.Subject.name,

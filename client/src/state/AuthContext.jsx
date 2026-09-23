@@ -40,7 +40,9 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (credentials) => {
-    const { data } = await api.post("/auth/login", credentials, { skipAuthRefresh: true });
+    const { data } = await api.post("/auth/login", credentials, {
+      skipAuthRefresh: true,
+    });
     setAccessToken(data.accessToken);
     setUser(data.user);
     return data.user;
@@ -48,15 +50,17 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     try {
-      await api.post("/auth/logout", null, { skipAuthRefresh: true, skipAuthorization: true });
+      await api.post("/auth/logout", null, {
+        skipAuthRefresh: true,
+        skipAuthorization: true,
+      });
     } finally {
       setAccessToken(null);
       setUser(null);
     }
   };
 
-  const can = (permission) =>
-    Boolean(user?.permissions?.includes(permission));
+  const can = (permission) => Boolean(user?.permissions?.includes(permission));
 
   return (
     <AuthContext.Provider

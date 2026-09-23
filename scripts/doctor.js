@@ -29,4 +29,6 @@ for (const [label, args] of steps) {
     process.exit(result.status || 1);
   }
 }
-console.log("\n✓ AttendX passed configuration, timetable, data, tests, and build.\n");
+console.log(
+  "\n✓ AttendX passed configuration, timetable, data, tests, and build.\n",
+);

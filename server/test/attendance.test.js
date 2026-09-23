@@ -186,11 +186,19 @@ test("analytics percentage uses credited present only while physical appearance 
 });
 
 test("review workbook organizes subject and student totals with percentages", async () => {
-  const { workbook, sessions } = await exports.buildAttendanceReviewWorkbook({});
+  const { workbook, sessions } = await exports.buildAttendanceReviewWorkbook(
+    {},
+  );
   assert.equal(sessions.length, 1);
   assert.deepEqual(
     workbook.worksheets.map((sheet) => sheet.name),
-    ["Student Summary", "Attendance Register", "Student by Subject", "Overview", "Session Summary"],
+    [
+      "Student Summary",
+      "Attendance Register",
+      "Student by Subject",
+      "Overview",
+      "Session Summary",
+    ],
   );
   const studentSheet = workbook.getWorksheet("Student Summary");
   assert.equal(studentSheet.getCell("A6").value, "01");

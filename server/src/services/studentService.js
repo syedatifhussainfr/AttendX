@@ -32,12 +32,13 @@ function addRecord(counts, record) {
   if (record.status === "PRESENT") counts.present += 1;
   else if (record.status === "LATE") counts.late += 1;
   else counts.absent += 1;
-  counts.credited += record.attendanceCreditValue != null &&
+  counts.credited +=
+    record.attendanceCreditValue != null &&
     Number.isFinite(Number(record.attendanceCreditValue))
-    ? Number(record.attendanceCreditValue)
-    : record.status === "PRESENT"
-      ? 1
-      : 0;
+      ? Number(record.attendanceCreditValue)
+      : record.status === "PRESENT"
+        ? 1
+        : 0;
 }
 
 export function summarizeStudentAttendance(records, target = DEFAULT_TARGET) {
@@ -54,7 +55,8 @@ export function summarizeStudentAttendance(records, target = DEFAULT_TARGET) {
         : percentage >= Math.max(0, target - 15)
           ? "WATCH"
           : "CRITICAL";
-  let classesNeeded = percentage != null && percentage < target && target === 100 ? null : 0;
+  let classesNeeded =
+    percentage != null && percentage < target && target === 100 ? null : 0;
   let classesCanMiss = 0;
   if (percentage != null && percentage < target && target < 100)
     classesNeeded = Math.max(
@@ -200,7 +202,15 @@ export async function studentDirectory({ q = "", sensitive = false } = {}) {
       result[row.attendance.risk.toLowerCase()] += 1;
       return result;
     },
-    { total: 0, active: 0, inactive: 0, good: 0, watch: 0, critical: 0, no_data: 0 },
+    {
+      total: 0,
+      active: 0,
+      inactive: 0,
+      good: 0,
+      watch: 0,
+      critical: 0,
+      no_data: 0,
+    },
   );
   const needle = q.trim().toLowerCase();
   return {

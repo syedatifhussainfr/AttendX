@@ -57,8 +57,7 @@ function flushStartupOutput({ all = false } = {}) {
     const important =
       item.target === process.stderr ||
       /\b(config|warn|error|failed)\b/i.test(item.line);
-    if (all || important)
-      writeLabeledLine(item.label, item.line, item.target);
+    if (all || important) writeLabeledLine(item.label, item.line, item.target);
   }
   startupOutput.length = 0;
 }
@@ -143,7 +142,9 @@ function startSpinner(initialMessage) {
   const render = () => {
     const value = `  ${paint(frames[frame++ % frames.length], ansi.bold, ansi.cyan)}  ${message}`;
     width = Math.max(width, message.length + 5);
-    process.stdout.write(`\r${value}${" ".repeat(Math.max(0, width - message.length - 5))}`);
+    process.stdout.write(
+      `\r${value}${" ".repeat(Math.max(0, width - message.length - 5))}`,
+    );
   };
   if (!colorEnabled) process.stdout.write(`  ◆  ${message}\n`);
   else render();

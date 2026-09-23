@@ -46,10 +46,16 @@ test("attendance recovery removes saved work and preserves retryable work", asyn
     rollNumber: "02",
   });
   const seen = [];
-  const remaining = await drafts.syncAttendanceDrafts("session-2", async (draft) => {
-    seen.push(draft.rollNumber);
-    return draft.rollNumber === "02" ? "RETRY" : "SAVED";
-  });
+  const remaining = await drafts.syncAttendanceDrafts(
+    "session-2",
+    async (draft) => {
+      seen.push(draft.rollNumber);
+      return draft.rollNumber === "02" ? "RETRY" : "SAVED";
+    },
+  );
   assert.deepEqual(seen, ["01", "02"]);
-  assert.deepEqual(remaining.map((row) => row.rollNumber), ["02"]);
+  assert.deepEqual(
+    remaining.map((row) => row.rollNumber),
+    ["02"],
+  );
 });

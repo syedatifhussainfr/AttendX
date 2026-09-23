@@ -38,7 +38,8 @@ function availableArtifactPath(directory, kind, filename) {
   const initial = join(targetDirectory, filename);
   if (!existsSync(initial)) return initial;
   let counter = 2;
-  while (existsSync(join(targetDirectory, `${filename}.${counter}`))) counter += 1;
+  while (existsSync(join(targetDirectory, `${filename}.${counter}`)))
+    counter += 1;
   return join(targetDirectory, `${filename}.${counter}`);
 }
 
@@ -157,10 +158,13 @@ export function normalizePolicy(input) {
 }
 
 function policyText(policy, description) {
-  return `# ${description}\n# Re-run npm run config-check after editing.\n${stringify(policy, {
-    indent: 2,
-    lineWidth: 100,
-  })}`;
+  return `# ${description}\n# Re-run npm run config-check after editing.\n${stringify(
+    policy,
+    {
+      indent: 2,
+      lineWidth: 100,
+    },
+  )}`;
 }
 
 function writeCanonicalFile(path, description) {
@@ -243,7 +247,12 @@ function repairPolicyFiles(directory) {
     );
     events.push(`normalized ${configPath}; previous file saved as ${saved}`);
   }
-  return { policy, repairs, events, paths: { defaultPath, examplePath, configPath } };
+  return {
+    policy,
+    repairs,
+    events,
+    paths: { defaultPath, examplePath, configPath },
+  };
 }
 
 export function initializePolicyFiles({ directory = policyDirectory } = {}) {

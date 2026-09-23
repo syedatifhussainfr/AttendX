@@ -16,7 +16,9 @@ console.log(`  Policy version             ${permissionPolicy.version}`);
 console.log(`  YAML parsing               ${ok("PASS")}`);
 console.log(`  Structure repair           ${ok("PASS")}`);
 console.log(`  Protected boundaries       ${ok("PASS")}`);
-console.log(`  CR permissions             ${permissionsForUser({ role: "CR" }).length}`);
+console.log(
+  `  CR permissions             ${permissionsForUser({ role: "CR" }).length}`,
+);
 console.log(
   `  ADMIN permissions          ${permissionsForUser({ role: "ADMIN", adminPlus: false }).length}`,
 );
@@ -30,7 +32,8 @@ if (policyStartupReport.events.length) {
 }
 if (policyStartupReport.repairs.length) {
   console.log(`\n${info("Configuration values repaired")}`);
-  for (const repair of policyStartupReport.repairs) console.log(`  • ${repair}`);
+  for (const repair of policyStartupReport.repairs)
+    console.log(`  • ${repair}`);
 }
 
 console.log("─".repeat(54));

@@ -61,7 +61,9 @@ async function askPhone() {
 async function ensurePhoneAvailable(phoneNumber, exceptUserId = null) {
   const existing = await User.findOne({ where: { phoneNumber } });
   if (existing && existing.id !== exceptUserId)
-    throw new Error("That mobile number is already assigned to another account.");
+    throw new Error(
+      "That mobile number is already assigned to another account.",
+    );
 }
 
 async function promoteExistingAdmin() {
@@ -102,7 +104,8 @@ async function promoteExistingAdmin() {
 async function createAdminPlus() {
   const name = await ask("Full name: ");
   const email = (await ask("Email: ")).toLowerCase();
-  if (name.length < 2) throw new Error("Name must contain at least 2 characters.");
+  if (name.length < 2)
+    throw new Error("Name must contain at least 2 characters.");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     throw new Error("Enter a valid email address.");
   if (await User.findOne({ where: { email } }))
@@ -183,7 +186,8 @@ try {
   else if (action === "0") console.log("Cancelled. No changes were made.");
   else throw new Error("Choose 0, 1, 2, or 3.");
 } catch (error) {
-  const message = error.issues?.map((issue) => issue.message).join(" ") || error.message;
+  const message =
+    error.issues?.map((issue) => issue.message).join(" ") || error.message;
   console.error(`\nADMIN++ setup failed: ${message}`);
   process.exitCode = 1;
 } finally {

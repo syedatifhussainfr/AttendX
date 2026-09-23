@@ -132,13 +132,7 @@ async function resolveRefreshSession(rawToken, transaction) {
   });
   if (current) return { session: current, reused: false };
   const sessions = await AuthSession.findAll({
-    attributes: [
-      "id",
-      "UserId",
-      "tokenHistory",
-      "userAgent",
-      "ipHash",
-    ],
+    attributes: ["id", "UserId", "tokenHistory", "userAgent", "ipHash"],
     transaction,
   });
   for (const session of sessions) {
@@ -228,7 +222,9 @@ export async function resumeAuthSession(
       const rotatedAt = new Date(historyEntry?.rotatedAt || 0).getTime();
       const sameDevice =
         session.userAgent === incoming.userAgent &&
-        (!session.ipHash || !incoming.ipHash || session.ipHash === incoming.ipHash);
+        (!session.ipHash ||
+          !incoming.ipHash ||
+          session.ipHash === incoming.ipHash);
       if (
         sameDevice &&
         Number.isFinite(rotatedAt) &&

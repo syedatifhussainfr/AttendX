@@ -50,7 +50,9 @@ try {
     });
     row(
       "Foreign-key check",
-      foreignKeyIssues.length ? fail(`${foreignKeyIssues.length} issue(s)`) : ok("PASS"),
+      foreignKeyIssues.length
+        ? fail(`${foreignKeyIssues.length} issue(s)`)
+        : ok("PASS"),
     );
     if (foreignKeyIssues.length) {
       console.error(foreignKeyIssues);
@@ -102,14 +104,25 @@ try {
     { type: QueryTypes.SELECT },
   );
 
-  row("Active administrator", activeAdmins ? ok(`${activeAdmins} found`) : fail("MISSING"));
+  row(
+    "Active administrator",
+    activeAdmins ? ok(`${activeAdmins} found`) : fail("MISSING"),
+  );
   if (!activeAdmins) exitCode = 1;
-  row("Active Admin++", activeAdminPlus ? ok(String(activeAdminPlus)) : warn("0"));
-  row("Duplicate roll numbers", duplicateRolls.length ? fail(String(duplicateRolls.length)) : ok("0"));
+  row(
+    "Active Admin++",
+    activeAdminPlus ? ok(String(activeAdminPlus)) : warn("0"),
+  );
+  row(
+    "Duplicate roll numbers",
+    duplicateRolls.length ? fail(String(duplicateRolls.length)) : ok("0"),
+  );
   if (duplicateRolls.length) exitCode = 1;
   row(
     "Duplicate enrolments",
-    duplicateEnrollments.length ? fail(String(duplicateEnrollments.length)) : ok("0"),
+    duplicateEnrollments.length
+      ? fail(String(duplicateEnrollments.length))
+      : ok("0"),
   );
   if (duplicateEnrollments.length) exitCode = 1;
 
@@ -126,7 +139,9 @@ try {
   console.log("─".repeat(48));
   console.log(
     exitCode
-      ? fail("Data verification failed. Resolve the reported issues before release.\n")
+      ? fail(
+          "Data verification failed. Resolve the reported issues before release.\n",
+        )
       : ok("Data verification passed. No integrity blockers found.\n"),
   );
 } catch (error) {
