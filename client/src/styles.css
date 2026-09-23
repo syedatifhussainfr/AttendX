@@ -5953,7 +5953,7 @@ body.sidebar-resizing * {
   .mobile-menu {
     position: fixed;
     display: grid;
-    z-index: 18;
+    z-index: 24;
     top: 14px;
     left: 14px;
     width: 37px;
