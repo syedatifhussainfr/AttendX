@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import {
   BookOpen,
   CalendarRange,
+  Check,
   GraduationCap,
   Layers3,
   Pencil,
   Plus,
+  ShieldAlert,
   Trash2,
   UserMinus,
   UserRound,
@@ -37,6 +39,7 @@ export function Classes() {
   const [staff, setStaff] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [deleteClass, setDeleteClass] = useState(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [deleting, setDeleting] = useState(false);
   const selected = classes.find((item) => item.id === classId) || null;
 
@@ -136,6 +139,10 @@ export function Classes() {
 
   const removeClass = async (event) => {
     event.preventDefault();
+    if (deleteConfirmation !== "DELETE CLASS") {
+      toast("Type DELETE CLASS exactly to continue.", "error");
+      return;
+    }
     setDeleting(true);
     try {
       const form = new FormData(event.currentTarget);
@@ -144,10 +151,11 @@ export function Classes() {
       });
       setAdminElevation(data.elevationToken, data.expiresInSeconds);
       await api.delete(`/admin/classes/${deleteClass.id}`, {
-        data: { confirmation: "DELETE CLASS" },
+        data: { confirmation: deleteConfirmation },
       });
       toast("Empty class permanently deleted.");
       setDeleteClass(null);
+      setDeleteConfirmation("");
       setEditing(null);
       await reloadClasses();
     } catch (error) {
@@ -159,7 +167,7 @@ export function Classes() {
 
   return (
     <div className="page class-workspace">
-      <div className="page-intro">
+      <div className="page-intro class-page-intro">
         <div>
           <span className="eyebrow">ACADEMIC WORKSPACES</span>
           <h1>Classes</h1>
@@ -185,6 +193,7 @@ export function Classes() {
               className="class-card-main"
               onClick={() => item.active && selectClass(item.id)}
               disabled={!item.active}
+              aria-pressed={item.id === classId}
             >
               <div className="class-card-topline">
                 <span>{item.code}</span>
@@ -197,25 +206,28 @@ export function Classes() {
                 </b>
               </div>
               <h2>{item.displayName}</h2>
-              <p>
-                {[
-                  item.course,
-                  item.specialization,
-                  item.semester && `Semester ${item.semester}`,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
+              <div className="class-card-context">
+                {item.course && <span>{item.course}</span>}
+                {item.specialization && <span>{item.specialization}</span>}
+                {item.semester && <span>Semester {item.semester}</span>}
+                {item.section && <span>Section {item.section}</span>}
+              </div>
               <div className="class-card-stats">
                 {!item.active && <span>Archived workspace</span>}
                 <span>
-                  <GraduationCap /> {item.studentCount} students
+                  <GraduationCap />
+                  <small>Students</small>
+                  <strong>{item.studentCount}</strong>
                 </span>
                 <span>
-                  <BookOpen /> {item.subjects?.length || 0} subjects
+                  <BookOpen />
+                  <small>Subjects</small>
+                  <strong>{item.subjects?.length || 0}</strong>
                 </span>
                 <span>
-                  <UserRound /> {item.mentor?.name || "Mentor not assigned"}
+                  <UserRound />
+                  <small>Mentor</small>
+                  <strong>{item.mentor?.name || "Not assigned"}</strong>
                 </span>
               </div>
             </button>
@@ -235,6 +247,16 @@ export function Classes() {
               <div>
                 <span className="eyebrow">ACTIVE WORKSPACE</span>
                 <h2>{selected.displayName}</h2>
+                <div className="class-profile-context">
+                  <span>{selected.code}</span>
+                  {selected.course && <span>{selected.course}</span>}
+                  {selected.specialization && (
+                    <span>{selected.specialization}</span>
+                  )}
+                  {selected.semester && (
+                    <span>Semester {selected.semester}</span>
+                  )}
+                </div>
               </div>
               <span className="class-live-state">
                 <Layers3 /> Database workspace
@@ -308,25 +330,78 @@ export function Classes() {
 
           {can("classes.assignSubjects") && (
             <section className="glass-card class-subject-panel">
-              <span className="eyebrow">{selected.course} CATALOGUE</span>
-              <h2>{selected.course} subjects for this class</h2>
-              <p>
-                Only selected subjects appear in this class timetable and
-                attendance workflow.
-              </p>
-              <div className="class-subject-picker">
-                {subjects.map((subject) => (
-                  <button
-                    key={subject.id}
-                    className={
-                      assignedSubjectIds.has(subject.id) ? "active" : ""
-                    }
-                    onClick={() => toggleSubject(subject)}
-                  >
-                    <span>{subject.code}</span>
-                    {subject.name}
-                  </button>
-                ))}
+              <header className="class-subject-heading">
+                <div>
+                  <span className="eyebrow">{selected.course} CATALOGUE</span>
+                  <h2>Subject access</h2>
+                  <p>
+                    Assigned subjects are available in this class timetable and
+                    attendance workflow.
+                  </p>
+                </div>
+                <span className="class-subject-count">
+                  <strong>{assignedSubjectIds.size}</strong>
+                  <small>of {subjects.length} assigned</small>
+                </span>
+              </header>
+              <div className="class-subject-groups">
+                <section>
+                  <header>
+                    <div>
+                      <strong>Assigned to this class</strong>
+                      <small>Click a subject to remove access.</small>
+                    </div>
+                    <span>{assignedSubjectIds.size}</span>
+                  </header>
+                  <div className="class-subject-picker assigned">
+                    {subjects
+                      .filter((subject) => assignedSubjectIds.has(subject.id))
+                      .map((subject) => (
+                        <button
+                          key={subject.id}
+                          className="active"
+                          onClick={() => toggleSubject(subject)}
+                        >
+                          <Check />
+                          <span>{subject.code}</span>
+                          <strong>{subject.name}</strong>
+                        </button>
+                      ))}
+                    {!assignedSubjectIds.size && (
+                      <p className="class-subject-empty">
+                        No subjects assigned yet.
+                      </p>
+                    )}
+                  </div>
+                </section>
+                <section>
+                  <header>
+                    <div>
+                      <strong>Available from {selected.course}</strong>
+                      <small>Click a subject to assign it.</small>
+                    </div>
+                    <span>{subjects.length - assignedSubjectIds.size}</span>
+                  </header>
+                  <div className="class-subject-picker available">
+                    {subjects
+                      .filter((subject) => !assignedSubjectIds.has(subject.id))
+                      .map((subject) => (
+                        <button
+                          key={subject.id}
+                          onClick={() => toggleSubject(subject)}
+                        >
+                          <Plus />
+                          <span>{subject.code}</span>
+                          <strong>{subject.name}</strong>
+                        </button>
+                      ))}
+                    {subjects.length === assignedSubjectIds.size && (
+                      <p className="class-subject-empty">
+                        Every catalogue subject is assigned.
+                      </p>
+                    )}
+                  </div>
+                </section>
               </div>
             </section>
           )}
@@ -381,6 +456,7 @@ export function Classes() {
                 className="danger-outline"
                 onClick={() => {
                   setDeleteClass(editing);
+                  setDeleteConfirmation("");
                   setEditing(null);
                 }}
               >
@@ -394,16 +470,48 @@ export function Classes() {
       <Dialog
         open={!!deleteClass}
         title={deleteClass ? `Delete ${deleteClass.displayName}?` : "Delete class"}
-        onClose={() => !deleting && setDeleteClass(null)}
+        onClose={() => {
+          if (!deleting) {
+            setDeleteClass(null);
+            setDeleteConfirmation("");
+          }
+        }}
       >
-        <form className="form-stack" onSubmit={removeClass}>
-          <div className="danger-note">
-            Permanent deletion is allowed only for an empty class with no
-            students, timetable entries, or attendance history. Otherwise,
-            archive the workspace to preserve its records.
+        <form className="form-stack class-delete-form" onSubmit={removeClass}>
+          <section className="class-delete-warning">
+            <span><ShieldAlert /></span>
+            <div>
+              <strong>Permanent database action</strong>
+              <p>
+                This removes the class workspace and its assignments. It cannot
+                be recovered from the interface.
+              </p>
+            </div>
+          </section>
+          <div className="class-delete-requirements">
+            <span>Deletion is accepted only when the class has:</span>
+            <ul>
+              <li>No students</li>
+              <li>No timetable entries</li>
+              <li>No attendance history</li>
+            </ul>
+            <small>Otherwise, archive the workspace to preserve its records.</small>
           </div>
-          <label>
-            Confirm your Admin++ password
+          <label className="class-delete-field">
+            <span>Type <code>DELETE CLASS</code> to confirm</span>
+            <ManualEntryInput
+              id="class-delete-confirmation"
+              name="confirmation"
+              type="text"
+              expected="DELETE CLASS"
+              value={deleteConfirmation}
+              onChange={(event) => setDeleteConfirmation(event.target.value)}
+              required
+              data-dialog-initial-focus
+            />
+          </label>
+          <label className="class-delete-field">
+            <span>Admin++ password</span>
             <ManualEntryInput
               id="class-delete-admin-password"
               name="password"
@@ -414,12 +522,18 @@ export function Classes() {
             <button
               type="button"
               className="secondary"
-              onClick={() => setDeleteClass(null)}
+              onClick={() => {
+                setDeleteClass(null);
+                setDeleteConfirmation("");
+              }}
               disabled={deleting}
             >
               Cancel
             </button>
-            <button className="danger" disabled={deleting}>
+            <button
+              className="danger"
+              disabled={deleting || deleteConfirmation !== "DELETE CLASS"}
+            >
               <Trash2 /> {deleting ? "Deleting…" : "Delete empty class"}
             </button>
           </div>
