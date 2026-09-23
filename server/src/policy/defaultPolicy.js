@@ -1,4 +1,4 @@
-export const POLICY_VERSION = 2;
+export const POLICY_VERSION = 3;
 
 const crPermissions = {
   dashboard: { view: true },
@@ -9,6 +9,7 @@ const crPermissions = {
     assignStaff: false,
     assignSubjects: false,
     archive: false,
+    delete: false,
   },
   attendance: {
     view: true,
@@ -103,7 +104,7 @@ const facultyPermissions = rolePermissions(crPermissions, {
 });
 
 const adminPlusPermissions = rolePermissions(adminPermissions, {
-  classes: { archive: true },
+  classes: { archive: true, delete: true },
   attendance: { delete: true },
   students: { delete: true },
   subjects: { delete: true },
@@ -142,6 +143,7 @@ export const protectedPermissions = {
   "classes.assignStaff": { CR: false },
   "classes.assignSubjects": { CR: false },
   "classes.archive": { CR: false, FACULTY: false, ADMIN: false },
+  "classes.delete": { CR: false, FACULTY: false, ADMIN: false },
   "attendance.delete": { CR: false, FACULTY: false, ADMIN: false },
   "students.delete": { CR: false, FACULTY: false, ADMIN: false },
   "subjects.delete": { CR: false, FACULTY: false, ADMIN: false },
@@ -168,6 +170,7 @@ export const permissionDependencies = {
   "classes.assignStaff": ["classes.view"],
   "classes.assignSubjects": ["classes.view", "subjects.view"],
   "classes.archive": ["classes.view"],
+  "classes.delete": ["classes.view"],
   "attendance.open": ["attendance.view", "subjects.view"],
   "attendance.mark": ["attendance.view"],
   "attendance.close": ["attendance.view"],

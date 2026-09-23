@@ -252,31 +252,33 @@ export function Layout() {
             </button>
             <label className="class-switcher">
               <small>ACTIVE CLASS</small>
-              <select
-                value={selectedClass?.id || ""}
-                onChange={(event) => selectClass(event.target.value)}
-                aria-label="Choose active class"
-              >
-                {!classes.length && <option value="">No assigned class</option>}
-                {classes
-                  .filter((item) => item.active)
-                  .map((item) => (
-                    <option value={item.id} key={item.id}>
-                      {item.displayName}
-                    </option>
-                  ))}
-              </select>
-              <span>
-                {selectedClass
-                  ? [
-                      selectedClass.course,
-                      selectedClass.specialization,
-                      selectedClass.semester && `Sem ${selectedClass.semester}`,
-                      selectedClass.academicYear,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")
-                  : "Assignment required"}
+              <span className="class-switcher-control">
+                <select
+                  value={selectedClass?.id || ""}
+                  onChange={(event) => selectClass(event.target.value)}
+                  aria-label="Choose active class"
+                >
+                  {!classes.length && <option value="">No assigned class</option>}
+                  {classes
+                    .filter((item) => item.active)
+                    .map((item) => (
+                      <option value={item.id} key={item.id}>
+                        {item.displayName}
+                      </option>
+                    ))}
+                </select>
+                <span className="class-switcher-meta">
+                  {selectedClass
+                    ? [
+                        selectedClass.course,
+                        selectedClass.specialization,
+                        selectedClass.semester && `Sem ${selectedClass.semester}`,
+                        selectedClass.academicYear,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")
+                    : "Assignment required"}
+                </span>
               </span>
             </label>
           </div>

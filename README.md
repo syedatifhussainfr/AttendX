@@ -41,7 +41,7 @@ The published [`v1.1.8` release](https://github.com/syedatifhussainfr/AttendX/re
 | Faculty authority | Not available | Operational management within assigned classes without global backup, database, user-role, or Admin++ authority |
 | Navigation | One fixed workspace | Persistent glass class selector and class-management workspace |
 | Data integrity | Global roll constraint | Composite class/roll constraint, preserved attendance ownership, class ownership enforcement, migration checks, and orphan detection |
-| Verification | 40 automated tests | 41 automated tests including faculty isolation and cross-class roll behavior |
+| Verification | 40 automated tests | 42 automated tests including faculty isolation, cross-class roll behavior, and protected empty-class deletion |
 
 ### Upgrade from V1.1.8
 
@@ -224,7 +224,7 @@ The additive `006-student-profile` and `007-late-attendance-credit` migrations r
 - The subject catalogue is organized by course (BCA for the initial workspaces) and supports explicit class assignment before a subject can appear in a timetable or attendance session.
 - FACULTY accounts can be assigned as a class Mentor or Faculty; CR accounts receive explicit per-class assignments.
 - Faculty can manage assigned-class rosters, imports, subjects, timetables, live attendance, corrections, reopening, and reports while remaining outside global Admin++ tools.
-- ADMIN accounts retain institution-wide visibility; Admin++ alone can archive classes and keeps existing destructive-security boundaries.
+- ADMIN accounts retain institution-wide visibility; Admin++ alone can archive classes or permanently delete an empty class after password verification. Classes containing students, timetable entries, or attendance history must be archived so their records remain intact.
 - The glass class workspace supports creation, metadata editing, staff assignment/removal, mentor replacement, subject selection, and active-class switching.
 - Migrations enforce class ownership, preserve attendance-to-student links while rebuilding the roster table, reject future unowned attendance rows, and safely replace the legacy global roll-number uniqueness constraint.
 - Data verification and backup validation now reject attendance rows that have lost either their student or session owner.
@@ -500,7 +500,7 @@ Credited attendance percentage is `sum of attendance credit values / classes con
 
 ## V1.1.9 verification
 
-- 41 automated tests cover attendance rules and recovery queues, weighted Late credit, student profiles and privacy, imports, exports, refresh races, authorization gates, backup retention, audit export, Admin++, faculty/class isolation, per-class roll numbers, role changes, timetable validation, destructive history controls, archive migration, filter validation, settings fallback, and self-healing configuration.
+- 42 automated tests cover attendance rules and recovery queues, weighted Late credit, student profiles and privacy, imports, exports, refresh races, authorization gates, backup retention, audit export, Admin++, faculty/class isolation, protected empty-class deletion, per-class roll numbers, role changes, timetable validation, destructive history controls, archive migration, filter validation, settings fallback, and self-healing configuration.
 - Production frontend compilation succeeds with Vite.
 - `npm run config-check` validates YAML parsing, structural repair, permission dependencies, and protected privilege ceilings.
 - `npm run verify-data` checks SQLite integrity, foreign keys, attendance ownership, duplicate rolls, administrator availability, and record totals without modifying data.

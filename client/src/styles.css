@@ -7062,19 +7062,15 @@ body.sidebar-resizing * {
 }
 /* V1.1.9 database-backed class workspaces */
 .class-switcher {
-  display: grid;
-  grid-template-columns: auto minmax(220px, 1fr);
-  grid-template-rows: 30px 12px;
-  column-gap: 11px;
-  row-gap: 1px;
+  display: flex;
   align-items: center;
-  min-width: min(430px, 48vw);
+  gap: 10px;
+  min-width: min(440px, 48vw);
   margin: 0;
   text-align: left;
 }
 .class-switcher > small {
-  grid-row: 1 / -1;
-  align-self: center;
+  flex: 0 0 auto;
   margin: 0;
   color: #5f7485;
   font-size: 0.57rem;
@@ -7083,12 +7079,16 @@ body.sidebar-resizing * {
   letter-spacing: 0.12em;
   text-align: right;
 }
-.class-switcher select {
-  grid-column: 2;
-  grid-row: 1;
+.class-switcher-control {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 2px;
+}
+.class-switcher-control select {
   width: 100%;
-  min-height: 30px;
-  padding: 3px 32px 3px 10px;
+  min-height: 32px;
+  padding: 4px 32px 4px 10px;
   border: 1px solid rgba(35, 94, 132, 0.16);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.62);
@@ -7096,16 +7096,15 @@ body.sidebar-resizing * {
   font-weight: 750;
   backdrop-filter: blur(16px);
 }
-.class-switcher span {
-  grid-column: 2;
-  grid-row: 2;
+.class-switcher .class-switcher-meta {
   display: block;
   min-width: 0;
   margin: 0;
+  padding-inline: 2px;
   color: var(--muted, #607687);
   overflow: hidden;
-  font-size: 0.62rem;
-  line-height: 1;
+  font-size: 0.6rem;
+  line-height: 1.1;
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -7386,12 +7385,10 @@ body.sidebar-resizing * {
   background: rgba(255, 238, 223, 0.72);
 }
 @media (max-width: 760px) {
-  .class-switcher { grid-template-columns: minmax(0, 1fr); grid-template-rows: 34px; min-width: 0; width: min(58vw, 300px); }
+  .class-switcher { min-width: 0; width: min(58vw, 300px); }
   .class-switcher > small { display: none; }
-  .class-switcher select { grid-column: 1; grid-row: 1; min-height: 34px; }
-  .class-switcher span {
-    display: none;
-  }
+  .class-switcher-control select { min-height: 34px; }
+  .class-switcher .class-switcher-meta { display: none; }
   .class-management-grid {
     grid-template-columns: 1fr;
   }

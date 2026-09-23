@@ -1442,6 +1442,63 @@ router.get(
   },
 );
 
+router.delete(
+  "/classes/:id",
+  requirePermission("classes.delete"),
+  requireAdminPlus,
+  requireAdminElevation,
+  async (req, res) => {
+    const academicClass = await AcademicClass.findByPk(req.params.id);
+    if (!academicClass)
+      return res.status(404).json({ message: "Class not found." });
+    z.object({ confirmation: z.literal("DELETE CLASS") }).parse(req.body);
+    const [studentCount, timetableCount, attendanceCount, otherActiveCount] =
+      await Promise.all([
+        Student.count({ where: { AcademicClassId: academicClass.id } }),
+        Timetable.count({ where: { AcademicClassId: academicClass.id } }),
+        AttendanceSession.count({ where: { AcademicClassId: academicClass.id } }),
+        AcademicClass.count({
+          where: { id: { [Op.ne]: academicClass.id }, active: true },
+        }),
+      ]);
+    if (!otherActiveCount)
+      return res.status(409).json({
+        code: "LAST_ACTIVE_CLASS",
+        message: "The last active class cannot be deleted. Create another class first.",
+      });
+    if (studentCount || timetableCount || attendanceCount)
+      return res.status(409).json({
+        code: "CLASS_HAS_HISTORY",
+        message:
+          "This class contains students, timetable entries, or attendance history and cannot be permanently deleted. Archive it instead.",
+      });
+    const snapshot = academicClass.toJSON();
+    await sequelize.transaction(async (transaction) => {
+      await ClassAssignment.destroy({
+        where: { AcademicClassId: academicClass.id },
+        transaction,
+      });
+      await ClassSubject.destroy({
+        where: { AcademicClassId: academicClass.id },
+        transaction,
+      });
+      await AuditLog.create(
+        {
+          entityType: "ACADEMIC_CLASS",
+          entityId: academicClass.id,
+          action: "CLASS_DELETED",
+          oldValue: JSON.stringify(snapshot),
+          reason: "Empty class permanently deleted by Admin++",
+          UserId: req.user.id,
+        },
+        { transaction },
+      );
+      await academicClass.destroy({ transaction });
+    });
+    res.status(204).end();
+  },
+);
+
 router.get(
   "/database/tables/:table",
   requirePermission("database.view"),

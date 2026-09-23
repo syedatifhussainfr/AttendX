@@ -288,6 +288,61 @@ test("class workspaces isolate faculty access and roll numbers", async () => {
   }
 });
 
+test("only elevated Admin++ permanently deletes an empty class", async () => {
+  const emptyClass = await db.AcademicClass.create({
+    displayName: "Disposable Test Class",
+    code: "DISPOSABLE-TEST-CLASS",
+    course: "BCA",
+    semester: "1",
+  });
+  await db.ClassAssignment.create({
+    AcademicClassId: emptyClass.id,
+    UserId: cr.id,
+    assignmentRole: "CR",
+  });
+  await db.ClassSubject.create({
+    AcademicClassId: emptyClass.id,
+    SubjectId: subject.id,
+    active: true,
+  });
+
+  await request(app)
+    .delete(`/api/admin/classes/${emptyClass.id}`)
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .set("X-Admin-Elevation", normalAdminElevationToken)
+    .send({ confirmation: "DELETE CLASS" })
+    .expect(403);
+  await request(app)
+    .delete(`/api/admin/classes/${emptyClass.id}`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .send({ confirmation: "DELETE CLASS" })
+    .expect(403);
+  await request(app)
+    .delete(`/api/admin/classes/${defaultClass.id}`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .send({ confirmation: "DELETE CLASS" })
+    .expect(409);
+  await request(app)
+    .delete(`/api/admin/classes/${emptyClass.id}`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .send({ confirmation: "DELETE CLASS" })
+    .expect(204);
+
+  assert.equal(await db.AcademicClass.count({ where: { id: emptyClass.id } }), 0);
+  assert.equal(
+    await db.ClassAssignment.count({
+      where: { AcademicClassId: emptyClass.id },
+    }),
+    0,
+  );
+  assert.equal(
+    await db.ClassSubject.count({ where: { AcademicClassId: emptyClass.id } }),
+    0,
+  );
+});
+
 test("secure browser sessions rotate, reject stale access, and revoke on logout", async () => {
   const agent = request.agent(app);
   const login = await agent

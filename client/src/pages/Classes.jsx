@@ -4,10 +4,11 @@ import {
   GraduationCap,
   Pencil,
   Plus,
+  Trash2,
   UserMinus,
   UserRound,
 } from "lucide-react";
-import { api, messageOf } from "../api.js";
+import { api, messageOf, setAdminElevation } from "../api.js";
 import { Dialog } from "../components/Dialog.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
 import { useClass } from "../state/ClassContext.jsx";
@@ -32,6 +33,8 @@ export function Classes() {
   const [creating, setCreating] = useState(false);
   const [staff, setStaff] = useState([]);
   const [subjects, setSubjects] = useState([]);
+  const [deleteClass, setDeleteClass] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const selected = classes.find((item) => item.id === classId) || null;
 
   const loadOptions = async () => {
@@ -125,6 +128,29 @@ export function Classes() {
       );
     } catch (error) {
       toast(messageOf(error), "error");
+    }
+  };
+
+  const removeClass = async (event) => {
+    event.preventDefault();
+    setDeleting(true);
+    try {
+      const form = new FormData(event.currentTarget);
+      const { data } = await api.post("/auth/elevate", {
+        password: form.get("password"),
+      });
+      setAdminElevation(data.elevationToken, data.expiresInSeconds);
+      await api.delete(`/admin/classes/${deleteClass.id}`, {
+        data: { confirmation: "DELETE CLASS" },
+      });
+      toast("Empty class permanently deleted.");
+      setDeleteClass(null);
+      setEditing(null);
+      await reloadClasses();
+    } catch (error) {
+      toast(messageOf(error), "error");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -325,7 +351,56 @@ export function Classes() {
               </small>
             </label>
           )}
-          <button className="primary full">Save class</button>
+          <div className="dialog-actions full">
+            {editing && can("classes.delete") && (
+              <button
+                type="button"
+                className="danger-outline"
+                onClick={() => {
+                  setDeleteClass(editing);
+                  setEditing(null);
+                }}
+              >
+                <Trash2 /> Delete permanently
+              </button>
+            )}
+            <button className="primary">Save class</button>
+          </div>
+        </form>
+      </Dialog>
+      <Dialog
+        open={!!deleteClass}
+        title={deleteClass ? `Delete ${deleteClass.displayName}?` : "Delete class"}
+        onClose={() => !deleting && setDeleteClass(null)}
+      >
+        <form className="form-stack" onSubmit={removeClass}>
+          <div className="danger-note">
+            Permanent deletion is allowed only for an empty class with no
+            students, timetable entries, or attendance history. Otherwise,
+            archive the workspace to preserve its records.
+          </div>
+          <label>
+            Confirm your Admin++ password
+            <input
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+            />
+          </label>
+          <div className="dialog-actions">
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => setDeleteClass(null)}
+              disabled={deleting}
+            >
+              Cancel
+            </button>
+            <button className="danger" disabled={deleting}>
+              <Trash2 /> {deleting ? "Deleting…" : "Delete empty class"}
+            </button>
+          </div>
         </form>
       </Dialog>
     </div>

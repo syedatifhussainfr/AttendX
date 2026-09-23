@@ -1,6 +1,6 @@
 # AttendX permission configuration example.
 # Re-run npm run config-check after editing.
-version: 2
+version: 3
 permissions:
   CR:
     dashboard:
@@ -12,6 +12,7 @@ permissions:
       assignStaff: false
       assignSubjects: false
       archive: false
+      delete: false
     attendance:
       view: true
       open: true
@@ -71,6 +72,7 @@ permissions:
       assignStaff: true
       assignSubjects: true
       archive: false
+      delete: false
     attendance:
       view: true
       open: true
@@ -130,6 +132,7 @@ permissions:
       assignStaff: true
       assignSubjects: true
       archive: false
+      delete: false
     attendance:
       view: true
       open: true
@@ -189,6 +192,7 @@ permissions:
       assignStaff: true
       assignSubjects: true
       archive: true
+      delete: true
     attendance:
       view: true
       open: true
