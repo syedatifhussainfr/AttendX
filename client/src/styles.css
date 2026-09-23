@@ -7109,7 +7109,8 @@ body.class-switcher-open .topbar {
   box-shadow:
     0 16px 42px rgba(20, 52, 73, 0.1),
     inset 0 1px rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(20px) saturate(105%);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 .class-switcher {
   position: absolute;
@@ -7209,15 +7210,23 @@ body.class-switcher-open .topbar {
   top: calc(100% + 9px);
   left: 50%;
   width: min(520px, 80vw);
-  padding: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.82);
-  border-radius: 14px;
-  background: rgba(238, 246, 249, 0.88);
+  overflow: hidden;
+  padding: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 15px;
+  background: linear-gradient(
+    145deg,
+    rgba(247, 251, 253, 0.72),
+    rgba(216, 232, 240, 0.56)
+  );
   box-shadow:
-    0 22px 55px rgba(18, 50, 72, 0.18),
-    inset 0 1px rgba(255, 255, 255, 0.9);
+    0 26px 64px rgba(18, 50, 72, 0.19),
+    0 7px 20px rgba(18, 50, 72, 0.08),
+    inset 0 1px rgba(255, 255, 255, 0.96),
+    inset 0 -1px rgba(81, 121, 143, 0.08);
   transform: translateX(-50%);
-  backdrop-filter: blur(26px) saturate(125%);
+  backdrop-filter: blur(20px) saturate(118%);
+  -webkit-backdrop-filter: blur(20px) saturate(118%);
 }
 .class-switcher-menu > header {
   display: flex;
@@ -7236,16 +7245,21 @@ body.class-switcher-open .topbar {
   font-size: 0.62rem;
 }
 .class-switcher-search {
+  position: relative;
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) 28px;
+  grid-template-columns: 18px minmax(0, 1fr);
   align-items: center;
   gap: 7px;
   margin-bottom: 7px;
-  padding: 0 7px;
-  border: 1px solid rgba(41, 91, 121, 0.11);
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.58);
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.82);
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.36);
+  box-shadow:
+    0 5px 16px rgba(28, 70, 96, 0.05),
+    inset 0 1px rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
 }
 .class-switcher-search > svg {
   width: 15px;
@@ -7256,7 +7270,7 @@ body.class-switcher-open .topbar {
   appearance: none;
   width: 100%;
   min-height: 36px;
-  padding: 0;
+  padding: 0 28px 0 0;
   border: 0 !important;
   border-radius: 0;
   outline: 0 !important;
@@ -7275,6 +7289,9 @@ body.class-switcher-open .topbar {
   color: #8a9aa4;
 }
 .class-switcher-search button {
+  position: absolute;
+  right: 7px;
+  top: 50%;
   display: grid;
   width: 25px;
   height: 25px;
@@ -7284,9 +7301,10 @@ body.class-switcher-open .topbar {
   border-radius: 7px;
   background: transparent;
   color: #6b808d;
+  transform: translateY(-50%);
 }
 .class-switcher-search button:hover {
-  transform: none;
+  transform: translateY(-50%);
   background: rgba(220, 234, 241, 0.72);
 }
 .class-switcher-search button svg {
@@ -7332,11 +7350,16 @@ body.class-switcher-open .topbar {
 .class-switcher-options > button:focus-visible {
   transform: none;
   outline: 0;
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.4);
 }
 .class-switcher-options > button.selected {
-  border-color: rgba(39, 97, 132, 0.13);
-  background: rgba(215, 234, 243, 0.62);
+  border-color: rgba(255, 255, 255, 0.58);
+  background: linear-gradient(
+    135deg,
+    rgba(211, 232, 242, 0.54),
+    rgba(240, 247, 250, 0.36)
+  );
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.68);
 }
 .class-switcher-menu button span {
   display: grid;
