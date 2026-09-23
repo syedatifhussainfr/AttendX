@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { Check, ChevronDown, Search, X } from "lucide-react";
 import { useClass } from "../state/ClassContext.jsx";
 
@@ -127,18 +126,7 @@ export function ClassSwitcher() {
   };
 
   return (
-    <>
-      {open &&
-        createPortal(
-          <div
-            className="class-switcher-backdrop"
-            aria-hidden="true"
-            onPointerDown={close}
-            onWheel={(event) => event.preventDefault()}
-          />,
-          document.body,
-        )}
-      <div className="class-switcher" ref={rootRef}>
+    <div className="class-switcher" ref={rootRef}>
       <button
         type="button"
         className="class-switcher-trigger"
@@ -233,7 +221,6 @@ export function ClassSwitcher() {
           </div>
         </div>
       )}
-      </div>
-    </>
+    </div>
   );
 }
