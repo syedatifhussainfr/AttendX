@@ -28,6 +28,7 @@ let normalAdmin;
 let cr;
 let sessionUser;
 let subject;
+let defaultClass;
 let adminToken;
 let normalAdminToken;
 let crToken;
@@ -36,6 +37,9 @@ let normalAdminElevationToken;
 
 before(async () => {
   await db.initDatabase({ force: true });
+  defaultClass = await db.AcademicClass.findOne({
+    where: { code: "ANASUYA-BCA-AI-3B-UG" },
+  });
   admin = await db.User.create({
     name: "Admin Test",
     email: "admin-v11@test.local",
@@ -62,6 +66,18 @@ before(async () => {
     passwordHash: await bcrypt.hash("SessionTest@123", 4),
     role: "CR",
   });
+  await db.ClassAssignment.bulkCreate([
+    {
+      AcademicClassId: defaultClass.id,
+      UserId: cr.id,
+      assignmentRole: "CR",
+    },
+    {
+      AcademicClassId: defaultClass.id,
+      UserId: sessionUser.id,
+      assignmentRole: "CR",
+    },
+  ]);
   adminToken = (
     await authSessions.createAuthSession(admin, {
       userAgent: "Admin test browser",
@@ -88,10 +104,23 @@ before(async () => {
     .expect(200);
   normalAdminElevationToken = normalElevation.body.elevationToken;
   subject = await db.Subject.create({ code: "V11", name: "V1.1 Safety" });
+  await db.ClassSubject.create({
+    AcademicClassId: defaultClass.id,
+    SubjectId: subject.id,
+    active: true,
+  });
   await db.Setting.create({ key: "lateThresholdMinutes", value: "15" });
   await db.Student.bulkCreate([
-    { rollNumber: "01", name: "Original One" },
-    { rollNumber: "02", name: "Original Two" },
+    {
+      rollNumber: "01",
+      name: "Original One",
+      AcademicClassId: defaultClass.id,
+    },
+    {
+      rollNumber: "02",
+      name: "Original Two",
+      AcademicClassId: defaultClass.id,
+    },
   ]);
 });
 
@@ -158,6 +187,94 @@ test("versioned migration adds V1.1 columns and records itself", async () => {
     "SELECT id FROM app_migrations WHERE id = '007-late-attendance-credit'",
   );
   assert.equal(lateCreditMigrations.length, 1);
+  const [classMigrations] = await db.sequelize.query(
+    "SELECT id FROM app_migrations WHERE id = '008-academic-classes'",
+  );
+  assert.equal(classMigrations.length, 1);
+  const [classOwnershipMigrations] = await db.sequelize.query(
+    "SELECT id FROM app_migrations WHERE id = '009-class-ownership'",
+  );
+  assert.equal(classOwnershipMigrations.length, 1);
+  assert.equal(await db.AcademicClass.count(), 3);
+  assert.ok(studentsTable.academic_class_id);
+  assert.equal(
+    (await db.sequelize.getQueryInterface().describeTable("timetables"))
+      .academic_class_id.allowNull,
+    false,
+  );
+});
+
+test("class workspaces isolate faculty access and roll numbers", async () => {
+  const otherClass = await db.AcademicClass.findOne({
+    where: { code: "ANASUYA-BCA-AI-3A-UG" },
+  });
+  const faculty = await db.User.create({
+    name: "Faculty Test",
+    email: "faculty-v119@test.local",
+    passwordHash: await bcrypt.hash("FacultyTest@123", 4),
+    role: "FACULTY",
+  });
+  await db.ClassAssignment.create({
+    AcademicClassId: defaultClass.id,
+    UserId: faculty.id,
+    assignmentRole: "MENTOR",
+  });
+  const facultyToken = (
+    await authSessions.createAuthSession(faculty, {
+      userAgent: "Faculty class isolation test",
+    })
+  ).accessToken;
+  const createdStudents = [];
+  try {
+    const classes = await request(app)
+      .get("/api/admin/classes")
+      .set("Authorization", `Bearer ${facultyToken}`)
+      .expect(200);
+    assert.deepEqual(classes.body.map((row) => row.id), [defaultClass.id]);
+
+    await request(app)
+      .get(`/api/admin/students?classId=${otherClass.id}`)
+      .set("Authorization", `Bearer ${facultyToken}`)
+      .expect(403);
+    await request(app)
+      .patch(`/api/admin/classes/${defaultClass.id}`)
+      .set("Authorization", `Bearer ${facultyToken}`)
+      .send({ batch: "2024-2028" })
+      .expect(200);
+    await request(app)
+      .patch(`/api/admin/classes/${otherClass.id}`)
+      .set("Authorization", `Bearer ${facultyToken}`)
+      .send({ batch: "forbidden" })
+      .expect(403);
+
+    createdStudents.push(
+      await db.Student.create({
+        rollNumber: "94",
+        name: "Default Class Roll",
+        AcademicClassId: defaultClass.id,
+      }),
+      await db.Student.create({
+        rollNumber: "94",
+        name: "Other Class Roll",
+        AcademicClassId: otherClass.id,
+      }),
+    );
+    await assert.rejects(
+      db.Student.create({
+        rollNumber: "94",
+        name: "Duplicate In Same Class",
+        AcademicClassId: defaultClass.id,
+      }),
+    );
+  } finally {
+    if (createdStudents.length)
+      await db.Student.destroy({
+        where: { id: createdStudents.map((student) => student.id) },
+      });
+    await defaultClass.update({ batch: null });
+    await db.AuthSession.destroy({ where: { UserId: faculty.id } });
+    await faculty.destroy();
+  }
 });
 
 test("secure browser sessions rotate, reject stale access, and revoke on logout", async () => {
@@ -381,6 +498,7 @@ test("student import applies additions, edits and deactivation atomically", asyn
     ],
     missingAction: "DEACTIVATE",
     userId: admin.id,
+    classId: defaultClass.id,
   });
   assert.deepEqual(
     {
@@ -410,6 +528,7 @@ test("session service blocks duplicates and requires overlap confirmation", asyn
   ])
     await db.Setting.upsert({ key, value: "broken" });
   const base = {
+    classId: defaultClass.id,
     sessionDate: "2026-09-18",
     subjectId: subject.id,
     scheduledSubjectId: subject.id,
@@ -475,6 +594,7 @@ test("session service blocks duplicates and requires overlap confirmation", asyn
 
 test("timetable rejects invalid clocks and overlapping active entries", async () => {
   const base = {
+    classId: defaultClass.id,
     dayOfWeek: 7,
     startTime: "09:30",
     endTime: "10:30",
@@ -789,6 +909,11 @@ test("only Admin++ changes browser roles and Admin++ status remains CLI-only", a
       role: "CR",
     })
     .expect(201);
+  await db.ClassAssignment.create({
+    AcademicClassId: defaultClass.id,
+    UserId: created.body.id,
+    assignmentRole: "CR",
+  });
   await request(app)
     .patch(`/api/admin/users/${created.body.id}`)
     .set("Authorization", `Bearer ${normalAdminToken}`)
@@ -799,9 +924,27 @@ test("only Admin++ changes browser roles and Admin++ status remains CLI-only", a
     .patch(`/api/admin/users/${created.body.id}`)
     .set("Authorization", `Bearer ${adminToken}`)
     .set("X-Admin-Elevation", adminElevationToken)
-    .send({ role: "ADMIN" })
+    .send({ role: "FACULTY" })
     .expect(200)
-    .expect((response) => assert.equal(response.body.role, "ADMIN"));
+    .expect((response) => assert.equal(response.body.role, "FACULTY"));
+  assert.equal(
+    (
+      await db.ClassAssignment.findOne({
+        where: { UserId: created.body.id },
+      })
+    ).assignmentRole,
+    "FACULTY",
+  );
+  await request(app)
+    .patch(`/api/admin/users/${created.body.id}`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .send({ role: "ADMIN" })
+    .expect(200);
+  assert.equal(
+    await db.ClassAssignment.count({ where: { UserId: created.body.id } }),
+    0,
+  );
   await request(app)
     .patch(`/api/admin/users/${admin.id}`)
     .set("Authorization", `Bearer ${adminToken}`)
@@ -877,6 +1020,7 @@ test("Admin++ permanently deletes only students and subjects without history", a
   const unusedStudent = await db.Student.create({
     rollNumber: "99",
     name: "Unused Student",
+    AcademicClassId: defaultClass.id,
   });
   await request(app)
     .delete(`/api/admin/students/${unusedStudent.id}`)
@@ -1010,6 +1154,7 @@ test("only Admin++ can change Late Mode and the choice is audited", async () => 
 
 test("roll selection marks present or late, close assigns absence, and only elevated Admin++ deletes history", async () => {
   const live = await db.AttendanceSession.create({
+    AcademicClassId: defaultClass.id,
     sessionDate: "2026-09-19",
     scheduledStartTime: "12:00",
     scheduledEndTime: "13:00",

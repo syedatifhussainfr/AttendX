@@ -16,6 +16,7 @@ import { api, messageOf, setAdminElevation } from "../api.js";
 import { Dialog } from "../components/Dialog.jsx";
 import { useToast } from "../state/ToastContext.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
+import { useClass } from "../state/ClassContext.jsx";
 import { downloadImportErrors, parseCsv } from "../utils/csv.js";
 
 const riskLabel = {
@@ -36,7 +37,8 @@ export function Students() {
   const navigate = useNavigate(),
     toast = useToast(),
     { can, user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
+  const { classId, selectedClass } = useClass();
+  const isAdmin = user?.role !== "CR";
   const loadSequence = useRef(0);
   const [rows, setRows] = useState([]),
     [overview, setOverview] = useState(null),
@@ -58,9 +60,12 @@ export function Students() {
     [deleting, setDeleting] = useState(false);
 
   const load = async () => {
+    if (!classId) return;
     const sequence = ++loadSequence.current;
     try {
-      const { data } = await api.get("/admin/students", { params: { q } });
+      const { data } = await api.get("/admin/students", {
+        params: { q, classId },
+      });
       if (sequence !== loadSequence.current) return;
       setRows(data.students || data);
       setOverview(data.overview || null);
@@ -73,7 +78,7 @@ export function Students() {
   useEffect(() => {
     const timer = setTimeout(load, 180);
     return () => clearTimeout(timer);
-  }, [q]);
+  }, [q, classId]);
   const shown = useMemo(() => {
     const next = rows.filter(
       (student) =>
@@ -107,6 +112,7 @@ export function Students() {
     const form = Object.fromEntries(new FormData(event.currentTarget));
     const payload = {
       ...form,
+      classId,
       ...(selected && { active: form.active === "true" }),
       ...(isAdmin && { cardToken: form.cardToken || null }),
       photoUrl: form.photoUrl || null,
@@ -132,6 +138,7 @@ export function Students() {
         const parsed = parseCsv(reader.result);
         const { data } = await api.post("/admin/students/import/preview", {
           rows: parsed,
+          classId,
         });
         setImportRows(parsed);
         setReview(data);
@@ -147,6 +154,7 @@ export function Students() {
     try {
       const { data } = await api.post("/admin/students/import/apply", {
         rows: importRows,
+        classId,
         missingAction,
         confirmed: true,
       });

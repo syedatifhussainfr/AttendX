@@ -15,12 +15,13 @@ try {
   const finalRolls = new Map();
   for (const student of students) {
     const normalized = normalizeRollNumber(student.rollNumber);
-    if (finalRolls.has(normalized)) {
+    const classRoll = `${student.AcademicClassId}:${normalized}`;
+    if (finalRolls.has(classRoll)) {
       throw new Error(
-        `Cannot normalize: ${student.rollNumber} conflicts with ${finalRolls.get(normalized)}.`,
+        `Cannot normalize class ${student.AcademicClassId}: ${student.rollNumber} conflicts with ${finalRolls.get(classRoll)}.`,
       );
     }
-    finalRolls.set(normalized, student.rollNumber);
+    finalRolls.set(classRoll, student.rollNumber);
   }
 
   await sequelize.transaction(async (transaction) => {

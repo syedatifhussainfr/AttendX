@@ -5,6 +5,7 @@ import {
   Subject,
   Setting,
   AuditLog,
+  ClassSubject,
 } from "../db/index.js";
 import { getSessionDetail } from "./attendanceService.js";
 import { schedulesOverlap } from "../utils/schedule.js";
@@ -24,10 +25,11 @@ export async function inspectSessionConflicts({
   subjectId,
   scheduledStartTime,
   scheduledEndTime,
+  classId,
   transaction,
 }) {
   const sessions = await AttendanceSession.findAll({
-    where: { sessionDate },
+    where: { sessionDate, ...(classId && { AcademicClassId: classId }) },
     order: [["openedAt", "DESC"]],
     transaction,
     lock: transaction?.LOCK?.UPDATE,
@@ -95,10 +97,8 @@ export async function openAttendanceSession({ input, userId, now }) {
       true,
       (value) => typeof value === "boolean",
     );
-    const lateAttendanceCredit = settingValue(
-      lateCreditSetting,
-      0,
-      (value) => [0, 0.5, 1].includes(value),
+    const lateAttendanceCredit = settingValue(lateCreditSetting, 0, (value) =>
+      [0, 0.5, 1].includes(value),
     );
     const subject = await Subject.findOne({
       where: { id: input.subjectId, active: true },
@@ -108,6 +108,24 @@ export async function openAttendanceSession({ input, userId, now }) {
       const error = new Error("Selected subject is unavailable.");
       error.status = 400;
       throw error;
+    }
+    if (input.classId) {
+      const classSubject = await ClassSubject.findOne({
+        where: {
+          AcademicClassId: input.classId,
+          SubjectId: input.subjectId,
+          active: true,
+        },
+        transaction,
+      });
+      if (!classSubject) {
+        const error = new Error(
+          "Selected subject is not assigned to this class.",
+        );
+        error.status = 400;
+        error.code = "CLASS_SUBJECT_REQUIRED";
+        throw error;
+      }
     }
     if (input.scheduledSubjectId) {
       const scheduled = await Subject.findByPk(input.scheduledSubjectId, {
@@ -124,6 +142,7 @@ export async function openAttendanceSession({ input, userId, now }) {
       subjectId: input.subjectId,
       scheduledStartTime: input.scheduledStartTime,
       scheduledEndTime: input.scheduledEndTime,
+      classId: input.classId,
       transaction,
     });
     if (conflicts.duplicate) {
@@ -176,6 +195,7 @@ export async function openAttendanceSession({ input, userId, now }) {
     const session = await AttendanceSession.create(
       {
         SubjectId: input.subjectId,
+        AcademicClassId: input.classId,
         scheduledSubjectId: input.scheduledSubjectId || null,
         sessionDate: input.sessionDate,
         scheduledStartTime: input.scheduledStartTime,

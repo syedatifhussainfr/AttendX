@@ -83,7 +83,7 @@ export function Login() {
             {loading ? "Signing in…" : "Sign in"}
             <ArrowRight />
           </button>
-          <p className="login-note">Authorized ADMIN and CR accounts only</p>
+          <p className="login-note">Authorized ADMIN, FACULTY, and CR accounts only</p>
         </form>
       </div>
     </div>

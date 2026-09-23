@@ -1,15 +1,28 @@
-import { initDatabase, sequelize, Timetable, Subject } from "../db/index.js";
+import {
+  ClassSubject,
+  initDatabase,
+  sequelize,
+  Timetable,
+  Subject,
+} from "../db/index.js";
 import { schedulesOverlap, validateScheduleWindow } from "../utils/schedule.js";
 
 try {
   await initDatabase();
-  const rows = await Timetable.findAll({
-    include: [Subject],
-    order: [
-      ["dayOfWeek", "ASC"],
-      ["startTime", "ASC"],
-    ],
-  });
+  const [rows, subjectLinks] = await Promise.all([
+    Timetable.findAll({
+      include: [Subject],
+      order: [
+        ["AcademicClassId", "ASC"],
+        ["dayOfWeek", "ASC"],
+        ["startTime", "ASC"],
+      ],
+    }),
+    ClassSubject.findAll({ where: { active: true } }),
+  ]);
+  const assignedSubjects = new Set(
+    subjectLinks.map((row) => `${row.AcademicClassId}:${row.SubjectId}`),
+  );
   const issues = [];
   for (const row of rows) {
     const windowError = validateScheduleWindow(row.startTime, row.endTime);
@@ -19,6 +32,13 @@ try {
       issues.push(
         `#${row.id}: active entry uses inactive subject ${row.Subject.code}.`,
       );
+    if (
+      row.active &&
+      !assignedSubjects.has(`${row.AcademicClassId}:${row.SubjectId}`)
+    )
+      issues.push(
+        `#${row.id}: subject ${row.Subject?.code || row.SubjectId} is not assigned to class ${row.AcademicClassId}.`,
+      );
   }
   for (let index = 0; index < rows.length; index += 1)
     for (let other = index + 1; other < rows.length; other += 1) {
@@ -27,6 +47,7 @@ try {
       if (
         left.active &&
         right.active &&
+        left.AcademicClassId === right.AcademicClassId &&
         left.dayOfWeek === right.dayOfWeek &&
         schedulesOverlap(
           left.startTime,
@@ -36,7 +57,7 @@ try {
         )
       )
         issues.push(
-          `#${left.id} overlaps #${right.id} on weekday ${left.dayOfWeek}.`,
+          `#${left.id} overlaps #${right.id} in class ${left.AcademicClassId} on weekday ${left.dayOfWeek}.`,
         );
     }
 

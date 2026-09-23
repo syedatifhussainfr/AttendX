@@ -10,10 +10,13 @@ const db = await import("../src/db/index.js");
 const service = await import("../src/services/attendanceService.js");
 const exports = await import("../src/services/exportService.js");
 const rolls = await import("../src/utils/rollNumber.js");
-let user, subject, students, session;
+let user, subject, students, session, academicClass;
 
 before(async () => {
   await db.initDatabase({ force: true });
+  academicClass = await db.AcademicClass.findOne({
+    where: { code: "ANASUYA-BCA-AI-3B-UG" },
+  });
   user = await db.User.create({
     name: "CR Test",
     email: "cr@test.local",
@@ -22,9 +25,9 @@ before(async () => {
   });
   subject = await db.Subject.create({ code: "TEST", name: "Test Subject" });
   students = await db.Student.bulkCreate([
-    { rollNumber: "01", name: "Student 01" },
-    { rollNumber: "02", name: "Student 02" },
-    { rollNumber: "03", name: "Student 03" },
+    { rollNumber: "01", name: "Student 01", AcademicClassId: academicClass.id },
+    { rollNumber: "02", name: "Student 02", AcademicClassId: academicClass.id },
+    { rollNumber: "03", name: "Student 03", AcademicClassId: academicClass.id },
   ]);
   session = await db.AttendanceSession.create({
     sessionDate: "2026-09-18",
@@ -33,6 +36,7 @@ before(async () => {
     openedAt: new Date(),
     lateThresholdMinutes: 15,
     SubjectId: subject.id,
+    AcademicClassId: academicClass.id,
     createdById: user.id,
   });
 });
@@ -126,6 +130,7 @@ test("late appearance can earn snapshotted half credit", async () => {
     lateThresholdMinutes: 15,
     lateAttendanceCredit: 0.5,
     SubjectId: subject.id,
+    AcademicClassId: academicClass.id,
     createdById: user.id,
   });
   const result = await service.markAttendance({

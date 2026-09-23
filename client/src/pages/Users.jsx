@@ -176,7 +176,7 @@ export function UsersPage() {
               ? "ADMIN++ · ACCESS CONTROL"
               : "ADMIN · USER MANAGEMENT"}
           </span>
-          <h1>Users & CR access</h1>
+          <h1>Users & staff access</h1>
           <p>
             Create and manage accounts. Permanent deletion and device-session
             control require Admin++.
@@ -213,11 +213,12 @@ export function UsersPage() {
                   <MonitorSmartphone /> Sessions
                 </button>
               )}
-              {u.role === "CR" && can("users.resetCrPassword") && (
+              {["CR", "FACULTY"].includes(u.role) &&
+                can("users.resetCrPassword") && (
                 <button className="secondary" onClick={() => setResetUser(u)}>
                   <KeyRound /> Reset password
                 </button>
-              )}
+                )}
               {can("users.changeRole") && !u.adminPlus && u.id !== user.id && (
                 <button className="secondary" onClick={() => setRoleUser(u)}>
                   <UserRoundCog /> Change role
@@ -276,6 +277,7 @@ export function UsersPage() {
             Role
             <select name="role">
               <option>CR</option>
+              <option>FACULTY</option>
               <option>ADMIN</option>
             </select>
           </label>
@@ -303,6 +305,7 @@ export function UsersPage() {
             Account role
             <select name="role" defaultValue={roleUser?.role || "CR"}>
               <option value="CR">CR · Attendance operations</option>
+              <option value="FACULTY">FACULTY · Assigned class management</option>
               <option value="ADMIN">ADMIN · Management access</option>
             </select>
           </label>
@@ -485,8 +488,8 @@ export function UsersPage() {
       >
         <form className="form-stack" onSubmit={resetPassword}>
           <p>
-            The CR will be signed out everywhere and required to replace this
-            temporary password.
+            This staff member will be signed out everywhere and required to
+            replace this temporary password.
           </p>
           <label>
             Temporary password
@@ -506,7 +509,7 @@ export function UsersPage() {
               required
             />
           </label>
-          <button className="primary">Reset CR password</button>
+          <button className="primary">Reset temporary password</button>
         </form>
       </Dialog>
     </div>

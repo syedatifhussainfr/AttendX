@@ -1,10 +1,17 @@
 # AttendX secure permission defaults. This file is automatically restored.
 # Re-run npm run config-check after editing.
-version: 1
+version: 2
 permissions:
   CR:
     dashboard:
       view: true
+    classes:
+      view: true
+      create: false
+      manage: false
+      assignStaff: false
+      assignSubjects: false
+      archive: false
     attendance:
       view: true
       open: true
@@ -54,9 +61,75 @@ permissions:
       download: false
       restore: false
       delete: false
+  FACULTY:
+    dashboard:
+      view: true
+    classes:
+      view: true
+      create: true
+      manage: true
+      assignStaff: true
+      assignSubjects: true
+      archive: false
+    attendance:
+      view: true
+      open: true
+      mark: true
+      close: true
+      correctOpen: true
+      correctClosed: true
+      reopen: true
+      delete: false
+    students:
+      view: true
+      create: true
+      update: true
+      import: true
+      delete: false
+    subjects:
+      view: true
+      manage: true
+      delete: false
+    timetable:
+      view: true
+      manage: true
+    reports:
+      view: true
+      export: true
+    settings:
+      view: false
+      manage: false
+      manageLateMode: false
+      managePermissions: false
+    users:
+      view: false
+      create: false
+      update: false
+      resetCrPassword: false
+      delete: false
+      manageSessions: false
+      modifyAdminPlus: false
+      changeRole: false
+    database:
+      view: false
+    audit:
+      view: false
+    backups:
+      view: false
+      create: false
+      download: false
+      restore: false
+      delete: false
   ADMIN:
     dashboard:
       view: true
+    classes:
+      view: true
+      create: true
+      manage: true
+      assignStaff: true
+      assignSubjects: true
+      archive: false
     attendance:
       view: true
       open: true
@@ -109,6 +182,13 @@ permissions:
   ADMIN_PLUS:
     dashboard:
       view: true
+    classes:
+      view: true
+      create: true
+      manage: true
+      assignStaff: true
+      assignSubjects: true
+      archive: true
     attendance:
       view: true
       open: true

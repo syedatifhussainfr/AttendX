@@ -12,6 +12,7 @@ import { api, messageOf } from "../api.js";
 import { Dialog } from "../components/Dialog.jsx";
 import { useToast } from "../state/ToastContext.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
+import { useClass } from "../state/ClassContext.jsx";
 const prettyTime = (value) => {
   if (!value) return "—";
   const [h, m] = value.split(":").map(Number);
@@ -29,13 +30,15 @@ export function Dashboard() {
     [saving, setSaving] = useState(false),
     navigate = useNavigate(),
     toast = useToast(),
-    { can } = useAuth();
+    { can } = useAuth(),
+    { classId, selectedClass } = useClass();
   const load = async () => {
+    if (!classId) return;
     try {
       const [d, s] = await Promise.all([
-        api.get("/attendance/dashboard"),
+        api.get("/attendance/dashboard", { params: { classId } }),
         can("subjects.view")
-          ? api.get("/admin/subjects")
+          ? api.get("/admin/subjects", { params: { classId } })
           : Promise.resolve({ data: [] }),
       ]);
       setData(d.data);
@@ -46,7 +49,7 @@ export function Dashboard() {
   };
   useEffect(() => {
     load();
-  }, []);
+  }, [classId]);
   const suggested = data?.current || data?.next || data?.timetable?.[0];
   const liveOrNext = data?.current || data?.next;
   const completedToday = data?.sessions.filter(
@@ -57,6 +60,7 @@ export function Dashboard() {
     try {
       const { data: s } = await api.post("/attendance/sessions", {
         ...payload,
+        classId,
         allowOverlap,
       });
       navigate(`/attendance/${s.id}`);
@@ -99,7 +103,7 @@ export function Dashboard() {
         <div>
           <span className="eyebrow">TODAY’S OPERATIONS</span>
           <h1>Good {new Date().getHours() < 12 ? "morning" : "afternoon"}</h1>
-          <p>{date}</p>
+          <p>{selectedClass?.displayName} · {date}</p>
         </div>
         {can("attendance.open") && (
           <button className="primary" onClick={() => setOpen(true)}>

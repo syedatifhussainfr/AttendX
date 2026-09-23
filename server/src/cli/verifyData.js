@@ -2,8 +2,11 @@ import { QueryTypes } from "sequelize";
 import {
   AttendanceRecord,
   AttendanceSession,
+  AcademicClass,
   AuditLog,
   AuthSession,
+  ClassAssignment,
+  ClassSubject,
   Student,
   Subject,
   Timetable,
@@ -28,7 +31,7 @@ let exitCode = 0;
 
 try {
   await sequelize.authenticate();
-  console.log(`\n${info("AttendX V1.1.8 · Data verification")}`);
+  console.log(`\n${info("AttendX V1.1.9 · Data verification")}`);
   console.log("─".repeat(48));
   row("Database engine", config.dialect.toUpperCase());
 
@@ -74,6 +77,9 @@ try {
     attendanceRecords,
     auditEntries,
     activeBrowserSessions,
+    academicClasses,
+    classAssignments,
+    classSubjects,
   ] = await Promise.all([
     User.count(),
     User.count({ where: { role: "ADMIN", active: true } }),
@@ -86,14 +92,29 @@ try {
     AttendanceRecord.count(),
     AuditLog.count(),
     AuthSession.count({ where: { revokedAt: null } }),
+    AcademicClass.count(),
+    ClassAssignment.count(),
+    ClassSubject.count({ where: { active: true } }),
   ]);
 
   const duplicateRolls = await sequelize.query(
-    `SELECT roll_number, COUNT(*) AS count
+    `SELECT academic_class_id, roll_number, COUNT(*) AS count
        FROM students
-      GROUP BY roll_number
+      GROUP BY academic_class_id, roll_number
      HAVING COUNT(*) > 1`,
     { type: QueryTypes.SELECT },
+  );
+  const unassignedClassData = await sequelize.query(
+    `SELECT 'students' AS source, COUNT(*) AS count FROM students WHERE academic_class_id IS NULL
+     UNION ALL
+     SELECT 'timetables', COUNT(*) FROM timetables WHERE academic_class_id IS NULL
+     UNION ALL
+     SELECT 'attendance_sessions', COUNT(*) FROM attendance_sessions WHERE academic_class_id IS NULL`,
+    { type: QueryTypes.SELECT },
+  );
+  const unassignedCount = unassignedClassData.reduce(
+    (total, entry) => total + Number(entry.count || 0),
+    0,
   );
   const duplicateEnrollments = await sequelize.query(
     `SELECT enrollment_number, COUNT(*) AS count
@@ -119,6 +140,11 @@ try {
   );
   if (duplicateRolls.length) exitCode = 1;
   row(
+    "Unassigned class data",
+    unassignedCount ? fail(String(unassignedCount)) : ok("0"),
+  );
+  if (unassignedCount) exitCode = 1;
+  row(
     "Duplicate enrolments",
     duplicateEnrollments.length
       ? fail(String(duplicateEnrollments.length))
@@ -128,6 +154,9 @@ try {
 
   console.log(`\n${info("Record summary")}`);
   row("Users", users);
+  row("Academic classes", academicClasses);
+  row("Class staff links", classAssignments);
+  row("Class subject links", classSubjects);
   row("Students", `${students} total · ${activeStudents} active`);
   row("Subjects", subjects);
   row("Timetable entries", timetableEntries);

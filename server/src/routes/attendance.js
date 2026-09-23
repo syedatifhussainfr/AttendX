@@ -41,6 +41,7 @@ import {
 } from "../utils/rollNumber.js";
 import { CLOCK_TIME_PATTERN } from "../utils/schedule.js";
 import { studentProfile } from "../services/studentService.js";
+import { assertClassAccess, resolveClassId } from "../services/classService.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -60,6 +61,7 @@ const exportFiltersSchema = z
     to: optionalExportDate,
     subjectId: optionalExportId,
     studentId: optionalExportId,
+    classId: optionalExportId,
   })
   .refine((value) => !value.from || !value.to || value.from <= value.to, {
     path: ["to"],
@@ -70,6 +72,7 @@ const sessionListFiltersSchema = z
     from: optionalExportDate,
     to: optionalExportDate,
     subjectId: optionalExportId,
+    classId: optionalExportId,
   })
   .refine((value) => !value.from || !value.to || value.from <= value.to, {
     path: ["to"],
@@ -105,24 +108,38 @@ async function canCorrectOpenAttendance(user) {
     return true;
   }
 }
+const sessionClassAccess = async (req, res, next) => {
+  try {
+    const session = await AttendanceSession.findByPk(req.params.id, {
+      attributes: ["id", "AcademicClassId"],
+    });
+    if (!session)
+      return res.status(404).json({ message: "Attendance session not found." });
+    await assertClassAccess(req.user, session.AcademicClassId);
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
 router.get(
   "/dashboard",
   requirePermission("dashboard.view"),
   async (req, res) => {
+    const classId = await resolveClassId(req.user, req.query.classId);
     const now = DateTime.now().setZone(config.timezone),
       dayOfWeek = now.weekday;
     const [timetable, sessions, activeStudentCount] = await Promise.all([
       Timetable.findAll({
-        where: { dayOfWeek, active: true },
+        where: { dayOfWeek, active: true, AcademicClassId: classId },
         order: [["startTime", "ASC"]],
         include: [Subject],
       }),
       AttendanceSession.findAll({
-        where: { sessionDate: now.toISODate() },
+        where: { sessionDate: now.toISODate(), AcademicClassId: classId },
         include: [Subject, AttendanceRecord],
         order: [["openedAt", "DESC"]],
       }),
-      Student.count({ where: { active: true } }),
+      Student.count({ where: { active: true, AcademicClassId: classId } }),
     ]);
     const currentMinutes = now.hour * 60 + now.minute;
     const decorated = timetable.map((item) => item.toJSON());
@@ -155,6 +172,7 @@ router.post(
   async (req, res) => {
     const input = z
       .object({
+        classId: z.coerce.number().int().positive().optional(),
         subjectId: z.number().int(),
         scheduledSubjectId: z.number().int().nullable().optional(),
         scheduledStartTime: z.string().regex(CLOCK_TIME_PATTERN),
@@ -171,6 +189,8 @@ router.post(
         message: "End time must be after start time.",
       })
       .parse(req.body);
+    input.classId = await resolveClassId(req.user, input.classId);
+    await assertClassAccess(req.user, input.classId);
     const now = DateTime.now().setZone(config.timezone);
     res.status(201).json(
       await openAttendanceSession({
@@ -189,7 +209,8 @@ router.get(
   requirePermission("attendance.view"),
   async (req, res) => {
     const filters = sessionListFiltersSchema.parse(req.query);
-    const where = {};
+    const classId = await resolveClassId(req.user, filters.classId);
+    const where = { AcademicClassId: classId };
     if (filters.from || filters.to)
       where.sessionDate = {
         ...(filters.from && { [Op.gte]: filters.from }),
@@ -206,7 +227,7 @@ router.get(
         ],
         include: [Subject, AttendanceRecord],
       }),
-      Student.count({ where: { active: true } }),
+      Student.count({ where: { active: true, AcademicClassId: classId } }),
     ]);
     res.json(
       sessions.map((s) => {
@@ -228,12 +249,18 @@ router.get(
 router.get(
   "/sessions/:id",
   requirePermission("attendance.view"),
+  sessionClassAccess,
   async (req, res) => {
     const [session, canCorrectOpen] = await Promise.all([
       getSessionDetail(req.params.id),
       canCorrectOpenAttendance(req.user),
     ]);
-    const activeStudents = await Student.findAll({ where: { active: true } });
+    const activeStudents = await Student.findAll({
+      where: {
+        active: true,
+        AcademicClassId: session.AcademicClassId,
+      },
+    });
     const studentsById = new Map(
       session.AttendanceRecords.filter((record) => record.Student).map(
         (record) => [record.Student.id, record.Student],
@@ -254,6 +281,7 @@ router.get(
 router.post(
   "/sessions/:id/mark",
   requirePermission("attendance.mark"),
+  sessionClassAccess,
   async (req, res, next) => {
     try {
       const input = z
@@ -278,6 +306,7 @@ router.post(
 router.post(
   "/sessions/:id/students/:studentId/mark",
   requirePermission("attendance.mark"),
+  sessionClassAccess,
   async (req, res) => {
     const { status } = z
       .object({ status: z.enum(["PRESENT", "LATE"]) })
@@ -295,6 +324,7 @@ router.post(
 router.patch(
   "/sessions/:id/students/:studentId/selection",
   requirePermission("attendance.mark"),
+  sessionClassAccess,
   async (req, res) => {
     const { status } = z
       .object({ status: z.enum(["PRESENT", "LATE"]).nullable() })
@@ -310,44 +340,49 @@ router.patch(
     );
   },
 );
-router.patch("/sessions/:id/students/:studentId", async (req, res) => {
-  const input = z
-    .object({
-      status: z.enum(["PRESENT", "LATE", "ABSENT"]),
-      reason: z.string().trim().min(2).max(250),
-    })
-    .parse(req.body);
-  const session = await AttendanceSession.findByPk(req.params.id);
-  if (!session)
-    return res.status(404).json({ message: "Attendance session not found." });
-  const requiredPermission =
-    session.status === "OPEN"
-      ? "attendance.correctOpen"
-      : "attendance.correctClosed";
-  const allow =
-    session.status === "OPEN"
-      ? await canCorrectOpenAttendance(req.user)
-      : hasPermission(req.user, requiredPermission);
-  if (!allow)
-    return res.status(403).json({
-      code: "PERMISSION_REQUIRED",
-      permission: requiredPermission,
-      message: `Permission ${requiredPermission} is required for this correction.`,
-    });
-  res.json(
-    await markAttendance({
-      sessionId: req.params.id,
-      studentId: Number(req.params.studentId),
-      status: input.status,
-      reason: input.reason,
-      markedById: req.user.id,
-      allowCorrection: true,
-    }),
-  );
-});
+router.patch(
+  "/sessions/:id/students/:studentId",
+  sessionClassAccess,
+  async (req, res) => {
+    const input = z
+      .object({
+        status: z.enum(["PRESENT", "LATE", "ABSENT"]),
+        reason: z.string().trim().min(2).max(250),
+      })
+      .parse(req.body);
+    const session = await AttendanceSession.findByPk(req.params.id);
+    if (!session)
+      return res.status(404).json({ message: "Attendance session not found." });
+    const requiredPermission =
+      session.status === "OPEN"
+        ? "attendance.correctOpen"
+        : "attendance.correctClosed";
+    const allow =
+      session.status === "OPEN"
+        ? await canCorrectOpenAttendance(req.user)
+        : hasPermission(req.user, requiredPermission);
+    if (!allow)
+      return res.status(403).json({
+        code: "PERMISSION_REQUIRED",
+        permission: requiredPermission,
+        message: `Permission ${requiredPermission} is required for this correction.`,
+      });
+    res.json(
+      await markAttendance({
+        sessionId: req.params.id,
+        studentId: Number(req.params.studentId),
+        status: input.status,
+        reason: input.reason,
+        markedById: req.user.id,
+        allowCorrection: true,
+      }),
+    );
+  },
+);
 router.post(
   "/sessions/:id/close",
   requirePermission("attendance.close"),
+  sessionClassAccess,
   async (req, res) =>
     res.json(
       await closeSession({ sessionId: req.params.id, userId: req.user.id }),
@@ -356,6 +391,7 @@ router.post(
 router.post(
   "/sessions/:id/reopen",
   requirePermission("attendance.reopen"),
+  sessionClassAccess,
   async (req, res) => {
     const { reason } = z
       .object({ reason: z.string().trim().min(3).max(250) })
@@ -374,6 +410,7 @@ router.delete(
   requirePermission("attendance.delete"),
   requireAdminPlus,
   requireAdminElevation,
+  sessionClassAccess,
   async (req, res) => {
     const { reason } = z
       .object({
@@ -389,12 +426,41 @@ router.delete(
     res.status(204).end();
   },
 );
+async function scopedExportFilters(user, filters) {
+  if (filters.studentId) {
+    const student = await Student.findByPk(filters.studentId);
+    if (!student) {
+      const error = new Error("Student not found.");
+      error.status = 404;
+      throw error;
+    }
+    await assertClassAccess(user, student.AcademicClassId);
+    return { ...filters, classId: student.AcademicClassId };
+  }
+  if (filters.sessionId) {
+    const session = await AttendanceSession.findByPk(filters.sessionId);
+    if (!session) {
+      const error = new Error("Attendance session not found.");
+      error.status = 404;
+      throw error;
+    }
+    await assertClassAccess(user, session.AcademicClassId);
+    return { ...filters, classId: session.AcademicClassId };
+  }
+  return {
+    ...filters,
+    classId: await resolveClassId(user, filters.classId),
+  };
+}
 router.get(
   "/export/review",
   requirePermission("reports.export"),
   exportLimiter,
   async (req, res) => {
-    const filters = exportFiltersSchema.parse(req.query);
+    const filters = await scopedExportFilters(
+      req.user,
+      exportFiltersSchema.parse(req.query),
+    );
     const { workbook, sessions } = await buildAttendanceReviewWorkbook(filters);
     exportHeaders(res, attendanceExportFilename(filters, sessions));
     await workbook.xlsx.write(res);
@@ -406,7 +472,10 @@ router.get(
   requirePermission("reports.export"),
   exportLimiter,
   async (req, res) => {
-    const filters = exportFiltersSchema.parse(req.query);
+    const filters = await scopedExportFilters(
+      req.user,
+      exportFiltersSchema.parse(req.query),
+    );
     const { workbook, sessions } = await buildAttendanceWorkbook(filters);
     exportHeaders(res, attendanceExportFilename(filters, sessions, true));
     await workbook.xlsx.write(res);
@@ -417,8 +486,12 @@ router.get(
   "/analytics/students/:id",
   requirePermission("reports.view"),
   async (req, res) => {
+    const student = await Student.findByPk(req.params.id);
+    if (!student)
+      return res.status(404).json({ message: "Student not found." });
+    await assertClassAccess(req.user, student.AcademicClassId);
     const profile = await studentProfile(req.params.id, {
-      sensitive: req.user.role === "ADMIN",
+      sensitive: req.user.role !== "CR",
     });
     if (!profile)
       return res.status(404).json({ message: "Student not found." });

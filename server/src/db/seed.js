@@ -1,5 +1,14 @@
 import bcrypt from "bcryptjs";
-import { initDatabase, User, Subject, Timetable, Setting } from "./index.js";
+import {
+  AcademicClass,
+  ClassAssignment,
+  ClassSubject,
+  initDatabase,
+  User,
+  Subject,
+  Timetable,
+  Setting,
+} from "./index.js";
 
 const subjects = [
   ["UI", "Understanding India"],
@@ -40,9 +49,13 @@ const routine = [
 
 export async function seed() {
   await initDatabase();
+  const academicClass = await AcademicClass.findOne({
+    where: { code: "ANASUYA-BCA-AI-3B-UG" },
+  });
+  if (!academicClass) throw new Error("Default 3B class workspace is missing.");
   const adminHash = await bcrypt.hash("Admin@12345", 12),
     crHash = await bcrypt.hash("CR@123456", 12);
-  await User.findOrCreate({
+  const [cr] = await User.findOrCreate({
     where: { email: "admin@attendx.local" },
     defaults: {
       name: "AttendX Administrator",
@@ -50,6 +63,10 @@ export async function seed() {
       role: "ADMIN",
       mustChangePassword: true,
     },
+  });
+  await ClassAssignment.findOrCreate({
+    where: { AcademicClassId: academicClass.id, UserId: cr.id },
+    defaults: { assignmentRole: "CR" },
   });
   await User.findOrCreate({
     where: { email: "cr@attendx.local" },
@@ -67,14 +84,22 @@ export async function seed() {
       defaults: { name },
     });
     subjectMap[code] = subject;
+    await ClassSubject.findOrCreate({
+      where: {
+        AcademicClassId: academicClass.id,
+        SubjectId: subject.id,
+      },
+      defaults: { active: true },
+    });
   }
-  if ((await Timetable.count()) === 0)
+  if ((await Timetable.count({ where: { AcademicClassId: academicClass.id } })) === 0)
     for (const [dayOfWeek, startTime, endTime, code] of routine)
       await Timetable.create({
         dayOfWeek,
         startTime,
         endTime,
         SubjectId: subjectMap[code].id,
+        AcademicClassId: academicClass.id,
         faculty: null,
       });
   const settings = {

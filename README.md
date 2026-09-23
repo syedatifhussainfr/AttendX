@@ -4,14 +4,14 @@
 
 AttendX replaces slow roll calls with a controlled attendance workflow for class representatives, administrators, and service operators. It combines timetable-aware session creation, server-authoritative attendance rules, accountable corrections, human-readable reports, backup tooling, and tiered administration in one responsive application.
 
-![Version](https://img.shields.io/badge/version-1.1.8-0a4a7f)
-![Status](https://img.shields.io/badge/status-stable-2f855a)
+![Version](https://img.shields.io/badge/version-1.1.9--dev-0a4a7f)
+![Status](https://img.shields.io/badge/status-unreleased-d97706)
 ![Runtime](https://img.shields.io/badge/node-20%2B-43853d)
 ![Database](https://img.shields.io/badge/database-SQLite%20%7C%20PostgreSQL-315b7d)
 
 ## Product position
 
-AttendX is designed for a managed-service model: an operator deploys and maintains an isolated instance for an institution, configures its academic data, protects backups, and manages privileged access. Version 1.1.8 is single-institution per deployment. A shared multi-tenant control plane, billing, and institution self-provisioning are future product work and are not falsely represented as existing features.
+AttendX is designed for a managed-service model: an operator deploys and maintains an isolated instance for an institution, configures its academic data, protects backups, and manages privileged access. Version 1.1.9 supports multiple isolated class workspaces inside one institution deployment. A shared multi-tenant control plane, billing, and institution self-provisioning are future product work and are not falsely represented as existing features.
 
 Operational records, credentials, local policy, institution settings, subjects, timetables, and administrator accounts belong to each deployment and are not source-controlled. Replace the bundled presentation assets and labels when preparing a differently branded deployment.
 
@@ -23,9 +23,38 @@ Operational records, credentials, local policy, institution settings, subjects, 
 | `v1.1.6` | Previous release | Secure sessions, Admin++ controls, database visibility, self-healing permissions, reporting, and responsive operations. |
 | `v1.1.7` | Previous release | Recoverable live attendance, stronger privilege boundaries, safer token rotation, configurable permissions, validated timetables, and refined operational UX. |
 | `v1.1.8` | Current release | Student intelligence workspace, profiles, subject analytics, weighted Late credit, privacy-safe administration, and additional recovery hardening. |
-| `v1.2.0` | Planned | Faculty, programme/semester/section modelling, academic calendar, alerting, and service-management foundations. |
+| `v1.1.9` | Unreleased development | Database-backed class workspaces, faculty and mentor assignments, class-scoped rosters, subjects, timetables, attendance, and reports. |
+| `v1.2.0` | Planned | Academic calendar, alerting, programme templates, and service-management foundations. |
 
-The published [`v1.1.7` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.1.7) is the direct upgrade baseline for V1.1.8. The [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.0.0) remains the original stable baseline.
+The published [`v1.1.8` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.1.8) is the direct upgrade baseline for the unreleased V1.1.9 work. The [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.0.0) remains the original stable baseline.
+
+## V1.1.8 compared with V1.1.9
+
+| Area | V1.1.8 | V1.1.9 development |
+| --- | --- | --- |
+| Academic structure | One shared roster, timetable, and attendance workspace | Any number of database-defined classes with display name, code, course, specialization, semester, section, academic year, and batch |
+| Initial workspaces | No class catalogue | `ANASUYA BCA AI 3A.UG`, `3B.UG`, and `3C.UG`; existing operational data migrates safely to 3B |
+| Students | Globally unique roll numbers | Every student belongs to one class; roll numbers are unique inside that class and may repeat in another class |
+| Subjects | One global operational list | Global subject catalogue with explicit per-class assignments |
+| Timetable and attendance | Institution-wide | Strictly class-scoped schedules, sessions, marking, closure, history, analytics, and exports |
+| Staff access | CR, ADMIN, and ADMIN++ | New FACULTY role plus per-class Mentor, Faculty, and CR assignments |
+| Faculty authority | Not available | Operational management within assigned classes without global backup, database, user-role, or Admin++ authority |
+| Navigation | One fixed workspace | Persistent glass class selector and class-management workspace |
+| Data integrity | Global roll constraint | Composite class/roll constraint, class ownership enforcement, migration checks, and orphan detection |
+| Verification | 40 automated tests | 41 automated tests including faculty isolation and cross-class roll behavior |
+
+### Upgrade from V1.1.8
+
+```bash
+npm run backup
+git pull origin main
+npm install
+npm run config-check
+npm run doctor
+npm run dev
+```
+
+Migrations `008-academic-classes` and `009-class-ownership` run automatically. They preserve existing records, create the three initial section workspaces, move existing students, timetable entries, attendance sessions, CR access, and subject assignments into 3B, and replace the global roll-number constraint with a per-class constraint. Keep the pre-upgrade backup until class counts, timetables, and reports have been reviewed.
 
 ## V1.1.7 compared with V1.1.8
 
@@ -185,27 +214,44 @@ The additive `006-student-profile` and `007-late-attendance-credit` migrations r
 - Invalid stored attendance settings fall back to secure operational defaults instead of interrupting session creation.
 - Failed restore attempts clean staged uploads, recover the original SQLite file, and trigger a controlled API restart when required.
 
+### V1.1.9 — database-backed class workspaces (unreleased)
+
+- Class records contain display name, unique code, course, specialization, semester, section, academic year, batch, and active state.
+- Initial A, B, and C workspaces are database rows rather than hardcoded frontend choices.
+- Existing V1.1.8 students, timetable entries, sessions, subjects, and CR access migrate to `ANASUYA BCA AI 3B.UG` without recreating data.
+- Students, timetables, attendance sessions, dashboard totals, history, analytics, and exports are scoped to the active class.
+- Roll numbers are unique per class, allowing the same roll number in separate sections while rejecting duplicates inside one class.
+- The global subject catalogue supports explicit class assignment before a subject can appear in a timetable or attendance session.
+- FACULTY accounts can be assigned as a class Mentor or Faculty; CR accounts receive explicit per-class assignments.
+- Faculty can manage assigned-class rosters, imports, subjects, timetables, live attendance, corrections, reopening, and reports while remaining outside global Admin++ tools.
+- ADMIN accounts retain institution-wide visibility; Admin++ alone can archive classes and keeps existing destructive-security boundaries.
+- The glass class workspace supports creation, metadata editing, staff assignment/removal, mentor replacement, subject selection, and active-class switching.
+- Migrations enforce class ownership, preserve foreign keys, and safely replace the legacy global roll-number uniqueness constraint.
+- Data verification now reports class, staff, subject-link, orphan, and per-class duplicate-roll integrity.
+- Development startup waits for API health before launching the browser interface, preventing initial login requests from racing API initialization.
+
 ## Permission model
 
-| Capability | CR | ADMIN | ADMIN++ |
-| --- | :---: | :---: | :---: |
-| View dashboard, students, history, and reports | ✓ | ✓ | ✓ |
-| Open and close attendance sessions | ✓ | ✓ | ✓ |
-| Correct an active session where policy permits | ✓ | ✓ | ✓ |
-| Correct/reopen closed attendance with a reason | — | ✓ | ✓ |
-| Manage students, subjects, timetable, and settings | — | ✓ | ✓ |
-| Create users and reset CR passwords | — | ✓ | ✓ |
-| Enable/disable ordinary managed accounts | — | ✓ | ✓ |
-| View the redacted, read-only database browser | — | — | ✓ |
-| View, create, download, restore, or delete managed backups | — | — | ✓ |
-| Change an ordinary account between CR and ADMIN | — | — | ✓ |
-| Modify an Admin++ account | — | — | ✓ |
-| Inspect/revoke another user’s browser sessions | — | — | ✓ |
-| Permanently delete eligible users/students/subjects | — | — | ✓ |
-| Permanently delete closed attendance history with an audit snapshot | — | — | ✓ |
-| Permanently delete managed backup files with an audit entry | — | — | ✓ |
-| Enable or disable Late Mode for new sessions | — | — | ✓ |
-| Promote or revoke Admin++ | — | — | CLI only |
+| Capability | CR | FACULTY | ADMIN | ADMIN++ |
+| --- | :---: | :---: | :---: | :---: |
+| View assigned class dashboard, students, history, and reports | ✓ | ✓ | All classes | All classes |
+| Open and close attendance sessions | ✓ | ✓ | ✓ | ✓ |
+| Correct an active session where policy permits | ✓ | ✓ | ✓ | ✓ |
+| Correct/reopen closed attendance with a reason | — | Assigned classes | ✓ | ✓ |
+| Manage students, subjects, and timetable | — | Assigned classes | ✓ | ✓ |
+| Create and manage class workspaces | — | Assigned classes | ✓ | ✓ |
+| Archive a class workspace | — | — | — | ✓ |
+| Manage institution settings | — | — | ✓ | ✓ |
+| Create users and reset staff passwords | — | — | ✓ | ✓ |
+| Enable/disable ordinary managed accounts | — | — | ✓ | ✓ |
+| View the redacted, read-only database browser | — | — | — | ✓ |
+| View, create, download, restore, or delete managed backups | — | — | — | ✓ |
+| Change an ordinary account role | — | — | — | ✓ |
+| Modify an Admin++ account | — | — | — | CLI only |
+| Inspect/revoke another user’s browser sessions | — | — | — | ✓ |
+| Permanently delete protected records or attendance history | — | — | — | ✓ |
+| Enable or disable Late Mode for new sessions | — | — | — | ✓ |
+| Promote or revoke Admin++ | — | — | — | CLI only |
 
 The Admin++ database browser remains strictly read-only. Data changes go through validated API workflows so authorization, relationships, and audit rules cannot be bypassed.
 
@@ -305,7 +351,7 @@ npm run dev
 
 Each role has a complete independent permission matrix. Missing files are recreated, malformed files are preserved as timestamped `.broken-*` copies, and structurally invalid files are preserved as `.repaired-*` copies before normalization. Recovery artifacts are kept out of the active config root under `config/archive/broken/`, `config/archive/repaired/`, and `config/archive/replaced/`; older loose artifacts are migrated there automatically. Missing keys use secure defaults, unknown keys are removed, invalid types are replaced, and required permission dependencies are restored.
 
-Permanent deletion, database access, backup management, role changes, other-user session control, and Admin++ modification remain protected security boundaries. They cannot be granted to CR or ordinary ADMIN. Every Admin++ capability is forced on by the backend, while the Settings matrix may configure valid CR/ADMIN choices below their security ceilings. Self-disable, self-delete, last-active-Admin++, secret-redaction, elevation, and audit safeguards are enforced in code and are not YAML switches.
+Permanent deletion, database access, backup management, role changes, other-user session control, and Admin++ modification remain protected security boundaries. They cannot be granted to CR, FACULTY, or ordinary ADMIN. Every Admin++ capability is forced on by the backend, while the Settings matrix may configure valid CR/FACULTY/ADMIN choices below their security ceilings. Self-disable, self-delete, last-active-Admin++, secret-redaction, elevation, and audit safeguards are enforced in code and are not YAML switches.
 
 Secrets never belong in YAML. Keep JWT, database, SMTP, and provider credentials in environment variables.
 
@@ -451,9 +497,9 @@ Credited attendance percentage is `sum of attendance credit values / classes con
 - Audit logs can be downloaded as a human-readable `.txt` record from the Audit page.
 - Self-disable, self-delete, and last-active-Admin++ protections prevent avoidable lockout.
 
-## V1.1.8 verification
+## V1.1.9 verification
 
-- 40 automated tests cover attendance rules and recovery queues, weighted Late credit, student profiles and privacy, imports, exports, refresh races, authorization gates, backup retention, audit export, Admin++, role changes, timetable validation, destructive history controls, archive migration, filter validation, settings fallback, and self-healing configuration.
+- 41 automated tests cover attendance rules and recovery queues, weighted Late credit, student profiles and privacy, imports, exports, refresh races, authorization gates, backup retention, audit export, Admin++, faculty/class isolation, per-class roll numbers, role changes, timetable validation, destructive history controls, archive migration, filter validation, settings fallback, and self-healing configuration.
 - Production frontend compilation succeeds with Vite.
 - `npm run config-check` validates YAML parsing, structural repair, permission dependencies, and protected privilege ceilings.
 - `npm run verify-data` checks SQLite integrity, foreign keys, duplicate rolls, administrator availability, and record totals without modifying data.
@@ -482,4 +528,4 @@ Planned product work includes:
 
 ## Important scope statement
 
-V1.1.8 is suitable for controlled pilot evaluation and service-operated deployment after the final checklist passes. It is not yet a self-service multi-tenant SaaS platform. Each institution should receive an isolated deployment and database until tenant isolation, provisioning, billing, and operator tooling are deliberately implemented and independently reviewed.
+V1.1.9 remains unreleased development until class workflows receive browser-level acceptance testing. After the full checklist passes, it is suitable for controlled pilot evaluation and service-operated deployment. It is not yet a self-service multi-tenant SaaS platform; each institution should receive an isolated deployment and database until tenant isolation, provisioning, billing, and operator tooling are deliberately implemented and independently reviewed.

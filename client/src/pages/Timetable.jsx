@@ -4,6 +4,7 @@ import { api, messageOf } from "../api.js";
 import { Dialog } from "../components/Dialog.jsx";
 import { useToast } from "../state/ToastContext.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
+import { useClass } from "../state/ClassContext.jsx";
 const days = [
   "Monday",
   "Tuesday",
@@ -19,12 +20,14 @@ export function Timetable() {
     [edit, setEdit] = useState(null),
     [open, setOpen] = useState(false),
     toast = useToast(),
-    { can } = useAuth();
+    { can } = useAuth(),
+    { classId, selectedClass } = useClass();
   const load = async () => {
+    if (!classId) return;
     try {
       const [r, s] = await Promise.all([
-        api.get("/admin/timetable"),
-        api.get("/admin/subjects"),
+        api.get("/admin/timetable", { params: { classId } }),
+        api.get("/admin/subjects", { params: { classId } }),
       ]);
       setRows(r.data);
       setSubjects(s.data.filter((x) => x.active));
@@ -34,12 +37,13 @@ export function Timetable() {
   };
   useEffect(() => {
     load();
-  }, []);
+  }, [classId]);
   const save = async (e) => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.currentTarget)),
       data = {
         ...f,
+        classId,
         dayOfWeek: Number(f.dayOfWeek),
         subjectId: Number(f.subjectId),
         faculty: f.faculty || null,
@@ -73,7 +77,7 @@ export function Timetable() {
         <div>
           <span className="eyebrow">WEEKLY ROUTINE</span>
           <h1>Timetable</h1>
-          <p>Editable schedule used only as a smart suggestion.</p>
+          <p>{selectedClass?.displayName} · editable weekly schedule.</p>
         </div>
         {can("timetable.manage") && (
           <button className="primary" onClick={() => setOpen(true)}>

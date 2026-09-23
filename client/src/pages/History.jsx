@@ -12,6 +12,7 @@ import { useToast } from "../state/ToastContext.jsx";
 import { downloadAttendanceExport } from "../utils/download.js";
 import { useAuth } from "../state/AuthContext.jsx";
 import { Dialog } from "../components/Dialog.jsx";
+import { useClass } from "../state/ClassContext.jsx";
 export function History() {
   const [rows, setRows] = useState([]),
     [subjects, setSubjects] = useState([]),
@@ -20,13 +21,16 @@ export function History() {
     [deleting, setDeleting] = useState(false),
     toast = useToast(),
     nav = useNavigate(),
-    { can } = useAuth();
+    { can } = useAuth(),
+    { classId, selectedClass } = useClass();
   const load = async (params = {}) => {
+    if (!classId) return;
+    const scopedParams = { ...params, classId };
     try {
       const [r, s] = await Promise.all([
-        api.get("/attendance/sessions", { params }),
+        api.get("/attendance/sessions", { params: scopedParams }),
         can("subjects.view")
-          ? api.get("/admin/subjects")
+          ? api.get("/admin/subjects", { params: { classId } })
           : Promise.resolve({ data: [] }),
       ]);
       setRows(r.data);
@@ -37,7 +41,7 @@ export function History() {
   };
   useEffect(() => {
     load();
-  }, []);
+  }, [classId]);
   const filter = (e) => {
     e.preventDefault();
     const nextFilters = Object.fromEntries(new FormData(e.currentTarget));
@@ -71,9 +75,12 @@ export function History() {
     }
   };
   const exportRange = async (e, review) => {
-    const params = Object.fromEntries(
+    const params = {
+      ...Object.fromEntries(
       new FormData(e.currentTarget.closest("form")),
-    );
+      ),
+      classId,
+    };
     try {
       const filename = await downloadAttendanceExport({ review, params });
       toast(
@@ -89,7 +96,7 @@ export function History() {
         <div>
           <span className="eyebrow">REPORTING</span>
           <h1>Attendance history</h1>
-          <p>Recorded sessions, summaries and exports.</p>
+          <p>{selectedClass?.displayName} · recorded sessions, summaries and exports.</p>
         </div>
       </div>
       <form className="filter-bar" onSubmit={filter}>

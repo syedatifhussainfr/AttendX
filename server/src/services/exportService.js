@@ -16,7 +16,10 @@ const MAX_EXPORT_RECORDS = 50_000;
 const MAX_REVIEW_SESSIONS = 250;
 const MAX_REVIEW_SUBJECTS = 200;
 
-function sessionWhere({ sessionId, from, to, subjectId }, closedOnly = false) {
+function sessionWhere(
+  { sessionId, from, to, subjectId, classId },
+  closedOnly = false,
+) {
   const where = {};
   if (sessionId) where.id = sessionId;
   if (from || to)
@@ -25,6 +28,7 @@ function sessionWhere({ sessionId, from, to, subjectId }, closedOnly = false) {
       ...(to && { [Op.lte]: to }),
     };
   if (subjectId) where.SubjectId = subjectId;
+  if (classId) where.AcademicClassId = classId;
   if (closedOnly) where.status = "CLOSED";
   return where;
 }
@@ -234,7 +238,12 @@ export async function buildAttendanceReviewWorkbook(filters) {
   const [sessions, activeStudents] = await Promise.all([
     loadSessions(filters, true),
     Student.findAll({
-      where: filters.studentId ? { id: filters.studentId } : { active: true },
+      where: filters.studentId
+        ? { id: filters.studentId }
+        : {
+            active: true,
+            ...(filters.classId && { AcademicClassId: filters.classId }),
+          },
       order: [["id", "ASC"]],
     }),
   ]);

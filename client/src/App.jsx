@@ -20,6 +20,7 @@ const StudentProfile = lazyNamed(
   "StudentProfile",
 );
 const Subjects = lazyNamed(() => import("./pages/Subjects.jsx"), "Subjects");
+const Classes = lazyNamed(() => import("./pages/Classes.jsx"), "Classes");
 const Timetable = lazyNamed(() => import("./pages/Timetable.jsx"), "Timetable");
 const UsersPage = lazyNamed(() => import("./pages/Users.jsx"), "UsersPage");
 const Audit = lazyNamed(() => import("./pages/Audit.jsx"), "Audit");
@@ -214,6 +215,16 @@ export function App() {
               <Deferred>
                 <StudentProfile />
               </Deferred>
+            }
+          />
+          <Route
+            path="classes"
+            element={
+              <Protected permission="classes.view">
+                <Deferred>
+                  <Classes />
+                </Deferred>
+              </Protected>
             }
           />
           <Route

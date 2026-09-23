@@ -7,7 +7,10 @@ import {
 
 const cleanText = (value) => (typeof value === "string" ? value.trim() : "");
 
-export async function reconcileStudentRows(rawRows, { transaction } = {}) {
+export async function reconcileStudentRows(
+  rawRows,
+  { transaction, classId } = {},
+) {
   const prepared = rawRows.map((raw, index) => {
     const rollNumber = normalizeRollNumber(cleanText(raw.rollNumber));
     const name = cleanText(raw.name);
@@ -41,7 +44,10 @@ export async function reconcileStudentRows(rawRows, { transaction } = {}) {
   const validRows = prepared.filter(
     (row) => !row.errors.length && !duplicateSet.has(row.rollNumber),
   );
-  const existing = await Student.findAll({ transaction });
+  const existing = await Student.findAll({
+    where: classId ? { AcademicClassId: classId } : {},
+    transaction,
+  });
   const byRoll = new Map(
     existing.map((student) => [student.rollNumber, student]),
   );
@@ -99,9 +105,17 @@ export async function reconcileStudentRows(rawRows, { transaction } = {}) {
   };
 }
 
-export async function applyStudentImport({ rawRows, missingAction, userId }) {
+export async function applyStudentImport({
+  rawRows,
+  missingAction,
+  userId,
+  classId,
+}) {
   return sequelize.transaction(async (transaction) => {
-    const review = await reconcileStudentRows(rawRows, { transaction });
+    const review = await reconcileStudentRows(rawRows, {
+      transaction,
+      classId,
+    });
     if (!review.canApply) {
       const error = new Error(
         "Resolve duplicate or invalid CSV rows before importing.",
@@ -113,7 +127,12 @@ export async function applyStudentImport({ rawRows, missingAction, userId }) {
 
     for (const item of review.newStudents) {
       const student = await Student.create(
-        { rollNumber: item.rollNumber, name: item.name, active: true },
+        {
+          rollNumber: item.rollNumber,
+          name: item.name,
+          active: true,
+          ...(classId && { AcademicClassId: classId }),
+        },
         { transaction },
       );
       await AuditLog.create(

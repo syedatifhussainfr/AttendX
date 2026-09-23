@@ -356,8 +356,8 @@ export function SettingsPage() {
               <span className="eyebrow">CONFIG.YML</span>
               <h2>Permission policy</h2>
               <p>
-                Configure ADMIN and CR access. ADMIN++ is CLI-controlled and
-                permanently retains every capability.
+                Configure CR, FACULTY, and ADMIN access. ADMIN++ is
+                CLI-controlled and permanently retains every capability.
               </p>
             </div>
           </div>
@@ -389,6 +389,7 @@ export function SettingsPage() {
                     <tr>
                       <th>Capability</th>
                       <th>CR</th>
+                      <th>FACULTY</th>
                       <th>ADMIN</th>
                       <th>ADMIN++</th>
                     </tr>
@@ -397,12 +398,12 @@ export function SettingsPage() {
                     {Object.entries(policy.permissions.ADMIN_PLUS).flatMap(
                       ([area, permissions]) => [
                         <tr className="permission-area" key={`${area}-heading`}>
-                          <td colSpan="4">{area.replace(/([A-Z])/g, " $1")}</td>
+                          <td colSpan="5">{area.replace(/([A-Z])/g, " $1")}</td>
                         </tr>,
                         ...Object.keys(permissions).map((permission) => (
                           <tr key={`${area}.${permission}`}>
                             <td>{permission.replace(/([A-Z])/g, " $1")}</td>
-                            {["CR", "ADMIN", "ADMIN_PLUS"].map((role) => (
+                            {["CR", "FACULTY", "ADMIN", "ADMIN_PLUS"].map((role) => (
                               <td key={role}>
                                 <input
                                   type="checkbox"

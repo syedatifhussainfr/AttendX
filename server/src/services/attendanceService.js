@@ -96,7 +96,15 @@ export async function markAttendance({
     }
     const student = studentId
       ? await Student.findByPk(studentId, { transaction })
-      : await Student.findOne({ where: { rollNumber }, transaction });
+      : await Student.findOne({
+          where: {
+            rollNumber,
+            ...(session.AcademicClassId && {
+              AcademicClassId: session.AcademicClassId,
+            }),
+          },
+          transaction,
+        });
     if (!student || (!student.active && !allowCorrection)) {
       const error = new Error("Active student not found for that roll number.");
       error.status = 404;
@@ -121,6 +129,15 @@ export async function markAttendance({
       );
       error.status = 409;
       error.code = "LATE_MODE_DISABLED";
+      throw error;
+    }
+    if (
+      session.AcademicClassId &&
+      student.AcademicClassId !== session.AcademicClassId
+    ) {
+      const error = new Error("Student does not belong to this class.");
+      error.status = 409;
+      error.code = "STUDENT_CLASS_MISMATCH";
       throw error;
     }
     if (existing && !allowCorrection) {
@@ -215,6 +232,15 @@ export async function setLiveAttendanceSelection({
     if (!student || !student.active) {
       const error = new Error("Active student not found.");
       error.status = 404;
+      throw error;
+    }
+    if (
+      session.AcademicClassId &&
+      student.AcademicClassId !== session.AcademicClassId
+    ) {
+      const error = new Error("Student does not belong to this class.");
+      error.status = 409;
+      error.code = "STUDENT_CLASS_MISMATCH";
       throw error;
     }
     const existing = await AttendanceRecord.findOne({
@@ -382,7 +408,12 @@ export async function closeSession({ sessionId, userId, now = new Date() }) {
       throw error;
     }
     const students = await Student.findAll({
-      where: { active: true },
+      where: {
+        active: true,
+        ...(session.AcademicClassId && {
+          AcademicClassId: session.AcademicClassId,
+        }),
+      },
       transaction,
     });
     const marked = await AttendanceRecord.findAll({

@@ -1,7 +1,15 @@
-export const POLICY_VERSION = 1;
+export const POLICY_VERSION = 2;
 
 const crPermissions = {
   dashboard: { view: true },
+  classes: {
+    view: true,
+    create: false,
+    manage: false,
+    assignStaff: false,
+    assignSubjects: false,
+    archive: false,
+  },
   attendance: {
     view: true,
     open: true,
@@ -59,6 +67,12 @@ function rolePermissions(base, overrides) {
 }
 
 const adminPermissions = rolePermissions(crPermissions, {
+  classes: {
+    create: true,
+    manage: true,
+    assignStaff: true,
+    assignSubjects: true,
+  },
   attendance: { correctClosed: true, reopen: true },
   students: { create: true, update: true, import: true },
   subjects: { manage: true },
@@ -75,7 +89,21 @@ const adminPermissions = rolePermissions(crPermissions, {
   backups: { view: false, create: false, download: false, restore: false },
 });
 
+const facultyPermissions = rolePermissions(crPermissions, {
+  classes: {
+    create: true,
+    manage: true,
+    assignStaff: true,
+    assignSubjects: true,
+  },
+  attendance: { correctClosed: true, reopen: true },
+  students: { create: true, update: true, import: true },
+  subjects: { manage: true },
+  timetable: { manage: true },
+});
+
 const adminPlusPermissions = rolePermissions(adminPermissions, {
+  classes: { archive: true },
   attendance: { delete: true },
   students: { delete: true },
   subjects: { delete: true },
@@ -100,6 +128,7 @@ export const defaultPolicy = {
   version: POLICY_VERSION,
   permissions: {
     CR: crPermissions,
+    FACULTY: facultyPermissions,
     ADMIN: adminPermissions,
     ADMIN_PLUS: adminPlusPermissions,
   },
@@ -108,27 +137,37 @@ export const defaultPolicy = {
 // Privilege ceilings: protected permissions may be disabled, but cannot be
 // granted to a lower-trust role.
 export const protectedPermissions = {
-  "attendance.delete": { CR: false, ADMIN: false },
-  "students.delete": { CR: false, ADMIN: false },
-  "subjects.delete": { CR: false, ADMIN: false },
-  "users.create": { CR: false },
-  "users.update": { CR: false },
-  "users.resetCrPassword": { CR: false },
-  "users.delete": { CR: false, ADMIN: false },
-  "users.manageSessions": { CR: false, ADMIN: false },
-  "users.modifyAdminPlus": { CR: false, ADMIN: false },
-  "backups.delete": { CR: false, ADMIN: false },
-  "settings.manageLateMode": { CR: false, ADMIN: false },
-  "settings.managePermissions": { CR: false, ADMIN: false },
-  "users.changeRole": { CR: false, ADMIN: false },
-  "database.view": { CR: false, ADMIN: false },
-  "backups.view": { CR: false, ADMIN: false },
-  "backups.create": { CR: false, ADMIN: false },
-  "backups.download": { CR: false, ADMIN: false },
-  "backups.restore": { CR: false, ADMIN: false },
+  "classes.create": { CR: false },
+  "classes.manage": { CR: false },
+  "classes.assignStaff": { CR: false },
+  "classes.assignSubjects": { CR: false },
+  "classes.archive": { CR: false, FACULTY: false, ADMIN: false },
+  "attendance.delete": { CR: false, FACULTY: false, ADMIN: false },
+  "students.delete": { CR: false, FACULTY: false, ADMIN: false },
+  "subjects.delete": { CR: false, FACULTY: false, ADMIN: false },
+  "users.create": { CR: false, FACULTY: false },
+  "users.update": { CR: false, FACULTY: false },
+  "users.resetCrPassword": { CR: false, FACULTY: false },
+  "users.delete": { CR: false, FACULTY: false, ADMIN: false },
+  "users.manageSessions": { CR: false, FACULTY: false, ADMIN: false },
+  "users.modifyAdminPlus": { CR: false, FACULTY: false, ADMIN: false },
+  "backups.delete": { CR: false, FACULTY: false, ADMIN: false },
+  "settings.manageLateMode": { CR: false, FACULTY: false, ADMIN: false },
+  "settings.managePermissions": { CR: false, FACULTY: false, ADMIN: false },
+  "users.changeRole": { CR: false, FACULTY: false, ADMIN: false },
+  "database.view": { CR: false, FACULTY: false, ADMIN: false },
+  "backups.view": { CR: false, FACULTY: false, ADMIN: false },
+  "backups.create": { CR: false, FACULTY: false, ADMIN: false },
+  "backups.download": { CR: false, FACULTY: false, ADMIN: false },
+  "backups.restore": { CR: false, FACULTY: false, ADMIN: false },
 };
 
 export const permissionDependencies = {
+  "classes.create": ["classes.view"],
+  "classes.manage": ["classes.view"],
+  "classes.assignStaff": ["classes.view"],
+  "classes.assignSubjects": ["classes.view", "subjects.view"],
+  "classes.archive": ["classes.view"],
   "attendance.open": ["attendance.view", "subjects.view"],
   "attendance.mark": ["attendance.view"],
   "attendance.close": ["attendance.view"],

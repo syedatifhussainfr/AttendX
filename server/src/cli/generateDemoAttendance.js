@@ -2,7 +2,9 @@ import { DateTime } from "luxon";
 import {
   AttendanceRecord,
   AttendanceSession,
+  AcademicClass,
   AuditLog,
+  ClassSubject,
   Student,
   Subject,
   User,
@@ -13,6 +15,9 @@ import { config } from "../config.js";
 
 const DEMO_REASON = "AttendX generated demo attendance";
 const requestedSessions = Number.parseInt(process.argv[2] || "12", 10);
+const requestedClassCode = String(
+  process.argv[3] || "ANASUYA-BCA-AI-3B-UG",
+).toUpperCase();
 
 if (
   !Number.isInteger(requestedSessions) ||
@@ -64,9 +69,21 @@ function markedTime(date, status, studentId, sessionIndex) {
 
 try {
   await initDatabase();
+  const academicClass = await AcademicClass.findOne({
+    where: { code: requestedClassCode, active: true },
+  });
+  if (!academicClass)
+    throw new Error(`Active class ${requestedClassCode} was not found.`);
   const [students, subjects, user, existingDemoSessions] = await Promise.all([
-    Student.findAll({ where: { active: true }, order: [["id", "ASC"]] }),
-    Subject.findAll({ where: { active: true }, order: [["id", "ASC"]] }),
+    Student.findAll({
+      where: { active: true, AcademicClassId: academicClass.id },
+      order: [["id", "ASC"]],
+    }),
+    ClassSubject.findAll({
+      where: { active: true, AcademicClassId: academicClass.id },
+      include: [{ model: Subject, where: { active: true } }],
+      order: [[Subject, "name", "ASC"]],
+    }).then((rows) => rows.map((row) => row.Subject)),
     User.findOne({
       where: { active: true },
       order: [
@@ -74,7 +91,9 @@ try {
         ["id", "ASC"],
       ],
     }),
-    AttendanceSession.count({ where: { reason: DEMO_REASON } }),
+    AttendanceSession.count({
+      where: { reason: DEMO_REASON, AcademicClassId: academicClass.id },
+    }),
   ]);
 
   if (!students.length)
@@ -107,6 +126,7 @@ try {
       const session = await AttendanceSession.create(
         {
           SubjectId: subject.id,
+          AcademicClassId: academicClass.id,
           sessionDate: date.toISODate(),
           scheduledStartTime: "10:00",
           scheduledEndTime: "11:00",
@@ -153,6 +173,8 @@ try {
           students: students.length,
           records: requestedSessions * students.length,
           totals,
+          classId: academicClass.id,
+          classCode: academicClass.code,
         }),
         reason: "Temporary analytics and student-history testing",
         UserId: user.id,
@@ -161,7 +183,9 @@ try {
     );
   });
 
-  console.log(`Generated ${requestedSessions} closed attendance sessions.`);
+  console.log(
+    `Generated ${requestedSessions} closed attendance sessions for ${academicClass.displayName}.`,
+  );
   console.log(
     `Used ${students.length} existing students and ${subjects.length} active subjects.`,
   );

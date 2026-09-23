@@ -6,7 +6,6 @@ import {
   Database,
   DatabaseBackup,
   ClipboardCheck,
-  Clock3,
   FileClock,
   GraduationCap,
   LayoutDashboard,
@@ -16,6 +15,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
+  School,
   ShieldCheck,
   Users,
   X,
@@ -23,6 +23,7 @@ import {
 import { useEffect, useState } from "react";
 import { useAuth } from "../state/AuthContext.jsx";
 import { Dialog } from "./Dialog.jsx";
+import { useClass } from "../state/ClassContext.jsx";
 const baseLinks = [
   ["/", "Overview", LayoutDashboard, "dashboard.view"],
   ["/history", "Attendance history", FileClock, "attendance.view"],
@@ -30,7 +31,8 @@ const baseLinks = [
   ["/change-password", "Change password", KeyRound, null],
 ];
 const adminLinks = [
-  ["/users", "Users & CR access", Users, "users.view"],
+  ["/classes", "Classes", School, "classes.view"],
+  ["/users", "Users & staff", Users, "users.view"],
   ["/database", "Database", Database, "database.view"],
   ["/subjects", "Subjects", BookOpen, "subjects.view"],
   ["/timetable", "Timetable", CalendarDays, "timetable.view"],
@@ -45,6 +47,7 @@ const clampSidebarWidth = (value) =>
 
 export function Layout() {
   const { user, logout, can } = useAuth(),
+    { classes, selectedClass, selectClass } = useClass(),
     navigate = useNavigate(),
     [open, setOpen] = useState(false),
     [passwordPrompt, setPasswordPrompt] = useState(false),
@@ -247,12 +250,35 @@ export function Layout() {
             >
               {sidebarVisible ? <PanelLeftClose /> : <PanelLeftOpen />}
             </button>
-            <div>
-              <small>SEMESTER I · 2026–27</small>
-              <strong>
-                <Clock3 /> Asia/Kolkata
-              </strong>
-            </div>
+            <label className="class-switcher">
+              <small>ACTIVE CLASS</small>
+              <select
+                value={selectedClass?.id || ""}
+                onChange={(event) => selectClass(event.target.value)}
+                aria-label="Choose active class"
+              >
+                {!classes.length && <option value="">No assigned class</option>}
+                {classes
+                  .filter((item) => item.active)
+                  .map((item) => (
+                    <option value={item.id} key={item.id}>
+                      {item.displayName}
+                    </option>
+                  ))}
+              </select>
+              <span>
+                {selectedClass
+                  ? [
+                      selectedClass.course,
+                      selectedClass.specialization,
+                      selectedClass.semester && `Sem ${selectedClass.semester}`,
+                      selectedClass.academicYear,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
+                  : "Assignment required"}
+              </span>
+            </label>
           </div>
           <span className="role-pill">
             <ShieldCheck />

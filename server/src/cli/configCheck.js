@@ -10,7 +10,7 @@ const color = (code, value) =>
 const ok = (value) => color("1;32", value);
 const info = (value) => color("1;36", value);
 
-console.log(`\n${info("AttendX V1.1.8 · Configuration check")}`);
+console.log(`\n${info("AttendX V1.1.9 · Configuration check")}`);
 console.log("─".repeat(54));
 console.log(`  Policy version             ${permissionPolicy.version}`);
 console.log(`  YAML parsing               ${ok("PASS")}`);
@@ -18,6 +18,9 @@ console.log(`  Structure repair           ${ok("PASS")}`);
 console.log(`  Protected boundaries       ${ok("PASS")}`);
 console.log(
   `  CR permissions             ${permissionsForUser({ role: "CR" }).length}`,
+);
+console.log(
+  `  FACULTY permissions        ${permissionsForUser({ role: "FACULTY" }).length}`,
 );
 console.log(
   `  ADMIN permissions          ${permissionsForUser({ role: "ADMIN", adminPlus: false }).length}`,

@@ -131,6 +131,7 @@ function publicStudent(student, { sensitive = false } = {}) {
     photoUrl: value.photoUrl || null,
     createdAt: value.createdAt,
     updatedAt: value.updatedAt,
+    academicClassId: value.AcademicClassId || null,
   };
   if (sensitive)
     Object.assign(publicValue, {
@@ -174,8 +175,14 @@ async function closedRecords(studentIds) {
   });
 }
 
-export async function studentDirectory({ q = "", sensitive = false } = {}) {
-  const students = await Student.findAll();
+export async function studentDirectory({
+  q = "",
+  sensitive = false,
+  classId,
+} = {}) {
+  const students = await Student.findAll({
+    where: classId ? { AcademicClassId: classId } : {},
+  });
   students.sort(compareRollNumbers);
   const [records, target] = await Promise.all([
     closedRecords(students.map((student) => student.id)),

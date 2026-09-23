@@ -4,6 +4,7 @@ import { api, messageOf, setAdminElevation } from "../api.js";
 import { Dialog } from "../components/Dialog.jsx";
 import { useToast } from "../state/ToastContext.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
+import { useClass } from "../state/ClassContext.jsx";
 export function Subjects() {
   const [rows, setRows] = useState([]),
     [edit, setEdit] = useState(null),
@@ -11,15 +12,16 @@ export function Subjects() {
     [deleteSubject, setDeleteSubject] = useState(null),
     [deleting, setDeleting] = useState(false),
     toast = useToast(),
-    { can } = useAuth();
+    { can } = useAuth(),
+    { classId, selectedClass } = useClass();
   const load = () =>
     api
-      .get("/admin/subjects")
+      .get("/admin/subjects", { params: { classId } })
       .then((r) => setRows(r.data))
       .catch((e) => toast(messageOf(e), "error"));
   useEffect(() => {
     load();
-  }, []);
+  }, [classId]);
   const save = async (e) => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.currentTarget));
@@ -29,7 +31,7 @@ export function Subjects() {
             ...f,
             active: f.active === "true",
           })
-        : await api.post("/admin/subjects", f);
+        : await api.post("/admin/subjects", { ...f, classId });
       toast("Subject saved.");
       setEdit(null);
       setAdding(false);
@@ -61,7 +63,7 @@ export function Subjects() {
         <div>
           <span className="eyebrow">ACADEMIC CONFIGURATION</span>
           <h1>Subjects</h1>
-          <p>Subjects available for scheduled and replacement lectures.</p>
+          <p>Subjects assigned to {selectedClass?.displayName || "the active class"}.</p>
         </div>
         {can("subjects.manage") && (
           <button className="primary" onClick={() => setAdding(true)}>

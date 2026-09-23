@@ -20,6 +20,9 @@ import {
   AttendanceRecord,
   AppMigration,
   AuthSession,
+  AcademicClass,
+  ClassAssignment,
+  ClassSubject,
 } from "../db/index.js";
 import { normalizeRollNumber } from "../utils/rollNumber.js";
 import {
@@ -47,13 +50,310 @@ import {
   studentDirectory,
   studentProfile,
 } from "../services/studentService.js";
+import {
+  assertClassAccess,
+  classDirectory,
+  isInstitutionAdmin,
+  resolveClassId,
+} from "../services/classService.js";
 
 const router = Router();
 router.use(requireAuth);
+const classFields = {
+  displayName: z.string().trim().min(3).max(160),
+  code: z
+    .string()
+    .trim()
+    .min(2)
+    .max(80)
+    .regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/),
+  course: z.string().trim().min(2).max(100),
+  specialization: z.string().trim().max(120).nullable().optional(),
+  semester: z.string().trim().max(30).nullable().optional(),
+  section: z.string().trim().max(30).nullable().optional(),
+  academicYear: z.string().trim().max(30).nullable().optional(),
+  batch: z.string().trim().max(50).nullable().optional(),
+};
+
+router.get("/classes", requirePermission("classes.view"), async (req, res) => {
+  res.setHeader("Cache-Control", "private, no-store");
+  res.json(await classDirectory(req.user));
+});
+
+router.post(
+  "/classes",
+  requirePermission("classes.create"),
+  async (req, res) => {
+    if (!isInstitutionAdmin(req.user) && req.user.role !== "FACULTY")
+      return res.status(403).json({ message: "Faculty access is required." });
+    const data = z.object(classFields).parse(req.body);
+    data.code = data.code.toUpperCase();
+    const created = await sequelize.transaction(async (transaction) => {
+      const academicClass = await AcademicClass.create(data, { transaction });
+      if (req.user.role === "FACULTY")
+        await ClassAssignment.create(
+          {
+            AcademicClassId: academicClass.id,
+            UserId: req.user.id,
+            assignmentRole: "MENTOR",
+          },
+          { transaction },
+        );
+      await AuditLog.create(
+        {
+          entityType: "ACADEMIC_CLASS",
+          entityId: academicClass.id,
+          action: "CLASS_CREATED",
+          newValue: JSON.stringify(academicClass.toJSON()),
+          UserId: req.user.id,
+        },
+        { transaction },
+      );
+      return academicClass;
+    });
+    res.status(201).json(created);
+  },
+);
+
+router.patch(
+  "/classes/:id",
+  requirePermission("classes.manage"),
+  async (req, res) => {
+    const academicClass = await assertClassAccess(req.user, req.params.id, {
+      manage: true,
+    });
+    const data = z
+      .object({
+        ...Object.fromEntries(
+          Object.entries(classFields).map(([key, schema]) => [
+            key,
+            schema.optional(),
+          ]),
+        ),
+        active: z.boolean().optional(),
+      })
+      .parse(req.body);
+    if (data.active === false && !hasPermission(req.user, "classes.archive"))
+      return res.status(403).json({
+        code: "ADMIN_PLUS_REQUIRED",
+        message: "Only Admin++ can archive a class.",
+      });
+    if (data.code) data.code = data.code.toUpperCase();
+    const before = academicClass.toJSON();
+    await sequelize.transaction(async (transaction) => {
+      await academicClass.update(data, { transaction });
+      await AuditLog.create(
+        {
+          entityType: "ACADEMIC_CLASS",
+          entityId: academicClass.id,
+          action: data.active === false ? "CLASS_ARCHIVED" : "CLASS_UPDATED",
+          oldValue: JSON.stringify(before),
+          newValue: JSON.stringify(academicClass.toJSON()),
+          UserId: req.user.id,
+        },
+        { transaction },
+      );
+    });
+    res.json(academicClass);
+  },
+);
+
+router.get(
+  "/classes/:id/staff-options",
+  requirePermission("classes.assignStaff"),
+  async (req, res) => {
+    await assertClassAccess(req.user, req.params.id, { manage: true });
+    res.json(
+      await User.findAll({
+        where: { active: true, role: { [Op.in]: ["FACULTY", "CR"] } },
+        attributes: ["id", "name", "email", "role"],
+        order: [["name", "ASC"]],
+      }),
+    );
+  },
+);
+
+router.put(
+  "/classes/:id/assignments/:userId",
+  requirePermission("classes.assignStaff"),
+  async (req, res) => {
+    const academicClass = await assertClassAccess(req.user, req.params.id, {
+      manage: true,
+    });
+    const { assignmentRole } = z
+      .object({ assignmentRole: z.enum(["MENTOR", "FACULTY", "CR"]) })
+      .parse(req.body);
+    const user = await User.findByPk(req.params.userId);
+    if (!user || !user.active)
+      return res
+        .status(404)
+        .json({ message: "Active staff account not found." });
+    if (assignmentRole === "CR" ? user.role !== "CR" : user.role !== "FACULTY")
+      return res.status(400).json({
+        message:
+          assignmentRole === "CR"
+            ? "Choose a CR account."
+            : "Choose a FACULTY account.",
+      });
+    await sequelize.transaction(async (transaction) => {
+      if (assignmentRole === "MENTOR")
+        await ClassAssignment.destroy({
+          where: {
+            AcademicClassId: academicClass.id,
+            assignmentRole: "MENTOR",
+          },
+          transaction,
+        });
+      const [assignment] = await ClassAssignment.findOrCreate({
+        where: { AcademicClassId: academicClass.id, UserId: user.id },
+        defaults: { assignmentRole },
+        transaction,
+      });
+      if (assignment.assignmentRole !== assignmentRole)
+        await assignment.update({ assignmentRole }, { transaction });
+      await AuditLog.create(
+        {
+          entityType: "ACADEMIC_CLASS",
+          entityId: academicClass.id,
+          action: "CLASS_STAFF_ASSIGNED",
+          newValue: JSON.stringify({ userId: user.id, assignmentRole }),
+          UserId: req.user.id,
+        },
+        { transaction },
+      );
+    });
+    res.json({ message: "Class assignment saved." });
+  },
+);
+
+router.delete(
+  "/classes/:id/assignments/:userId",
+  requirePermission("classes.assignStaff"),
+  async (req, res) => {
+    const academicClass = await assertClassAccess(req.user, req.params.id, {
+      manage: true,
+    });
+    if (
+      Number(req.params.userId) === req.user.id &&
+      !isInstitutionAdmin(req.user)
+    )
+      return res.status(409).json({
+        message: "You cannot remove your own class access.",
+      });
+    const assignment = await ClassAssignment.findOne({
+      where: {
+        AcademicClassId: academicClass.id,
+        UserId: Number(req.params.userId),
+      },
+    });
+    if (!assignment)
+      return res.status(404).json({ message: "Class assignment not found." });
+    await sequelize.transaction(async (transaction) => {
+      await assignment.destroy({ transaction });
+      await AuditLog.create(
+        {
+          entityType: "ACADEMIC_CLASS",
+          entityId: academicClass.id,
+          action: "CLASS_STAFF_REMOVED",
+          oldValue: JSON.stringify({
+            userId: assignment.UserId,
+            assignmentRole: assignment.assignmentRole,
+          }),
+          UserId: req.user.id,
+        },
+        { transaction },
+      );
+    });
+    res.status(204).end();
+  },
+);
+
+router.put(
+  "/classes/:id/subjects/:subjectId",
+  requirePermission("classes.assignSubjects"),
+  async (req, res) => {
+    const academicClass = await assertClassAccess(req.user, req.params.id, {
+      manage: true,
+    });
+    const subject = await Subject.findByPk(req.params.subjectId);
+    if (!subject)
+      return res.status(404).json({ message: "Subject not found." });
+    await sequelize.transaction(async (transaction) => {
+      const [assignment] = await ClassSubject.findOrCreate({
+        where: { AcademicClassId: academicClass.id, SubjectId: subject.id },
+        defaults: { active: true },
+        transaction,
+      });
+      if (!assignment.active)
+        await assignment.update({ active: true }, { transaction });
+      await AuditLog.create(
+        {
+          entityType: "ACADEMIC_CLASS",
+          entityId: academicClass.id,
+          action: "CLASS_SUBJECT_ASSIGNED",
+          newValue: JSON.stringify({
+            subjectId: subject.id,
+            subjectCode: subject.code,
+          }),
+          UserId: req.user.id,
+        },
+        { transaction },
+      );
+    });
+    res.json({ message: "Subject added to class." });
+  },
+);
+
+router.delete(
+  "/classes/:id/subjects/:subjectId",
+  requirePermission("classes.assignSubjects"),
+  async (req, res) => {
+    const academicClass = await assertClassAccess(req.user, req.params.id, {
+      manage: true,
+    });
+    const used = await Timetable.count({
+      where: {
+        AcademicClassId: academicClass.id,
+        SubjectId: Number(req.params.subjectId),
+        active: true,
+      },
+    });
+    if (used)
+      return res.status(409).json({
+        message: "Remove this subject from the active timetable first.",
+      });
+    await sequelize.transaction(async (transaction) => {
+      await ClassSubject.update(
+        { active: false },
+        {
+          where: {
+            AcademicClassId: academicClass.id,
+            SubjectId: Number(req.params.subjectId),
+          },
+          transaction,
+        },
+      );
+      await AuditLog.create(
+        {
+          entityType: "ACADEMIC_CLASS",
+          entityId: academicClass.id,
+          action: "CLASS_SUBJECT_REMOVED",
+          oldValue: JSON.stringify({
+            subjectId: Number(req.params.subjectId),
+          }),
+          UserId: req.user.id,
+        },
+        { transaction },
+      );
+    });
+    res.status(204).end();
+  },
+);
 router.get(
   "/students",
   requirePermission("students.view"),
   async (req, res) => {
+    const classId = await resolveClassId(req.user, req.query.classId);
     const q = z
       .string()
       .trim()
@@ -61,7 +361,11 @@ router.get(
       .catch("")
       .parse(req.query.q || "");
     res.json(
-      await studentDirectory({ q, sensitive: req.user.role === "ADMIN" }),
+      await studentDirectory({
+        q,
+        classId,
+        sensitive: req.user.role !== "CR",
+      }),
     );
   },
 );
@@ -69,8 +373,12 @@ router.get(
   "/students/:id/profile",
   requirePermission("students.view"),
   async (req, res) => {
+    const student = await Student.findByPk(req.params.id);
+    if (!student)
+      return res.status(404).json({ message: "Student not found." });
+    await assertClassAccess(req.user, student.AcademicClassId);
     const profile = await studentProfile(req.params.id, {
-      sensitive: req.user.role === "ADMIN",
+      sensitive: req.user.role !== "CR",
     });
     if (!profile)
       return res.status(404).json({ message: "Student not found." });
@@ -112,7 +420,7 @@ const sensitiveStudentFields = [
 ];
 function enforceSensitiveStudentWrite(req, data) {
   if (
-    req.user.role !== "ADMIN" &&
+    req.user.role === "CR" &&
     sensitiveStudentFields.some((field) =>
       Object.prototype.hasOwnProperty.call(data, field),
     )
@@ -131,6 +439,7 @@ router.post(
   async (req, res) => {
     const data = z
       .object({
+        classId: z.coerce.number().int().positive().optional(),
         rollNumber: z.string().trim().min(1).max(20),
         name: z.string().trim().min(2),
         cardToken: z.string().trim().min(16).nullable().optional(),
@@ -138,10 +447,16 @@ router.post(
         ...studentDetailsSchema,
       })
       .parse(req.body);
+    const resolvedClassId = await resolveClassId(req.user, data.classId);
+    const academicClass = await assertClassAccess(req.user, resolvedClassId);
     enforceSensitiveStudentWrite(req, data);
+    delete data.classId;
     data.rollNumber = normalizeRollNumber(data.rollNumber);
     const created = await sequelize.transaction(async (transaction) => {
-      const row = await Student.create(data, { transaction });
+      const row = await Student.create(
+        { ...data, AcademicClassId: academicClass.id },
+        { transaction },
+      );
       await AuditLog.create(
         {
           entityType: "STUDENT",
@@ -156,7 +471,7 @@ router.post(
     });
     res
       .status(201)
-      .json(publicStudent(created, { sensitive: req.user.role === "ADMIN" }));
+      .json(publicStudent(created, { sensitive: req.user.role !== "CR" }));
   },
 );
 router.patch(
@@ -165,6 +480,7 @@ router.patch(
   async (req, res) => {
     const row = await Student.findByPk(req.params.id);
     if (!row) return res.status(404).json({ message: "Student not found." });
+    await assertClassAccess(req.user, row.AcademicClassId);
     const data = z
       .object({
         rollNumber: z.string().trim().min(1).max(20).optional(),
@@ -192,7 +508,7 @@ router.patch(
         { transaction },
       );
     });
-    res.json(publicStudent(row, { sensitive: req.user.role === "ADMIN" }));
+    res.json(publicStudent(row, { sensitive: req.user.role !== "CR" }));
   },
 );
 router.delete(
@@ -203,6 +519,7 @@ router.delete(
   async (req, res) => {
     const row = await Student.findByPk(req.params.id);
     if (!row) return res.status(404).json({ message: "Student not found." });
+    await assertClassAccess(req.user, row.AcademicClassId, { manage: true });
     const references = await Promise.all([
       AttendanceRecord.count({ where: { StudentId: row.id } }),
       AuditLog.count({ where: { StudentId: row.id } }),
@@ -248,8 +565,10 @@ router.post(
   "/students/import/preview",
   requirePermission("students.import"),
   async (req, res) => {
+    const classId = await resolveClassId(req.user, req.body.classId);
+    await assertClassAccess(req.user, classId);
     const rows = importRowsSchema.parse(req.body.rows);
-    res.json(await reconcileStudentRows(rows));
+    res.json(await reconcileStudentRows(rows, { classId }));
   },
 );
 router.post(
@@ -258,37 +577,65 @@ router.post(
   async (req, res) => {
     const data = z
       .object({
+        classId: z.coerce.number().int().positive().optional(),
         rows: importRowsSchema,
         missingAction: z.enum(["KEEP", "DEACTIVATE"]),
         confirmed: z.literal(true),
       })
       .parse(req.body);
+    data.classId = await resolveClassId(req.user, data.classId);
+    await assertClassAccess(req.user, data.classId);
     res.json(
       await applyStudentImport({
         rawRows: data.rows,
         missingAction: data.missingAction,
         userId: req.user.id,
+        classId: data.classId,
       }),
     );
   },
 );
-router.get("/subjects", requirePermission("subjects.view"), async (req, res) =>
-  res.json(await Subject.findAll({ order: [["name", "ASC"]] })),
+router.get(
+  "/subjects",
+  requirePermission("subjects.view"),
+  async (req, res) => {
+    if (!req.query.classId)
+      return res.json(await Subject.findAll({ order: [["name", "ASC"]] }));
+    const classId = await resolveClassId(req.user, req.query.classId);
+    const assigned = await ClassSubject.findAll({
+      where: { AcademicClassId: classId, active: true },
+      include: [{ model: Subject, where: { active: true } }],
+      order: [[Subject, "name", "ASC"]],
+    });
+    res.json(assigned.map((row) => row.Subject));
+  },
 );
 router.post(
   "/subjects",
   requirePermission("subjects.manage"),
-  async (req, res) =>
-    res.status(201).json(
-      await Subject.create(
-        z
-          .object({
-            code: z.string().trim().min(1).max(30),
-            name: z.string().trim().min(2),
-          })
-          .parse(req.body),
-      ),
-    ),
+  async (req, res) => {
+    const data = z
+      .object({
+        code: z.string().trim().min(1).max(30),
+        name: z.string().trim().min(2),
+        classId: z.coerce.number().int().positive().optional(),
+      })
+      .parse(req.body);
+    const classId = await resolveClassId(req.user, data.classId);
+    await assertClassAccess(req.user, classId, { manage: true });
+    const subject = await sequelize.transaction(async (transaction) => {
+      const created = await Subject.create(
+        { code: data.code, name: data.name },
+        { transaction },
+      );
+      await ClassSubject.create(
+        { AcademicClassId: classId, SubjectId: created.id, active: true },
+        { transaction },
+      );
+      return created;
+    });
+    res.status(201).json(subject);
+  },
 );
 router.patch(
   "/subjects/:id",
@@ -357,6 +704,7 @@ async function validateTimetableChange(data, current = null) {
   const endTime = data.endTime ?? current?.endTime;
   const subjectId = data.subjectId ?? current?.SubjectId;
   const active = data.active ?? current?.active ?? true;
+  const classId = data.classId ?? current?.AcademicClassId;
   const windowError = validateScheduleWindow(startTime, endTime);
   if (windowError) {
     const error = new Error(windowError);
@@ -375,10 +723,20 @@ async function validateTimetableChange(data, current = null) {
     error.code = "SUBJECT_UNAVAILABLE";
     throw error;
   }
+  const classSubject = await ClassSubject.findOne({
+    where: { AcademicClassId: classId, SubjectId: subjectId, active: true },
+  });
+  if (!classSubject) {
+    const error = new Error("Assign this subject to the class first.");
+    error.status = 400;
+    error.code = "CLASS_SUBJECT_REQUIRED";
+    throw error;
+  }
   if (!active) return;
   const candidates = await Timetable.findAll({
     where: {
       dayOfWeek,
+      AcademicClassId: classId,
       active: true,
       ...(current && { id: { [Op.ne]: current.id } }),
     },
@@ -401,6 +759,9 @@ router.get(
   async (req, res) =>
     res.json(
       await Timetable.findAll({
+        where: {
+          AcademicClassId: await resolveClassId(req.user, req.query.classId),
+        },
         include: [Subject],
         order: [
           ["dayOfWeek", "ASC"],
@@ -415,6 +776,7 @@ router.post(
   async (req, res) => {
     const data = z
       .object({
+        classId: z.coerce.number().int().positive().optional(),
         dayOfWeek: z.number().int().min(1).max(7),
         startTime: z.string().regex(CLOCK_TIME_PATTERN),
         endTime: z.string().regex(CLOCK_TIME_PATTERN),
@@ -422,11 +784,17 @@ router.post(
         faculty: z.string().trim().max(120).nullable().optional(),
       })
       .parse(req.body);
+    data.classId = await resolveClassId(req.user, data.classId);
+    await assertClassAccess(req.user, data.classId, { manage: true });
     await validateTimetableChange(data);
-    const { subjectId, ...values } = data;
-    res
-      .status(201)
-      .json(await Timetable.create({ ...values, SubjectId: subjectId }));
+    const { subjectId, classId, ...values } = data;
+    res.status(201).json(
+      await Timetable.create({
+        ...values,
+        SubjectId: subjectId,
+        AcademicClassId: classId,
+      }),
+    );
   },
 );
 router.patch(
@@ -435,6 +803,7 @@ router.patch(
   async (req, res) => {
     const row = await Timetable.findByPk(req.params.id);
     if (!row) return res.status(404).json({ message: "Entry not found." });
+    await assertClassAccess(req.user, row.AcademicClassId, { manage: true });
     const data = z
       .object({
         dayOfWeek: z.number().int().min(1).max(7).optional(),
@@ -459,6 +828,7 @@ router.delete(
   async (req, res) => {
     const row = await Timetable.findByPk(req.params.id);
     if (!row) return res.status(404).json({ message: "Entry not found." });
+    await assertClassAccess(req.user, row.AcademicClassId, { manage: true });
     await row.destroy();
     res.status(204).end();
   },
@@ -640,7 +1010,7 @@ router.post("/users", requirePermission("users.create"), async (req, res) => {
       name: z.string().min(2),
       email: z.string().email(),
       password: passwordSchema,
-      role: z.enum(["ADMIN", "CR"]),
+      role: z.enum(["ADMIN", "FACULTY", "CR"]),
     })
     .parse(req.body);
   const created = await sequelize.transaction(async (transaction) => {
@@ -676,7 +1046,7 @@ router.patch(
     const data = z
       .object({
         name: z.string().min(2).optional(),
-        role: z.enum(["ADMIN", "CR"]).optional(),
+        role: z.enum(["ADMIN", "FACULTY", "CR"]).optional(),
         active: z.boolean().optional(),
       })
       .parse(req.body);
@@ -723,6 +1093,16 @@ router.patch(
     if (roleChanged) data.tokenVersion = (row.tokenVersion || 0) + 1;
     await sequelize.transaction(async (transaction) => {
       await row.update(data, { transaction });
+      if (roleChanged && data.role === "ADMIN")
+        await ClassAssignment.destroy({
+          where: { UserId: row.id },
+          transaction,
+        });
+      else if (roleChanged)
+        await ClassAssignment.update(
+          { assignmentRole: data.role === "FACULTY" ? "FACULTY" : "CR" },
+          { where: { UserId: row.id }, transaction },
+        );
       await AuditLog.create(
         {
           entityType: "USER",
@@ -745,10 +1125,10 @@ router.post(
   async (req, res) => {
     const row = await User.findByPk(req.params.id);
     if (!row) return res.status(404).json({ message: "User not found." });
-    if (row.role !== "CR")
+    if (!["CR", "FACULTY"].includes(row.role))
       return res
         .status(400)
-        .json({ message: "ADMIN can reset only CR passwords." });
+        .json({ message: "ADMIN can reset only FACULTY or CR passwords." });
     const { temporaryPassword } = z
       .object({ temporaryPassword: passwordSchema })
       .parse(req.body);
@@ -765,7 +1145,7 @@ router.post(
         {
           entityType: "USER",
           entityId: row.id,
-          action: "CR_PASSWORD_RESET",
+          action: "STAFF_PASSWORD_RESET",
           newValue: JSON.stringify({ mustChangePassword: true }),
           UserId: req.user.id,
         },

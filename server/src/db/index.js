@@ -28,7 +28,7 @@ export const User = sequelize.define(
     name: { type: DataTypes.STRING, allowNull: false },
     email: { type: DataTypes.STRING, allowNull: false, unique: true },
     passwordHash: { type: DataTypes.STRING, allowNull: false },
-    role: { type: DataTypes.ENUM("ADMIN", "CR"), allowNull: false },
+    role: { type: DataTypes.ENUM("ADMIN", "FACULTY", "CR"), allowNull: false },
     active: { type: DataTypes.BOOLEAN, defaultValue: true },
     mustChangePassword: { type: DataTypes.BOOLEAN, defaultValue: false },
     tokenVersion: { type: DataTypes.INTEGER, defaultValue: 0 },
@@ -86,7 +86,7 @@ export const Student = sequelize.define(
   "Student",
   {
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-    rollNumber: { type: DataTypes.STRING(20), allowNull: false, unique: true },
+    rollNumber: { type: DataTypes.STRING(20), allowNull: false },
     name: { type: DataTypes.STRING, allowNull: false },
     active: { type: DataTypes.BOOLEAN, defaultValue: true },
     cardToken: { type: DataTypes.STRING, unique: true, allowNull: true },
@@ -101,8 +101,55 @@ export const Student = sequelize.define(
     guardianPhone: { type: DataTypes.STRING(20), allowNull: true },
     notes: { type: DataTypes.TEXT, allowNull: true },
     admissionDate: { type: DataTypes.DATEONLY, allowNull: true },
+    AcademicClassId: { type: DataTypes.INTEGER, allowNull: false },
   },
   common,
+);
+export const AcademicClass = sequelize.define(
+  "AcademicClass",
+  {
+    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    displayName: { type: DataTypes.STRING(160), allowNull: false },
+    code: { type: DataTypes.STRING(80), allowNull: false, unique: true },
+    course: { type: DataTypes.STRING(100), allowNull: false },
+    specialization: { type: DataTypes.STRING(120), allowNull: true },
+    semester: { type: DataTypes.STRING(30), allowNull: true },
+    section: { type: DataTypes.STRING(30), allowNull: true },
+    academicYear: { type: DataTypes.STRING(30), allowNull: true },
+    batch: { type: DataTypes.STRING(50), allowNull: true },
+    active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+  },
+  common,
+);
+export const ClassAssignment = sequelize.define(
+  "ClassAssignment",
+  {
+    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    assignmentRole: {
+      type: DataTypes.ENUM("MENTOR", "FACULTY", "CR"),
+      allowNull: false,
+    },
+  },
+  {
+    ...common,
+    indexes: [
+      { unique: true, fields: ["academic_class_id", "user_id"] },
+      { fields: ["academic_class_id", "assignment_role"] },
+    ],
+  },
+);
+export const ClassSubject = sequelize.define(
+  "ClassSubject",
+  {
+    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+  },
+  {
+    ...common,
+    indexes: [
+      { unique: true, fields: ["academic_class_id", "subject_id"] },
+    ],
+  },
 );
 export const Subject = sequelize.define(
   "Subject",
@@ -127,6 +174,7 @@ export const Timetable = sequelize.define(
     endTime: { type: DataTypes.STRING(5), allowNull: false },
     faculty: { type: DataTypes.STRING, allowNull: true },
     active: { type: DataTypes.BOOLEAN, defaultValue: true },
+    AcademicClassId: { type: DataTypes.INTEGER, allowNull: false },
   },
   common,
 );
@@ -160,6 +208,7 @@ export const AttendanceSession = sequelize.define(
     scheduledSubjectId: { type: DataTypes.INTEGER, allowNull: true },
     reopenedAt: { type: DataTypes.DATE, allowNull: true },
     reopenReason: { type: DataTypes.STRING(250), allowNull: true },
+    AcademicClassId: { type: DataTypes.INTEGER, allowNull: false },
   },
   common,
 );
@@ -232,6 +281,44 @@ AttendanceSession.belongsTo(Subject, {
   foreignKey: "scheduledSubjectId",
   as: "scheduledSubject",
 });
+AcademicClass.hasMany(Student, { foreignKey: "AcademicClassId" });
+Student.belongsTo(AcademicClass, { foreignKey: "AcademicClassId" });
+AcademicClass.hasMany(Timetable, { foreignKey: "AcademicClassId" });
+Timetable.belongsTo(AcademicClass, { foreignKey: "AcademicClassId" });
+AcademicClass.hasMany(AttendanceSession, { foreignKey: "AcademicClassId" });
+AttendanceSession.belongsTo(AcademicClass, { foreignKey: "AcademicClassId" });
+AcademicClass.belongsToMany(User, {
+  through: ClassAssignment,
+  foreignKey: "AcademicClassId",
+  otherKey: "UserId",
+  as: "assignedUsers",
+});
+User.belongsToMany(AcademicClass, {
+  through: ClassAssignment,
+  foreignKey: "UserId",
+  otherKey: "AcademicClassId",
+  as: "assignedClasses",
+});
+AcademicClass.hasMany(ClassAssignment, { foreignKey: "AcademicClassId" });
+ClassAssignment.belongsTo(AcademicClass, { foreignKey: "AcademicClassId" });
+User.hasMany(ClassAssignment, { foreignKey: "UserId" });
+ClassAssignment.belongsTo(User, { foreignKey: "UserId" });
+AcademicClass.belongsToMany(Subject, {
+  through: ClassSubject,
+  foreignKey: "AcademicClassId",
+  otherKey: "SubjectId",
+  as: "Subjects",
+});
+Subject.belongsToMany(AcademicClass, {
+  through: ClassSubject,
+  foreignKey: "SubjectId",
+  otherKey: "AcademicClassId",
+  as: "AcademicClasses",
+});
+AcademicClass.hasMany(ClassSubject, { foreignKey: "AcademicClassId" });
+ClassSubject.belongsTo(AcademicClass, { foreignKey: "AcademicClassId" });
+Subject.hasMany(ClassSubject, { foreignKey: "SubjectId" });
+ClassSubject.belongsTo(Subject, { foreignKey: "SubjectId" });
 User.hasMany(AttendanceSession, {
   foreignKey: "createdById",
   as: "createdSessions",
@@ -274,6 +361,9 @@ AuditLog.belongsTo(AttendanceSession);
 
 export const models = {
   User,
+  AcademicClass,
+  ClassAssignment,
+  ClassSubject,
   AuthSession,
   Student,
   Subject,

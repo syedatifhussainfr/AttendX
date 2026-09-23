@@ -6,6 +6,8 @@ import { migration004 } from "./migrations/004-late-mode.js";
 import { migration005 } from "./migrations/005-normalize-sqlite-timestamps.js";
 import { migration006 } from "./migrations/006-student-profile.js";
 import { migration007 } from "./migrations/007-late-attendance-credit.js";
+import { migration008 } from "./migrations/008-academic-classes.js";
+import { migration009 } from "./migrations/009-class-ownership.js";
 
 const migrations = [
   migration001,
@@ -15,6 +17,8 @@ const migrations = [
   migration005,
   migration006,
   migration007,
+  migration008,
+  migration009,
 ];
 
 export async function runMigrations(sequelize) {
