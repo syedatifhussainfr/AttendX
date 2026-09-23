@@ -4,14 +4,14 @@
 
 AttendX replaces slow roll calls with a controlled attendance workflow for class representatives, administrators, and service operators. It combines timetable-aware session creation, server-authoritative attendance rules, accountable corrections, human-readable reports, backup tooling, and tiered administration in one responsive application.
 
-![Version](https://img.shields.io/badge/version-1.1.7-0a4a7f)
+![Version](https://img.shields.io/badge/version-1.1.8-0a4a7f)
 ![Status](https://img.shields.io/badge/status-stable-2f855a)
 ![Runtime](https://img.shields.io/badge/node-20%2B-43853d)
 ![Database](https://img.shields.io/badge/database-SQLite%20%7C%20PostgreSQL-315b7d)
 
 ## Product position
 
-AttendX is designed for a managed-service model: an operator deploys and maintains an isolated instance for an institution, configures its academic data, protects backups, and manages privileged access. Version 1.1.7 is single-institution per deployment. A shared multi-tenant control plane, billing, and institution self-provisioning are future product work and are not falsely represented as existing features.
+AttendX is designed for a managed-service model: an operator deploys and maintains an isolated instance for an institution, configures its academic data, protects backups, and manages privileged access. Version 1.1.8 is single-institution per deployment. A shared multi-tenant control plane, billing, and institution self-provisioning are future product work and are not falsely represented as existing features.
 
 Operational records, credentials, local policy, institution settings, subjects, timetables, and administrator accounts belong to each deployment and are not source-controlled. Replace the bundled presentation assets and labels when preparing a differently branded deployment.
 
@@ -21,45 +21,43 @@ Operational records, credentials, local policy, institution settings, subjects, 
 | --- | --- | --- |
 | `v1.0.0` | Released baseline | Core attendance workflow, basic administration, CSV onboarding, exports, and audit history. |
 | `v1.1.6` | Previous release | Secure sessions, Admin++ controls, database visibility, self-healing permissions, reporting, and responsive operations. |
-| `v1.1.7` | Current release | Recoverable live attendance, stronger privilege boundaries, safer token rotation, configurable permissions, validated timetables, and refined operational UX. |
-| Unreleased | Local development | Student profiles, attendance standing, subject breakdowns, calendars, individual reports, and privacy-aware student information. |
+| `v1.1.7` | Previous release | Recoverable live attendance, stronger privilege boundaries, safer token rotation, configurable permissions, validated timetables, and refined operational UX. |
+| `v1.1.8` | Current release | Student intelligence workspace, profiles, subject analytics, weighted Late credit, privacy-safe administration, and additional recovery hardening. |
 | `v1.2.0` | Planned | Faculty, programme/semester/section modelling, academic calendar, alerting, and service-management foundations. |
 
-The published [`v1.1.6` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.1.6) is the reproducible starting point for the V1.1.7 comparison. The [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.0.0) remains the original stable baseline.
+The published [`v1.1.7` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.1.7) is the direct upgrade baseline for V1.1.8. The [`v1.0.0` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.0.0) remains the original stable baseline.
 
-## V1.1.6 compared with V1.1.7
+## V1.1.7 compared with V1.1.8
 
-| Area | V1.1.6 | V1.1.7 |
+| Area | V1.1.7 | V1.1.8 |
 | --- | --- | --- |
-| Live attendance | Server writes with duplicate protection | Browser-local write-ahead queue, optimistic status, reconnect/reload replay, and closure blocked while changes remain unsynced |
-| Marking workflow | Rapid roll entry and individual correction | Persistent Present/Late/Remove tools, pending-roll review, clean overrides, and unattended-to-Absent finalization at closure |
-| Session refresh | Rotating hashed refresh tokens with reuse detection | Same-browser parallel-refresh recovery window while cross-device reuse still revokes sessions |
-| Protected areas | Admin++ elevation for destructive operations | ADMIN password gate for Users; Admin++ gate for Database, Backups, permission policy, and destructive operations |
-| Role management | ADMIN and CR account management | Admin++ may change ordinary accounts between ADMIN and CR; Admin++ assignment/revocation remains CLI-only |
-| Permission policy | Self-healing YAML capability matrix | Glass Settings editor for CR/ADMIN, backend-enforced all-true Admin++, protected ceilings, and immediate policy application |
-| Timetable safety | Duplicate/overlap protection when opening attendance | Strict clock parsing, active-subject enforcement, and overlap rejection when creating or editing timetable entries |
-| Late policy | Fixed threshold-based behavior | Admin++ Late Mode switch, per-session inheritance, disabled threshold control when Late Mode is off, and optional CR live-correction policy |
-| Backups | Validated create/download/restore | Stronger schema/admin validation, deletion with reason and audit, improved upload picker, and managed backup inventory command |
-| Audit and history | Browser audit records and correction history | Structured audit table, text export, guarded attendance-history deletion with retained audit snapshot, and normalized legacy timestamps |
-| Dialog accessibility | Standard modal behavior | Focus trapping, focus restoration, keyboard containment, scroll locking, and overlap prevention |
-| Operations | Config and database verification commands | Unified `npm run doctor`, timetable validation, backup listing, config archive organization, and readiness-gated development output |
+| Student directory | Searchable roster and CSV reconciliation | Card/table workspace, natural roll sorting, filters, attendance standing, absence streaks, and persistent view preference |
+| Student profiles | Basic student identity | Dedicated profile with subject performance, monthly calendar, recent timeline, recovery guidance, and individual workbook export |
+| Student data | Roll, name, photo, card token | Optional enrolment number, section, admission date, phone, guardian contact, and administrative notes |
+| Privacy boundary | Role-filtered student reads | Backend-enforced private-field reads and writes; delegated CR permissions cannot expose or overwrite sensitive fields |
+| Attendance analytics | Present/Late/Absent totals | Credited attendance, physical appearance, overall/subject percentages, target standing, risk labels, and classes needed to recover |
+| Late attendance | Status recorded with fixed credit behavior | Admin++ policy grants `1`, `0.5`, or `0` credit, snapshotted into each session and record |
+| Reports | Institution review and machine workbooks | Individual student review exports and weighted-credit calculations across reports |
+| Data model | Core student and attendance fields | Additive profile and weighted-credit migrations with duplicate-enrolment protection |
+| Reliability | Recoverable marking and hardened operations | Stale-search protection, validated history filters, corrupt-setting fallbacks, and safer failed-restore recovery |
+| Verification | 36 automated tests | 40 automated tests plus config, timetable, SQLite integrity, foreign-key, and production-build checks |
 
-### Upgrade from V1.1.6
+### Upgrade from V1.1.7
 
 ```bash
+npm run backup
 git pull origin main
 npm install
 npm run config-check
-npm run backup
 npm run doctor
 npm run dev
 ```
 
-`config-check` preserves valid local choices, restores missing structure, and moves historical recovery copies into `config/archive/`. Review the permission matrix in Settings after upgrading. Existing attendance and timetable data are migrated in place; keep a tested backup before every deployment update.
+The additive `006-student-profile` and `007-late-attendance-credit` migrations run automatically. Existing student and attendance rows are preserved, while historical boolean attendance credit is copied into the numeric credit field. Review the attendance target and Late credit policy in Settings after upgrading, and keep a tested backup before every deployment update.
 
-## V1.0 compared with V1.1.7
+## V1.0 compared with V1.1.8
 
-| Area | V1.0 | V1.1.7 |
+| Area | V1.0 | V1.1.8 |
 | --- | --- | --- |
 | Authentication | JWT login | Short-lived in-memory access tokens plus rotating, hashed refresh sessions in `HttpOnly`, `SameSite=Strict` cookies |
 | Logout | Client sign-out | Server-side session revocation, trusted-origin validation, popup flow, and dedicated `/logout` route |
@@ -70,7 +68,8 @@ npm run dev
 | Student import | Direct CSV import | Preview and reconciliation for additions, changes, duplicates, invalid rows, and missing students |
 | Attendance safety | Standard session flow | Explicit roll-click Present/Late marking, crash-safe local autosave/replay, pending-to-Absent closure, duplicate/overlap detection, opener/closer ownership, reopen reasons, and race-safe operations |
 | Corrections | Basic edits | Mandatory reason, before/after state, actor, time, and permanent audit history |
-| Reporting | Basic export | Machine export and organized review workbook with overall and subject-level student percentages |
+| Student insight | Roster-oriented records | Individual profiles, attendance standing, subject risk, calendar history, absence streaks, and recovery guidance |
+| Reporting | Basic export | Machine, organized review, and individual student workbooks with overall/subject weighted percentages |
 | Backups | Manual file handling | Managed SQLite snapshots, validation, guarded restore, pre-restore backup, download, and audit logging |
 | Development workflow | Concurrent npm scripts | Colored unified console, scoped API watcher, strict ports, and clean Windows shutdown |
 | Responsive UI | Basic responsiveness | Persistent/resizable desktop sidebar, mobile drawer scroll lock, route progress, and confirmation flows |
@@ -169,7 +168,7 @@ npm run dev
 - Configuration recovery artifacts are organized under ignored `archive/broken`, `archive/repaired`, and `archive/replaced` folders.
 - `npm run timetable-check`, `npm run backup:list`, and `npm run doctor` provide repeatable operator checks.
 
-### Unreleased — student workspace
+### V1.1.8 — student intelligence and weighted attendance
 
 - Redesigned roster with glass cards, compact table mode, natural roll ordering, search, filters, and persistent view preference.
 - Backend-calculated attendance standing using a configurable target: Good, Needs attention, Critical, or No data.
@@ -181,6 +180,10 @@ npm run dev
 - Polished table actions, CSV affordances, vertically constrained administrator notes, and request-aware navigation progress.
 - Admin++ Late credit policy with full (`1`), half (`0.5`), or zero (`0`) credit snapshotted into each new session.
 - Additive `007-late-attendance-credit` migration preserves existing credited records while enabling weighted reports and student analytics.
+- CR accounts with delegated student-management capabilities still cannot read or write private contact, guardian, note, or card-token fields.
+- Attendance-history filters reject malformed dates, invalid subject identifiers, and reversed ranges before reaching the database.
+- Invalid stored attendance settings fall back to secure operational defaults instead of interrupting session creation.
+- Failed restore attempts clean staged uploads, recover the original SQLite file, and trigger a controlled API restart when required.
 
 ## Permission model
 
@@ -448,9 +451,9 @@ Credited attendance percentage is `sum of attendance credit values / classes con
 - Audit logs can be downloaded as a human-readable `.txt` record from the Audit page.
 - Self-disable, self-delete, and last-active-Admin++ protections prevent avoidable lockout.
 
-## V1.1.7 verification
+## V1.1.8 verification
 
-- 36 automated tests cover attendance rules and recovery queues, Late Mode, imports, exports, refresh races, authorization gates, backup retention, audit export, Admin++, role changes, timetable validation, destructive history controls, archive migration, and self-healing configuration.
+- 40 automated tests cover attendance rules and recovery queues, weighted Late credit, student profiles and privacy, imports, exports, refresh races, authorization gates, backup retention, audit export, Admin++, role changes, timetable validation, destructive history controls, archive migration, filter validation, settings fallback, and self-healing configuration.
 - Production frontend compilation succeeds with Vite.
 - `npm run config-check` validates YAML parsing, structural repair, permission dependencies, and protected privilege ceilings.
 - `npm run verify-data` checks SQLite integrity, foreign keys, duplicate rolls, administrator availability, and record totals without modifying data.
@@ -479,4 +482,4 @@ Planned product work includes:
 
 ## Important scope statement
 
-V1.1.7 is suitable for controlled pilot evaluation and service-operated deployment after the final checklist passes. It is not yet a self-service multi-tenant SaaS platform. Each institution should receive an isolated deployment and database until tenant isolation, provisioning, billing, and operator tooling are deliberately implemented and independently reviewed.
+V1.1.8 is suitable for controlled pilot evaluation and service-operated deployment after the final checklist passes. It is not yet a self-service multi-tenant SaaS platform. Each institution should receive an isolated deployment and database until tenant isolation, provisioning, billing, and operator tooling are deliberately implemented and independently reviewed.
