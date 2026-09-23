@@ -7063,13 +7063,32 @@ body.sidebar-resizing * {
 /* V1.1.9 database-backed class workspaces */
 .class-switcher {
   display: grid;
-  gap: 2px;
+  grid-template-columns: auto minmax(220px, 1fr);
+  grid-template-rows: 30px 12px;
+  column-gap: 11px;
+  row-gap: 1px;
+  align-items: center;
   min-width: min(430px, 48vw);
+  margin: 0;
+  text-align: left;
+}
+.class-switcher > small {
+  grid-row: 1 / -1;
+  align-self: center;
+  margin: 0;
+  color: #5f7485;
+  font-size: 0.57rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: 0.12em;
+  text-align: right;
 }
 .class-switcher select {
+  grid-column: 2;
+  grid-row: 1;
   width: 100%;
-  min-height: 38px;
-  padding: 6px 34px 6px 11px;
+  min-height: 30px;
+  padding: 3px 32px 3px 10px;
   border: 1px solid rgba(35, 94, 132, 0.16);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.62);
@@ -7078,8 +7097,110 @@ body.sidebar-resizing * {
   backdrop-filter: blur(16px);
 }
 .class-switcher span {
+  grid-column: 2;
+  grid-row: 2;
+  display: block;
+  min-width: 0;
+  margin: 0;
   color: var(--muted, #607687);
+  overflow: hidden;
+  font-size: 0.62rem;
+  line-height: 1;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-class-handoff {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid rgba(39, 84, 112, 0.12);
+  border-radius: 12px;
+  background: rgba(237, 245, 249, 0.54);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(18px) saturate(125%);
+}
+.settings-class-handoff > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+.settings-class-handoff strong {
+  color: #173c56;
+  font-size: 0.86rem;
+}
+.settings-class-handoff small {
+  color: #718492;
+  overflow: hidden;
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-class-handoff button {
+  flex: 0 0 auto;
+}
+
+.subject-catalog-group {
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.76);
+  border-radius: 16px;
+  background: rgba(244, 249, 251, 0.56);
+  box-shadow:
+    0 15px 38px rgba(18, 53, 76, 0.07),
+    inset 0 1px rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(22px) saturate(128%);
+}
+.subject-catalog-group > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 15px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid rgba(38, 78, 104, 0.09);
+}
+.subject-catalog-group > header div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.subject-catalog-group > header span,
+.subject-course-context > span {
+  padding: 5px 8px;
+  border: 1px solid rgba(34, 91, 126, 0.14);
+  border-radius: 7px;
+  background: rgba(222, 237, 245, 0.68);
+  color: #17577e;
+  font-size: 0.65rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+.subject-catalog-group > header strong {
+  color: #24465e;
+  font-size: 0.9rem;
+}
+.subject-catalog-group > header small {
+  color: #728592;
+  font-size: 0.7rem;
+}
+.subject-course-context {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid rgba(41, 85, 112, 0.11);
+  border-radius: 10px;
+  background: rgba(237, 245, 249, 0.54);
+}
+.subject-course-context p {
+  margin: 0;
+  color: #667c8b;
   font-size: 0.72rem;
+  line-height: 1.45;
 }
 .class-card-grid {
   display: grid;
@@ -7265,10 +7386,9 @@ body.sidebar-resizing * {
   background: rgba(255, 238, 223, 0.72);
 }
 @media (max-width: 760px) {
-  .class-switcher {
-    min-width: 0;
-    width: min(65vw, 320px);
-  }
+  .class-switcher { grid-template-columns: minmax(0, 1fr); grid-template-rows: 34px; min-width: 0; width: min(58vw, 300px); }
+  .class-switcher > small { display: none; }
+  .class-switcher select { grid-column: 1; grid-row: 1; min-height: 34px; }
   .class-switcher span {
     display: none;
   }
@@ -7281,4 +7401,8 @@ body.sidebar-resizing * {
   .class-inline-form {
     grid-template-columns: 1fr;
   }
+  .settings-class-handoff { align-items: stretch; flex-direction: column; }
+  .settings-class-handoff button { width: 100%; justify-content: center; }
+  .subject-catalog-group { padding: 13px; }
+  .subject-catalog-group > header { align-items: flex-start; flex-direction: column; }
 }

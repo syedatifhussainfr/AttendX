@@ -81,7 +81,7 @@ export async function seed() {
   for (const [code, name] of subjects) {
     const [subject] = await Subject.findOrCreate({
       where: { code },
-      defaults: { name },
+      defaults: { name, courseCategory: academicClass.course },
     });
     subjectMap[code] = subject;
     await ClassSubject.findOrCreate({
@@ -107,8 +107,8 @@ export async function seed() {
     lateModeEnabled: true,
     lateAttendanceCredit: 0,
     institutionName: "EIILM Kolkata",
-    className: "Semester I",
-    academicSession: "2026–27",
+    institutionCode: "EIILM",
+    campusName: "Kolkata",
     timezone: "Asia/Kolkata",
     crCanCorrectRecent: true,
     attendanceTargetPercentage: 75,

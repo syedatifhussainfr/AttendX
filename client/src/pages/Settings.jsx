@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  Building2,
   Clock3,
   KeyRound,
   Save,
@@ -7,9 +8,11 @@ import {
   SlidersHorizontal,
   TimerReset,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { api, messageOf, setAdminElevation } from "../api.js";
 import { useToast } from "../state/ToastContext.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
+import { useClass } from "../state/ClassContext.jsx";
 export function SettingsPage() {
   const [data, setData] = useState(null),
     [saving, setSaving] = useState(false),
@@ -18,7 +21,9 @@ export function SettingsPage() {
     [policy, setPolicy] = useState(null),
     [policyBusy, setPolicyBusy] = useState(false),
     toast = useToast(),
-    { can } = useAuth();
+    { can } = useAuth(),
+    navigate = useNavigate(),
+    { selectedClass } = useClass();
   useEffect(() => {
     api
       .get("/admin/settings")
@@ -296,9 +301,10 @@ export function SettingsPage() {
         </section>
         <section className="panel settings-panel">
           <div className="settings-heading">
+            <Building2 />
             <div>
-              <h2>College & class</h2>
-              <p>Shown throughout the workspace and reports.</p>
+              <h2>Institution profile</h2>
+              <p>Global identity shared by every class workspace.</p>
             </div>
           </div>
           <label>
@@ -311,21 +317,21 @@ export function SettingsPage() {
             />
           </label>
           <label>
-            Class / section
+            Institution code
             <input
-              name="className"
-              defaultValue={data.className}
+              name="institutionCode"
+              defaultValue={data.institutionCode || ""}
               disabled={!can("settings.manage")}
-              required
+              placeholder="Optional short code"
             />
           </label>
           <label>
-            Academic session
+            Campus / location
             <input
-              name="academicSession"
-              defaultValue={data.academicSession}
+              name="campusName"
+              defaultValue={data.campusName || ""}
               disabled={!can("settings.manage")}
-              required
+              placeholder="Optional campus name"
             />
           </label>
           <label>
@@ -338,6 +344,33 @@ export function SettingsPage() {
               <option>Asia/Kolkata</option>
             </select>
           </label>
+          <div className="settings-class-handoff">
+            <div>
+              <span className="eyebrow">ACTIVE CLASS</span>
+              <strong>{selectedClass?.displayName || "No class selected"}</strong>
+              <small>
+                {selectedClass
+                  ? [
+                      selectedClass.course,
+                      selectedClass.specialization,
+                      selectedClass.semester && `Semester ${selectedClass.semester}`,
+                      selectedClass.academicYear,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
+                  : "Assign a class before continuing."}
+              </small>
+            </div>
+            {can("classes.view") && (
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => navigate("/classes")}
+              >
+                Manage classes
+              </button>
+            )}
+          </div>
         </section>
         <div className="settings-save">
           {can("settings.manage") && (

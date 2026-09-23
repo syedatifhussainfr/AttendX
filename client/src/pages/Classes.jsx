@@ -37,7 +37,11 @@ export function Classes() {
   const loadOptions = async () => {
     if (!selected) return;
     try {
-      const requests = [api.get("/admin/subjects")];
+      const requests = [
+        api.get("/admin/subjects", {
+          params: { courseCategory: selected.course },
+        }),
+      ];
       if (can("classes.assignStaff"))
         requests.push(api.get(`/admin/classes/${selected.id}/staff-options`));
       const [subjectResponse, staffResponse] = await Promise.all(requests);
@@ -255,8 +259,8 @@ export function Classes() {
 
           {can("classes.assignSubjects") && (
             <section className="glass-card class-subject-panel">
-              <span className="eyebrow">SUBJECT CATALOGUE</span>
-              <h2>Subjects for this class</h2>
+              <span className="eyebrow">{selected.course} CATALOGUE</span>
+              <h2>{selected.course} subjects for this class</h2>
               <p>
                 Only selected subjects appear in this class timetable and
                 attendance workflow.

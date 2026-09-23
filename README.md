@@ -35,12 +35,12 @@ The published [`v1.1.8` release](https://github.com/syedatifhussainfr/AttendX/re
 | Academic structure | One shared roster, timetable, and attendance workspace | Any number of database-defined classes with display name, code, course, specialization, semester, section, academic year, and batch |
 | Initial workspaces | No class catalogue | `ANASUYA BCA AI 3A.UG`, `3B.UG`, and `3C.UG`; existing operational data migrates safely to 3B |
 | Students | Globally unique roll numbers | Every student belongs to one class; roll numbers are unique inside that class and may repeat in another class |
-| Subjects | One global operational list | Global subject catalogue with explicit per-class assignments |
+| Subjects | One global operational list | Course-organized catalogue (BCA by default) with explicit per-class assignments |
 | Timetable and attendance | Institution-wide | Strictly class-scoped schedules, sessions, marking, closure, history, analytics, and exports |
 | Staff access | CR, ADMIN, and ADMIN++ | New FACULTY role plus per-class Mentor, Faculty, and CR assignments |
 | Faculty authority | Not available | Operational management within assigned classes without global backup, database, user-role, or Admin++ authority |
 | Navigation | One fixed workspace | Persistent glass class selector and class-management workspace |
-| Data integrity | Global roll constraint | Composite class/roll constraint, class ownership enforcement, migration checks, and orphan detection |
+| Data integrity | Global roll constraint | Composite class/roll constraint, preserved attendance ownership, class ownership enforcement, migration checks, and orphan detection |
 | Verification | 40 automated tests | 41 automated tests including faculty isolation and cross-class roll behavior |
 
 ### Upgrade from V1.1.8
@@ -54,7 +54,7 @@ npm run doctor
 npm run dev
 ```
 
-Migrations `008-academic-classes` and `009-class-ownership` run automatically. They preserve existing records, create the three initial section workspaces, move existing students, timetable entries, attendance sessions, CR access, and subject assignments into 3B, and replace the global roll-number constraint with a per-class constraint. Keep the pre-upgrade backup until class counts, timetables, and reports have been reviewed.
+Migrations `008-academic-classes` through `011-subject-course-category` run automatically. They preserve existing records, create the three initial Semester 1 section workspaces, move existing students, timetable entries, attendance sessions, CR access, and subject assignments into 3B, replace the global roll-number constraint with a per-class constraint, protect attendance-to-student ownership during the table rebuild, and categorize the existing subject catalogue as BCA. Keep the pre-upgrade backup until class counts, timetables, student analytics, and reports have been reviewed.
 
 ## V1.1.7 compared with V1.1.8
 
@@ -221,13 +221,14 @@ The additive `006-student-profile` and `007-late-attendance-credit` migrations r
 - Existing V1.1.8 students, timetable entries, sessions, subjects, and CR access migrate to `ANASUYA BCA AI 3B.UG` without recreating data.
 - Students, timetables, attendance sessions, dashboard totals, history, analytics, and exports are scoped to the active class.
 - Roll numbers are unique per class, allowing the same roll number in separate sections while rejecting duplicates inside one class.
-- The global subject catalogue supports explicit class assignment before a subject can appear in a timetable or attendance session.
+- The subject catalogue is organized by course (BCA for the initial workspaces) and supports explicit class assignment before a subject can appear in a timetable or attendance session.
 - FACULTY accounts can be assigned as a class Mentor or Faculty; CR accounts receive explicit per-class assignments.
 - Faculty can manage assigned-class rosters, imports, subjects, timetables, live attendance, corrections, reopening, and reports while remaining outside global Admin++ tools.
 - ADMIN accounts retain institution-wide visibility; Admin++ alone can archive classes and keeps existing destructive-security boundaries.
 - The glass class workspace supports creation, metadata editing, staff assignment/removal, mentor replacement, subject selection, and active-class switching.
-- Migrations enforce class ownership, preserve foreign keys, and safely replace the legacy global roll-number uniqueness constraint.
-- Data verification now reports class, staff, subject-link, orphan, and per-class duplicate-roll integrity.
+- Migrations enforce class ownership, preserve attendance-to-student links while rebuilding the roster table, reject future unowned attendance rows, and safely replace the legacy global roll-number uniqueness constraint.
+- Data verification and backup validation now reject attendance rows that have lost either their student or session owner.
+- Settings owns institution-wide identity and attendance policy; class metadata is edited in the dedicated glass Classes workspace.
 - Development startup waits for API health before launching the browser interface, preventing initial login requests from racing API initialization.
 
 ## Permission model
@@ -320,8 +321,8 @@ Open `http://localhost:5173`. The API health endpoint is `http://localhost:4000/
 
 After signing in:
 
-1. Update institution, academic-session, class, timezone, and attendance settings.
-2. Configure subjects and the weekly timetable.
+1. Update the institution profile, timezone, and attendance policy in Settings.
+2. Create or review class metadata in Classes, then assign the BCA subjects and weekly timetable for each class.
 3. Import the real roster from **Students → Import CSV**.
 4. Create the CR and any additional administrator accounts.
 5. Take the first backup before recording attendance.
@@ -502,7 +503,7 @@ Credited attendance percentage is `sum of attendance credit values / classes con
 - 41 automated tests cover attendance rules and recovery queues, weighted Late credit, student profiles and privacy, imports, exports, refresh races, authorization gates, backup retention, audit export, Admin++, faculty/class isolation, per-class roll numbers, role changes, timetable validation, destructive history controls, archive migration, filter validation, settings fallback, and self-healing configuration.
 - Production frontend compilation succeeds with Vite.
 - `npm run config-check` validates YAML parsing, structural repair, permission dependencies, and protected privilege ceilings.
-- `npm run verify-data` checks SQLite integrity, foreign keys, duplicate rolls, administrator availability, and record totals without modifying data.
+- `npm run verify-data` checks SQLite integrity, foreign keys, attendance ownership, duplicate rolls, administrator availability, and record totals without modifying data.
 - `npm run timetable-check` validates the current database timetable without changing it; `npm run doctor` runs the complete release check.
 
 Deployment owners should still perform browser role checks, export review, a restore rehearsal on a disposable copy, HTTPS configuration, secret rotation, monitoring, and backup-retention validation in their own environment.

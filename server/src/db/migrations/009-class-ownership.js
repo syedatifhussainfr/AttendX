@@ -13,6 +13,12 @@ async function rebuildLegacySqliteStudents(queryInterface, transaction) {
     transaction,
   });
   await queryInterface.sequelize.query(
+    `CREATE TEMP TABLE attendx_v119_student_links AS
+     SELECT id, student_id FROM attendance_records
+      WHERE student_id IS NOT NULL`,
+    { transaction },
+  );
+  await queryInterface.sequelize.query(
     `CREATE TABLE students_v119 (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       roll_number VARCHAR(20) NOT NULL,
@@ -44,6 +50,20 @@ async function rebuildLegacySqliteStudents(queryInterface, transaction) {
   await queryInterface.renameTable("students_v119", "students", {
     transaction,
   });
+  await queryInterface.sequelize.query(
+    `UPDATE attendance_records
+        SET student_id = (
+          SELECT link.student_id
+            FROM attendx_v119_student_links link
+           WHERE link.id = attendance_records.id
+        )
+      WHERE id IN (SELECT id FROM attendx_v119_student_links)`,
+    { transaction },
+  );
+  await queryInterface.sequelize.query(
+    "DROP TABLE attendx_v119_student_links",
+    { transaction },
+  );
   await queryInterface.addIndex("students", ["card_token"], {
     name: "students_card_token_unique",
     unique: true,

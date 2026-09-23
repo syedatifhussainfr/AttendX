@@ -278,6 +278,13 @@ router.put(
     const subject = await Subject.findByPk(req.params.subjectId);
     if (!subject)
       return res.status(404).json({ message: "Subject not found." });
+    if (
+      subject.courseCategory.trim().toLowerCase() !==
+      academicClass.course.trim().toLowerCase()
+    )
+      return res.status(409).json({
+        message: `${subject.code} belongs to ${subject.courseCategory}, not ${academicClass.course}.`,
+      });
     await sequelize.transaction(async (transaction) => {
       const [assignment] = await ClassSubject.findOrCreate({
         where: { AcademicClassId: academicClass.id, SubjectId: subject.id },
@@ -599,8 +606,23 @@ router.get(
   "/subjects",
   requirePermission("subjects.view"),
   async (req, res) => {
-    if (!req.query.classId)
-      return res.json(await Subject.findAll({ order: [["name", "ASC"]] }));
+    if (!req.query.classId) {
+      const courseCategory = z
+        .string()
+        .trim()
+        .max(100)
+        .optional()
+        .parse(req.query.courseCategory);
+      return res.json(
+        await Subject.findAll({
+          where: courseCategory ? { courseCategory } : {},
+          order: [
+            ["courseCategory", "ASC"],
+            ["name", "ASC"],
+          ],
+        }),
+      );
+    }
     const classId = await resolveClassId(req.user, req.query.classId);
     const assigned = await ClassSubject.findAll({
       where: { AcademicClassId: classId, active: true },
@@ -622,10 +644,16 @@ router.post(
       })
       .parse(req.body);
     const classId = await resolveClassId(req.user, data.classId);
-    await assertClassAccess(req.user, classId, { manage: true });
+    const academicClass = await assertClassAccess(req.user, classId, {
+      manage: true,
+    });
     const subject = await sequelize.transaction(async (transaction) => {
       const created = await Subject.create(
-        { code: data.code, name: data.name },
+        {
+          code: data.code,
+          name: data.name,
+          courseCategory: academicClass.course,
+        },
         { transaction },
       );
       await ClassSubject.create(
@@ -643,15 +671,25 @@ router.patch(
   async (req, res) => {
     const row = await Subject.findByPk(req.params.id);
     if (!row) return res.status(404).json({ message: "Subject not found." });
-    await row.update(
-      z
-        .object({
-          code: z.string().trim().min(1).max(30).optional(),
-          name: z.string().trim().min(2).optional(),
-          active: z.boolean().optional(),
-        })
-        .parse(req.body),
-    );
+    const data = z
+      .object({
+        classId: z.coerce.number().int().positive().optional(),
+        code: z.string().trim().min(1).max(30).optional(),
+        name: z.string().trim().min(2).optional(),
+        active: z.boolean().optional(),
+      })
+      .parse(req.body);
+    const classId = await resolveClassId(req.user, data.classId);
+    await assertClassAccess(req.user, classId, { manage: true });
+    const assigned = await ClassSubject.count({
+      where: { AcademicClassId: classId, SubjectId: row.id, active: true },
+    });
+    if (!assigned)
+      return res.status(403).json({
+        message: "This subject is not assigned to the selected class.",
+      });
+    delete data.classId;
+    await row.update(data);
     res.json(row);
   },
 );
@@ -850,6 +888,10 @@ router.get(
       lateModeEnabled: true,
       lateAttendanceCredit: 0,
       attendanceTargetPercentage: 75,
+      institutionName: "AttendX Institution",
+      institutionCode: "",
+      campusName: "",
+      timezone: "Asia/Kolkata",
       ...Object.fromEntries(rows.map((row) => [row.key, settingValue(row)])),
     });
   },
@@ -926,8 +968,8 @@ router.put(
       .object({
         lateThresholdMinutes: z.number().int().min(1).max(120),
         institutionName: z.string().min(2),
-        className: z.string().min(1),
-        academicSession: z.string().min(2),
+        institutionCode: z.string().trim().max(30).optional(),
+        campusName: z.string().trim().max(100).optional(),
         timezone: z.literal("Asia/Kolkata"),
         crCanCorrectRecent: z.boolean().optional(),
         attendanceTargetPercentage: z.number().int().min(1).max(100).optional(),

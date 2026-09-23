@@ -157,6 +157,11 @@ export const Subject = sequelize.define(
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     code: { type: DataTypes.STRING(30), unique: true, allowNull: false },
     name: { type: DataTypes.STRING, allowNull: false },
+    courseCategory: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+      defaultValue: "BCA",
+    },
     active: { type: DataTypes.BOOLEAN, defaultValue: true },
   },
   common,
@@ -231,6 +236,8 @@ export const AttendanceRecord = sequelize.define(
     correctedFromStatus: { type: DataTypes.STRING(20), allowNull: true },
     correctionReason: { type: DataTypes.STRING(250), allowNull: true },
     correctedAt: { type: DataTypes.DATE, allowNull: true },
+    StudentId: { type: DataTypes.INTEGER, allowNull: false },
+    AttendanceSessionId: { type: DataTypes.INTEGER, allowNull: false },
   },
   {
     ...common,

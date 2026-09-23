@@ -29,6 +29,7 @@ export function Subjects() {
       edit
         ? await api.patch(`/admin/subjects/${edit.id}`, {
             ...f,
+            classId,
             active: f.active === "true",
           })
         : await api.post("/admin/subjects", { ...f, classId });
@@ -72,8 +73,16 @@ export function Subjects() {
           </button>
         )}
       </div>
-      <div className="subject-grid">
-        {rows.map((s) => (
+      <section className="subject-catalog-group">
+        <header>
+          <div>
+            <span>{selectedClass?.course || "COURSE"}</span>
+            <strong>{selectedClass?.course || "Course"} subject catalogue</strong>
+          </div>
+          <small>{rows.length} assigned subject{rows.length === 1 ? "" : "s"}</small>
+        </header>
+        <div className="subject-grid">
+          {rows.map((s) => (
           <button
             className="subject-card"
             key={s.id}
@@ -81,10 +90,13 @@ export function Subjects() {
           >
             <span>{s.code}</span>
             <strong>{s.name}</strong>
-            <small>{s.active ? "Active" : "Inactive"}</small>
+            <small>
+              {s.courseCategory || selectedClass?.course} · {s.active ? "Active" : "Inactive"}
+            </small>
           </button>
-        ))}
-      </div>
+          ))}
+        </div>
+      </section>
       <Dialog
         open={adding || !!edit}
         title={edit ? "Edit subject" : "Add subject"}
@@ -94,6 +106,13 @@ export function Subjects() {
         }}
       >
         <form onSubmit={save} className="form-stack">
+          <div className="subject-course-context">
+            <span>{selectedClass?.course || "Course"}</span>
+            <p>
+              This subject belongs to the {selectedClass?.course || "selected"}
+              course catalogue and will be assigned to {selectedClass?.displayName}.
+            </p>
+          </div>
           <label>
             Subject code
             <input name="code" defaultValue={edit?.code} required />

@@ -116,6 +116,12 @@ try {
     (total, entry) => total + Number(entry.count || 0),
     0,
   );
+  const [unownedAttendance] = await sequelize.query(
+    `SELECT COUNT(*) AS count
+       FROM attendance_records
+      WHERE student_id IS NULL OR attendance_session_id IS NULL`,
+    { type: QueryTypes.SELECT },
+  );
   const duplicateEnrollments = await sequelize.query(
     `SELECT enrollment_number, COUNT(*) AS count
        FROM students
@@ -144,6 +150,13 @@ try {
     unassignedCount ? fail(String(unassignedCount)) : ok("0"),
   );
   if (unassignedCount) exitCode = 1;
+  row(
+    "Unowned attendance",
+    Number(unownedAttendance.count)
+      ? fail(String(unownedAttendance.count))
+      : ok("0"),
+  );
+  if (Number(unownedAttendance.count)) exitCode = 1;
   row(
     "Duplicate enrolments",
     duplicateEnrollments.length

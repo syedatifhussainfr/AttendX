@@ -85,6 +85,16 @@ export async function validateBackup(filename) {
       throw new Error(
         `Backup contains ${foreignKeyErrors.length} broken relationship(s).`,
       );
+    const missingAttendanceOwners = await get(
+      db,
+      `SELECT COUNT(*) AS count
+         FROM attendance_records
+        WHERE student_id IS NULL OR attendance_session_id IS NULL`,
+    );
+    if (Number(missingAttendanceOwners?.count))
+      throw new Error(
+        `Backup contains ${missingAttendanceOwners.count} attendance record(s) without a student or session.`,
+      );
     const userColumns = new Set(
       (await all(db, "PRAGMA table_info(users)")).map((column) => column.name),
     );
