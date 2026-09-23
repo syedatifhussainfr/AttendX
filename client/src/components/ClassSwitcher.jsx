@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Search, X } from "lucide-react";
 import { useClass } from "../state/ClassContext.jsx";
 
@@ -21,6 +21,7 @@ export function ClassSwitcher() {
   const rootRef = useRef(null);
   const searchRef = useRef(null);
   const optionsRef = useRef(null);
+  const pagePositionRef = useRef({ left: 0, top: 0 });
   const activeClasses = useMemo(
     () => classes.filter((item) => item.active),
     [classes],
@@ -46,25 +47,28 @@ export function ClassSwitcher() {
     );
   }, [activeClasses, query]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return undefined;
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-    const savedPageStyles = {
-      bodyOverflow: document.body.style.overflow,
-      bodyPaddingRight: document.body.style.paddingRight,
-      htmlOverflow: document.documentElement.style.overflow,
+    const restorePagePosition = () => {
+      window.scrollTo(pagePositionRef.current);
     };
     document.body.classList.add("class-switcher-open");
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
-    if (scrollbarWidth > 0)
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    restorePagePosition();
     const animationFrame = window.requestAnimationFrame(() => {
-      searchRef.current?.focus();
-      optionsRef.current
-        ?.querySelector('[aria-selected="true"]')
-        ?.scrollIntoView({ block: "nearest" });
+      restorePagePosition();
+      const list = optionsRef.current;
+      const selectedOption = list?.querySelector('[aria-selected="true"]');
+      if (list && selectedOption) {
+        const optionTop = selectedOption.offsetTop;
+        const optionBottom = optionTop + selectedOption.offsetHeight;
+        if (optionTop < list.scrollTop) list.scrollTop = optionTop;
+        else if (optionBottom > list.scrollTop + list.clientHeight)
+          list.scrollTop = optionBottom - list.clientHeight;
+      }
     });
+    const containBackgroundScroll = (event) => {
+      if (!rootRef.current?.contains(event.target)) event.preventDefault();
+    };
     const closeOutside = (event) => {
       if (!rootRef.current?.contains(event.target)) {
         setOpen(false);
@@ -80,14 +84,21 @@ export function ClassSwitcher() {
     };
     document.addEventListener("pointerdown", closeOutside);
     document.addEventListener("keydown", closeOnEscape);
+    document.addEventListener("wheel", containBackgroundScroll, {
+      passive: false,
+    });
+    document.addEventListener("touchmove", containBackgroundScroll, {
+      passive: false,
+    });
     return () => {
       window.cancelAnimationFrame(animationFrame);
       document.body.classList.remove("class-switcher-open");
-      document.body.style.overflow = savedPageStyles.bodyOverflow;
-      document.body.style.paddingRight = savedPageStyles.bodyPaddingRight;
-      document.documentElement.style.overflow = savedPageStyles.htmlOverflow;
       document.removeEventListener("pointerdown", closeOutside);
       document.removeEventListener("keydown", closeOnEscape);
+      document.removeEventListener("wheel", containBackgroundScroll);
+      document.removeEventListener("touchmove", containBackgroundScroll);
+      restorePagePosition();
+      window.requestAnimationFrame(restorePagePosition);
     };
   }, [open]);
 
@@ -134,7 +145,13 @@ export function ClassSwitcher() {
         aria-expanded={open}
         onClick={() => {
           if (open) close();
-          else setOpen(true);
+          else {
+            pagePositionRef.current = {
+              left: window.scrollX,
+              top: window.scrollY,
+            };
+            setOpen(true);
+          }
         }}
       >
         <span className="class-switcher-state">
