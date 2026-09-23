@@ -21,9 +21,7 @@ import {
   AppMigration,
   AuthSession,
 } from "../db/index.js";
-import {
-  normalizeRollNumber,
-} from "../utils/rollNumber.js";
+import { normalizeRollNumber } from "../utils/rollNumber.js";
 import {
   CLOCK_TIME_PATTERN,
   schedulesOverlap,
@@ -52,12 +50,21 @@ import {
 
 const router = Router();
 router.use(requireAuth);
-router.get("/students", requirePermission("students.view"), async (req, res) => {
-  const q = z.string().trim().max(100).catch("").parse(req.query.q || "");
-  res.json(
-    await studentDirectory({ q, sensitive: req.user.role === "ADMIN" }),
-  );
-});
+router.get(
+  "/students",
+  requirePermission("students.view"),
+  async (req, res) => {
+    const q = z
+      .string()
+      .trim()
+      .max(100)
+      .catch("")
+      .parse(req.query.q || "");
+    res.json(
+      await studentDirectory({ q, sensitive: req.user.role === "ADMIN" }),
+    );
+  },
+);
 router.get(
   "/students/:id/profile",
   requirePermission("students.view"),
@@ -65,7 +72,8 @@ router.get(
     const profile = await studentProfile(req.params.id, {
       sensitive: req.user.role === "ADMIN",
     });
-    if (!profile) return res.status(404).json({ message: "Student not found." });
+    if (!profile)
+      return res.status(404).json({ message: "Student not found." });
     res.setHeader("Cache-Control", "private, no-store");
     res.json(profile);
   },
@@ -89,69 +97,104 @@ const studentDetailsSchema = {
   phoneNumber: optionalPhone.optional(),
   guardianPhone: optionalPhone.optional(),
   notes: optionalText(1000).optional(),
-  admissionDate: z.preprocess(
-    (value) => (value == null || value === "" ? null : value),
-    z.string().date().nullable(),
-  ).optional(),
+  admissionDate: z
+    .preprocess(
+      (value) => (value == null || value === "" ? null : value),
+      z.string().date().nullable(),
+    )
+    .optional(),
 };
-router.post("/students", requirePermission("students.create"), async (req, res) => {
-  const data = z
-    .object({
-      rollNumber: z.string().trim().min(1).max(20),
-      name: z.string().trim().min(2),
-      cardToken: z.string().trim().min(16).nullable().optional(),
-      photoUrl: z.string().url().nullable().optional(),
-      ...studentDetailsSchema,
-    })
-    .parse(req.body);
-  data.rollNumber = normalizeRollNumber(data.rollNumber);
-  const created = await sequelize.transaction(async (transaction) => {
-    const row = await Student.create(data, { transaction });
-    await AuditLog.create(
-      {
-        entityType: "STUDENT",
-        entityId: row.id,
-        action: "STUDENT_CREATED",
-        newValue: JSON.stringify(publicStudent(row)),
-        UserId: req.user.id,
-      },
-      { transaction },
+const sensitiveStudentFields = [
+  "phoneNumber",
+  "guardianPhone",
+  "notes",
+  "cardToken",
+];
+function enforceSensitiveStudentWrite(req, data) {
+  if (
+    req.user.role !== "ADMIN" &&
+    sensitiveStudentFields.some((field) =>
+      Object.prototype.hasOwnProperty.call(data, field),
+    )
+  ) {
+    const error = new Error(
+      "Administrator permission is required to change private student information.",
     );
-    return row;
-  });
-  res.status(201).json(publicStudent(created, { sensitive: true }));
-});
-router.patch("/students/:id", requirePermission("students.update"), async (req, res) => {
-  const row = await Student.findByPk(req.params.id);
-  if (!row) return res.status(404).json({ message: "Student not found." });
-  const data = z
-    .object({
-      rollNumber: z.string().trim().min(1).max(20).optional(),
-      name: z.string().trim().min(2).optional(),
-      active: z.boolean().optional(),
-      cardToken: z.string().trim().min(16).nullable().optional(),
-      photoUrl: z.string().url().nullable().optional(),
-      ...studentDetailsSchema,
-    })
-    .parse(req.body);
-  if (data.rollNumber) data.rollNumber = normalizeRollNumber(data.rollNumber);
-  const before = publicStudent(row, { sensitive: true });
-  await sequelize.transaction(async (transaction) => {
-    await row.update(data, { transaction });
-    await AuditLog.create(
-      {
-        entityType: "STUDENT",
-        entityId: row.id,
-        action: "STUDENT_UPDATED",
-        oldValue: JSON.stringify(before),
-        newValue: JSON.stringify(publicStudent(row, { sensitive: true })),
-        UserId: req.user.id,
-      },
-      { transaction },
-    );
-  });
-  res.json(publicStudent(row, { sensitive: true }));
-});
+    error.status = 403;
+    error.code = "ADMIN_REQUIRED";
+    throw error;
+  }
+}
+router.post(
+  "/students",
+  requirePermission("students.create"),
+  async (req, res) => {
+    const data = z
+      .object({
+        rollNumber: z.string().trim().min(1).max(20),
+        name: z.string().trim().min(2),
+        cardToken: z.string().trim().min(16).nullable().optional(),
+        photoUrl: z.string().url().nullable().optional(),
+        ...studentDetailsSchema,
+      })
+      .parse(req.body);
+    enforceSensitiveStudentWrite(req, data);
+    data.rollNumber = normalizeRollNumber(data.rollNumber);
+    const created = await sequelize.transaction(async (transaction) => {
+      const row = await Student.create(data, { transaction });
+      await AuditLog.create(
+        {
+          entityType: "STUDENT",
+          entityId: row.id,
+          action: "STUDENT_CREATED",
+          newValue: JSON.stringify(publicStudent(row)),
+          UserId: req.user.id,
+        },
+        { transaction },
+      );
+      return row;
+    });
+    res
+      .status(201)
+      .json(publicStudent(created, { sensitive: req.user.role === "ADMIN" }));
+  },
+);
+router.patch(
+  "/students/:id",
+  requirePermission("students.update"),
+  async (req, res) => {
+    const row = await Student.findByPk(req.params.id);
+    if (!row) return res.status(404).json({ message: "Student not found." });
+    const data = z
+      .object({
+        rollNumber: z.string().trim().min(1).max(20).optional(),
+        name: z.string().trim().min(2).optional(),
+        active: z.boolean().optional(),
+        cardToken: z.string().trim().min(16).nullable().optional(),
+        photoUrl: z.string().url().nullable().optional(),
+        ...studentDetailsSchema,
+      })
+      .parse(req.body);
+    enforceSensitiveStudentWrite(req, data);
+    if (data.rollNumber) data.rollNumber = normalizeRollNumber(data.rollNumber);
+    const before = publicStudent(row, { sensitive: true });
+    await sequelize.transaction(async (transaction) => {
+      await row.update(data, { transaction });
+      await AuditLog.create(
+        {
+          entityType: "STUDENT",
+          entityId: row.id,
+          action: "STUDENT_UPDATED",
+          oldValue: JSON.stringify(before),
+          newValue: JSON.stringify(publicStudent(row, { sensitive: true })),
+          UserId: req.user.id,
+        },
+        { transaction },
+      );
+    });
+    res.json(publicStudent(row, { sensitive: req.user.role === "ADMIN" }));
+  },
+);
 router.delete(
   "/students/:id",
   requirePermission("students.delete"),
@@ -232,32 +275,39 @@ router.post(
 router.get("/subjects", requirePermission("subjects.view"), async (req, res) =>
   res.json(await Subject.findAll({ order: [["name", "ASC"]] })),
 );
-router.post("/subjects", requirePermission("subjects.manage"), async (req, res) =>
-  res.status(201).json(
-    await Subject.create(
+router.post(
+  "/subjects",
+  requirePermission("subjects.manage"),
+  async (req, res) =>
+    res.status(201).json(
+      await Subject.create(
+        z
+          .object({
+            code: z.string().trim().min(1).max(30),
+            name: z.string().trim().min(2),
+          })
+          .parse(req.body),
+      ),
+    ),
+);
+router.patch(
+  "/subjects/:id",
+  requirePermission("subjects.manage"),
+  async (req, res) => {
+    const row = await Subject.findByPk(req.params.id);
+    if (!row) return res.status(404).json({ message: "Subject not found." });
+    await row.update(
       z
         .object({
-          code: z.string().trim().min(1).max(30),
-          name: z.string().trim().min(2),
+          code: z.string().trim().min(1).max(30).optional(),
+          name: z.string().trim().min(2).optional(),
+          active: z.boolean().optional(),
         })
         .parse(req.body),
-    ),
-  ),
+    );
+    res.json(row);
+  },
 );
-router.patch("/subjects/:id", requirePermission("subjects.manage"), async (req, res) => {
-  const row = await Subject.findByPk(req.params.id);
-  if (!row) return res.status(404).json({ message: "Subject not found." });
-  await row.update(
-    z
-      .object({
-        code: z.string().trim().min(1).max(30).optional(),
-        name: z.string().trim().min(2).optional(),
-        active: z.boolean().optional(),
-      })
-      .parse(req.body),
-  );
-  res.json(row);
-});
 router.delete(
   "/subjects/:id",
   requirePermission("subjects.delete"),
@@ -314,9 +364,13 @@ async function validateTimetableChange(data, current = null) {
     error.code = "INVALID_TIMETABLE_WINDOW";
     throw error;
   }
-  const subject = await Subject.findOne({ where: { id: subjectId, active: true } });
+  const subject = await Subject.findOne({
+    where: { id: subjectId, active: true },
+  });
   if (!subject) {
-    const error = new Error("Choose an active subject for this timetable entry.");
+    const error = new Error(
+      "Choose an active subject for this timetable entry.",
+    );
     error.status = 400;
     error.code = "SUBJECT_UNAVAILABLE";
     throw error;
@@ -341,65 +395,74 @@ async function validateTimetableChange(data, current = null) {
     throw error;
   }
 }
-router.get("/timetable", requirePermission("timetable.view"), async (req, res) =>
-  res.json(
-    await Timetable.findAll({
-      include: [Subject],
-      order: [
-        ["dayOfWeek", "ASC"],
-        ["startTime", "ASC"],
-      ],
-    }),
-  ),
+router.get(
+  "/timetable",
+  requirePermission("timetable.view"),
+  async (req, res) =>
+    res.json(
+      await Timetable.findAll({
+        include: [Subject],
+        order: [
+          ["dayOfWeek", "ASC"],
+          ["startTime", "ASC"],
+        ],
+      }),
+    ),
 );
-router.post("/timetable", requirePermission("timetable.manage"), async (req, res) => {
-  const data = z
-    .object({
-      dayOfWeek: z.number().int().min(1).max(7),
-      startTime: z.string().regex(CLOCK_TIME_PATTERN),
-      endTime: z.string().regex(CLOCK_TIME_PATTERN),
-      subjectId: z.number().int(),
-      faculty: z.string().trim().max(120).nullable().optional(),
-    })
-    .parse(req.body);
-  await validateTimetableChange(data);
-  const { subjectId, ...values } = data;
-  res
-    .status(201)
-    .json(await Timetable.create({ ...values, SubjectId: subjectId }));
-});
-router.patch("/timetable/:id", requirePermission("timetable.manage"), async (req, res) => {
-  const row = await Timetable.findByPk(req.params.id);
-  if (!row) return res.status(404).json({ message: "Entry not found." });
-  const data = z
-    .object({
-      dayOfWeek: z.number().int().min(1).max(7).optional(),
-      startTime: z
-        .string()
-        .regex(CLOCK_TIME_PATTERN)
-        .optional(),
-      endTime: z
-        .string()
-        .regex(CLOCK_TIME_PATTERN)
-        .optional(),
-      subjectId: z.number().int().optional(),
-      faculty: z.string().trim().max(120).nullable().optional(),
-      active: z.boolean().optional(),
-    })
-    .parse(req.body);
-  await validateTimetableChange(data, row);
-  await row.update({
-    ...data,
-    ...(data.subjectId && { SubjectId: data.subjectId }),
-  });
-  res.json(row);
-});
-router.delete("/timetable/:id", requirePermission("timetable.manage"), async (req, res) => {
-  const row = await Timetable.findByPk(req.params.id);
-  if (!row) return res.status(404).json({ message: "Entry not found." });
-  await row.destroy();
-  res.status(204).end();
-});
+router.post(
+  "/timetable",
+  requirePermission("timetable.manage"),
+  async (req, res) => {
+    const data = z
+      .object({
+        dayOfWeek: z.number().int().min(1).max(7),
+        startTime: z.string().regex(CLOCK_TIME_PATTERN),
+        endTime: z.string().regex(CLOCK_TIME_PATTERN),
+        subjectId: z.number().int(),
+        faculty: z.string().trim().max(120).nullable().optional(),
+      })
+      .parse(req.body);
+    await validateTimetableChange(data);
+    const { subjectId, ...values } = data;
+    res
+      .status(201)
+      .json(await Timetable.create({ ...values, SubjectId: subjectId }));
+  },
+);
+router.patch(
+  "/timetable/:id",
+  requirePermission("timetable.manage"),
+  async (req, res) => {
+    const row = await Timetable.findByPk(req.params.id);
+    if (!row) return res.status(404).json({ message: "Entry not found." });
+    const data = z
+      .object({
+        dayOfWeek: z.number().int().min(1).max(7).optional(),
+        startTime: z.string().regex(CLOCK_TIME_PATTERN).optional(),
+        endTime: z.string().regex(CLOCK_TIME_PATTERN).optional(),
+        subjectId: z.number().int().optional(),
+        faculty: z.string().trim().max(120).nullable().optional(),
+        active: z.boolean().optional(),
+      })
+      .parse(req.body);
+    await validateTimetableChange(data, row);
+    await row.update({
+      ...data,
+      ...(data.subjectId && { SubjectId: data.subjectId }),
+    });
+    res.json(row);
+  },
+);
+router.delete(
+  "/timetable/:id",
+  requirePermission("timetable.manage"),
+  async (req, res) => {
+    const row = await Timetable.findByPk(req.params.id);
+    if (!row) return res.status(404).json({ message: "Entry not found." });
+    await row.destroy();
+    res.status(204).end();
+  },
+);
 function settingValue(row) {
   try {
     return JSON.parse(row.value);
@@ -408,19 +471,19 @@ function settingValue(row) {
   }
 }
 
-router.get("/settings", requirePermission("settings.view"), async (req, res) => {
-  const rows = await Setting.findAll();
-  res.json(
-    {
+router.get(
+  "/settings",
+  requirePermission("settings.view"),
+  async (req, res) => {
+    const rows = await Setting.findAll();
+    res.json({
       lateModeEnabled: true,
       lateAttendanceCredit: 0,
       attendanceTargetPercentage: 75,
-      ...Object.fromEntries(
-        rows.map((row) => [row.key, settingValue(row)]),
-      ),
-    },
-  );
-});
+      ...Object.fromEntries(rows.map((row) => [row.key, settingValue(row)])),
+    });
+  },
+);
 router.put(
   "/settings/late-mode",
   requirePermission("settings.manageLateMode"),
@@ -485,41 +548,45 @@ router.put(
     res.json({ lateAttendanceCredit: credit });
   },
 );
-router.put("/settings", requirePermission("settings.manage"), async (req, res) => {
-  const data = z
-    .object({
-      lateThresholdMinutes: z.number().int().min(1).max(120),
-      institutionName: z.string().min(2),
-      className: z.string().min(1),
-      academicSession: z.string().min(2),
-      timezone: z.literal("Asia/Kolkata"),
-      crCanCorrectRecent: z.boolean().optional(),
-      attendanceTargetPercentage: z.number().int().min(1).max(100).optional(),
-    })
-    .parse(req.body);
-  const before = Object.fromEntries(
-    (await Setting.findAll()).map((row) => [row.key, settingValue(row)]),
-  );
-  await sequelize.transaction(async (transaction) => {
-    for (const [key, value] of Object.entries(data))
-      await Setting.upsert(
-        { key, value: JSON.stringify(value) },
+router.put(
+  "/settings",
+  requirePermission("settings.manage"),
+  async (req, res) => {
+    const data = z
+      .object({
+        lateThresholdMinutes: z.number().int().min(1).max(120),
+        institutionName: z.string().min(2),
+        className: z.string().min(1),
+        academicSession: z.string().min(2),
+        timezone: z.literal("Asia/Kolkata"),
+        crCanCorrectRecent: z.boolean().optional(),
+        attendanceTargetPercentage: z.number().int().min(1).max(100).optional(),
+      })
+      .parse(req.body);
+    const before = Object.fromEntries(
+      (await Setting.findAll()).map((row) => [row.key, settingValue(row)]),
+    );
+    await sequelize.transaction(async (transaction) => {
+      for (const [key, value] of Object.entries(data))
+        await Setting.upsert(
+          { key, value: JSON.stringify(value) },
+          { transaction },
+        );
+      await AuditLog.create(
+        {
+          entityType: "SETTING",
+          entityId: 0,
+          action: "SETTINGS_UPDATED",
+          oldValue: JSON.stringify(before),
+          newValue: JSON.stringify(data),
+          UserId: req.user.id,
+        },
         { transaction },
       );
-    await AuditLog.create(
-      {
-        entityType: "SETTING",
-        entityId: 0,
-        action: "SETTINGS_UPDATED",
-        oldValue: JSON.stringify(before),
-        newValue: JSON.stringify(data),
-        UserId: req.user.id,
-      },
-      { transaction },
-    );
-  });
-  res.json(data);
-});
+    });
+    res.json(data);
+  },
+);
 router.get(
   "/settings/permissions",
   requirePermission("settings.managePermissions"),
@@ -600,74 +667,78 @@ router.post("/users", requirePermission("users.create"), async (req, res) => {
   });
   res.status(201).json(publicUser(created));
 });
-router.patch("/users/:id", requirePermission("users.update"), async (req, res) => {
-  const row = await User.findByPk(req.params.id);
-  if (!row) return res.status(404).json({ message: "User not found." });
-  const data = z
-    .object({
-      name: z.string().min(2).optional(),
-      role: z.enum(["ADMIN", "CR"]).optional(),
-      active: z.boolean().optional(),
-    })
-    .parse(req.body);
-  if (row.adminPlus && !req.user.adminPlus)
-    return res.status(403).json({
-      code: "ADMIN_PLUS_REQUIRED",
-      message: "Only Admin++ can change an Admin++ account.",
+router.patch(
+  "/users/:id",
+  requirePermission("users.update"),
+  async (req, res) => {
+    const row = await User.findByPk(req.params.id);
+    if (!row) return res.status(404).json({ message: "User not found." });
+    const data = z
+      .object({
+        name: z.string().min(2).optional(),
+        role: z.enum(["ADMIN", "CR"]).optional(),
+        active: z.boolean().optional(),
+      })
+      .parse(req.body);
+    if (row.adminPlus && !req.user.adminPlus)
+      return res.status(403).json({
+        code: "ADMIN_PLUS_REQUIRED",
+        message: "Only Admin++ can change an Admin++ account.",
+      });
+    const roleChanged = data.role && data.role !== row.role;
+    if (roleChanged && !hasPermission(req.user, "users.changeRole"))
+      return res.status(403).json({
+        code: "PERMISSION_REQUIRED",
+        permission: "users.changeRole",
+        message: "Admin++ permission is required to change account roles.",
+      });
+    if (roleChanged && row.adminPlus)
+      return res.status(409).json({
+        code: "ADMIN_PLUS_CLI_REQUIRED",
+        message:
+          "Admin++ roles are fixed in the browser. Revoke Admin++ with npm run admin-pp first.",
+      });
+    if (row.id === req.user.id && data.active === false)
+      return res.status(409).json({
+        code: "SELF_DISABLE_BLOCKED",
+        message:
+          "You cannot disable the administrator account you are currently using.",
+      });
+    if (row.id === req.user.id && data.role && data.role !== "ADMIN")
+      return res.status(409).json({
+        code: "SELF_ROLE_CHANGE_BLOCKED",
+        message:
+          "You cannot remove ADMIN access from the account you are currently using.",
+      });
+    if (
+      row.adminPlus &&
+      data.active === false &&
+      (await User.count({ where: { adminPlus: true, active: true } })) <= 1
+    )
+      return res.status(409).json({
+        code: "LAST_ADMIN_PLUS",
+        message: "The last active Admin++ account cannot be disabled.",
+      });
+    const before = publicUser(row);
+    if (roleChanged) data.tokenVersion = (row.tokenVersion || 0) + 1;
+    await sequelize.transaction(async (transaction) => {
+      await row.update(data, { transaction });
+      await AuditLog.create(
+        {
+          entityType: "USER",
+          entityId: row.id,
+          action: "USER_UPDATED",
+          oldValue: JSON.stringify(before),
+          newValue: JSON.stringify(publicUser(row)),
+          UserId: req.user.id,
+        },
+        { transaction },
+      );
     });
-  const roleChanged = data.role && data.role !== row.role;
-  if (roleChanged && !hasPermission(req.user, "users.changeRole"))
-    return res.status(403).json({
-      code: "PERMISSION_REQUIRED",
-      permission: "users.changeRole",
-      message: "Admin++ permission is required to change account roles.",
-    });
-  if (roleChanged && row.adminPlus)
-    return res.status(409).json({
-      code: "ADMIN_PLUS_CLI_REQUIRED",
-      message:
-        "Admin++ roles are fixed in the browser. Revoke Admin++ with npm run admin-pp first.",
-    });
-  if (row.id === req.user.id && data.active === false)
-    return res.status(409).json({
-      code: "SELF_DISABLE_BLOCKED",
-      message:
-        "You cannot disable the administrator account you are currently using.",
-    });
-  if (row.id === req.user.id && data.role && data.role !== "ADMIN")
-    return res.status(409).json({
-      code: "SELF_ROLE_CHANGE_BLOCKED",
-      message:
-        "You cannot remove ADMIN access from the account you are currently using.",
-    });
-  if (
-    row.adminPlus &&
-    data.active === false &&
-    (await User.count({ where: { adminPlus: true, active: true } })) <= 1
-  )
-    return res.status(409).json({
-      code: "LAST_ADMIN_PLUS",
-      message: "The last active Admin++ account cannot be disabled.",
-    });
-  const before = publicUser(row);
-  if (roleChanged) data.tokenVersion = (row.tokenVersion || 0) + 1;
-  await sequelize.transaction(async (transaction) => {
-    await row.update(data, { transaction });
-    await AuditLog.create(
-      {
-        entityType: "USER",
-        entityId: row.id,
-        action: "USER_UPDATED",
-        oldValue: JSON.stringify(before),
-        newValue: JSON.stringify(publicUser(row)),
-        UserId: req.user.id,
-      },
-      { transaction },
-    );
-  });
-  if (data.active === false || roleChanged) await revokeUserSessions(row.id);
-  res.json(publicUser(row));
-});
+    if (data.active === false || roleChanged) await revokeUserSessions(row.id);
+    res.json(publicUser(row));
+  },
+);
 router.post(
   "/users/:id/reset-password",
   requirePermission("users.resetCrPassword"),
@@ -852,7 +923,9 @@ function readableAuditValue(value) {
 
 function readableAuditTimestamp(value) {
   const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? "Timestamp unavailable" : date.toISOString();
+  return Number.isNaN(date.getTime())
+    ? "Timestamp unavailable"
+    : date.toISOString();
 }
 
 router.get(
@@ -927,19 +1000,25 @@ const databaseTables = {
   app_migrations: { model: AppMigration, order: [["appliedAt", "DESC"]] },
 };
 
-router.get("/database/overview", requirePermission("database.view"), requireAdminPlus, requireAdminElevation, async (req, res) => {
-  const entries = await Promise.all(
-    Object.entries(databaseTables).map(async ([name, definition]) => [
-      name,
-      await definition.model.count(),
-    ]),
-  );
-  res.json({
-    dialect: sequelize.getDialect(),
-    location: "server/data/attendx.sqlite",
-    tables: Object.fromEntries(entries),
-  });
-});
+router.get(
+  "/database/overview",
+  requirePermission("database.view"),
+  requireAdminPlus,
+  requireAdminElevation,
+  async (req, res) => {
+    const entries = await Promise.all(
+      Object.entries(databaseTables).map(async ([name, definition]) => [
+        name,
+        await definition.model.count(),
+      ]),
+    );
+    res.json({
+      dialect: sequelize.getDialect(),
+      location: "server/data/attendx.sqlite",
+      tables: Object.fromEntries(entries),
+    });
+  },
+);
 
 router.get(
   "/database/tables/:table",

@@ -9,6 +9,16 @@ import {
 import { getSessionDetail } from "./attendanceService.js";
 import { schedulesOverlap } from "../utils/schedule.js";
 
+function settingValue(row, fallback, valid) {
+  if (!row) return fallback;
+  try {
+    const value = JSON.parse(row.value);
+    return valid(value) ? value : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function inspectSessionConflicts({
   sessionDate,
   subjectId,
@@ -75,16 +85,21 @@ export async function openAttendanceSession({ input, userId, now }) {
       transaction,
       lock: transaction.LOCK.UPDATE,
     });
-    let lateAttendanceCredit = 0;
-    try {
-      const configuredCredit = Number(
-        lateCreditSetting ? JSON.parse(lateCreditSetting.value) : 0,
-      );
-      if ([0, 0.5, 1].includes(configuredCredit))
-        lateAttendanceCredit = configuredCredit;
-    } catch {
-      lateAttendanceCredit = 0;
-    }
+    const lateThresholdMinutes = settingValue(
+      thresholdSetting,
+      15,
+      (value) => Number.isInteger(value) && value >= 1 && value <= 120,
+    );
+    const lateModeEnabled = settingValue(
+      lateModeSetting,
+      true,
+      (value) => typeof value === "boolean",
+    );
+    const lateAttendanceCredit = settingValue(
+      lateCreditSetting,
+      0,
+      (value) => [0, 0.5, 1].includes(value),
+    );
     const subject = await Subject.findOne({
       where: { id: input.subjectId, active: true },
       transaction,
@@ -166,12 +181,8 @@ export async function openAttendanceSession({ input, userId, now }) {
         scheduledStartTime: input.scheduledStartTime,
         scheduledEndTime: input.scheduledEndTime,
         openedAt: now,
-        lateThresholdMinutes: thresholdSetting
-          ? JSON.parse(thresholdSetting.value)
-          : 15,
-        lateModeEnabled: lateModeSetting
-          ? JSON.parse(lateModeSetting.value)
-          : true,
+        lateThresholdMinutes,
+        lateModeEnabled,
         lateAttendanceCredit,
         faculty: input.faculty,
         sessionType: input.sessionType,

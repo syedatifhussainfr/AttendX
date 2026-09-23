@@ -217,11 +217,14 @@ export async function stageUploadedBackup(buffer) {
 export async function restoreStagedBackup({ stagedPath, userId, sourceName }) {
   sqliteOnly();
   await validateBackup(stagedPath);
-  const safetyBackup = await createBackup({ label: "pre-restore" });
   const livePath = liveDatabasePath();
   const oldPath = `${livePath}.restore-old`;
-  await sequelize.close();
+  let safetyBackup;
+  let databaseClosed = false;
   try {
+    safetyBackup = await createBackup({ label: "pre-restore" });
+    await sequelize.close();
+    databaseClosed = true;
     await fs.rm(oldPath, { force: true });
     await fs.rename(livePath, oldPath);
     await fs.copyFile(stagedPath, livePath);
@@ -233,9 +236,16 @@ export async function restoreStagedBackup({ stagedPath, userId, sourceName }) {
       // Match Sequelize's SQLite DATE serialization so restored rows hydrate as
       // valid Date objects after the API restarts.
       const now = sqliteTimestamp();
-      const tables = await all(db, "SELECT name FROM sqlite_master WHERE type = 'table'");
+      const tables = await all(
+        db,
+        "SELECT name FROM sqlite_master WHERE type = 'table'",
+      );
       if (tables.some((table) => table.name === "auth_sessions"))
-        await run(db, "UPDATE auth_sessions SET revoked_at = ?, updated_at = ? WHERE revoked_at IS NULL", [now, now]);
+        await run(
+          db,
+          "UPDATE auth_sessions SET revoked_at = ?, updated_at = ? WHERE revoked_at IS NULL",
+          [now, now],
+        );
       await run(
         db,
         `INSERT INTO audit_logs
@@ -270,6 +280,8 @@ export async function restoreStagedBackup({ stagedPath, userId, sourceName }) {
       if (liveExists) await fs.rm(livePath, { force: true });
       await fs.rename(oldPath, livePath);
     }
+    await fs.rm(stagedPath, { force: true });
+    if (databaseClosed) error.restartRequired = true;
     throw error;
   }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ChevronRight,
@@ -35,7 +35,9 @@ const initials = (name = "") =>
 export function Students() {
   const navigate = useNavigate(),
     toast = useToast(),
-    { can } = useAuth();
+    { can, user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+  const loadSequence = useRef(0);
   const [rows, setRows] = useState([]),
     [overview, setOverview] = useState(null),
     [target, setTarget] = useState(75);
@@ -56,12 +58,15 @@ export function Students() {
     [deleting, setDeleting] = useState(false);
 
   const load = async () => {
+    const sequence = ++loadSequence.current;
     try {
       const { data } = await api.get("/admin/students", { params: { q } });
+      if (sequence !== loadSequence.current) return;
       setRows(data.students || data);
       setOverview(data.overview || null);
       setTarget(data.target || 75);
     } catch (error) {
+      if (sequence !== loadSequence.current) return;
       toast(messageOf(error), "error");
     }
   };
@@ -103,7 +108,7 @@ export function Students() {
     const payload = {
       ...form,
       ...(selected && { active: form.active === "true" }),
-      cardToken: form.cardToken || null,
+      ...(isAdmin && { cardToken: form.cardToken || null }),
       photoUrl: form.photoUrl || null,
     };
     try {
@@ -502,25 +507,29 @@ export function Students() {
               </select>
             </label>
           )}
-          <label>
-            Student phone
-            <input
-              name="phoneNumber"
-              inputMode="tel"
-              defaultValue={selected?.phoneNumber || ""}
-              placeholder="Optional"
-            />
-          </label>
-          <label>
-            Guardian phone
-            <input
-              name="guardianPhone"
-              inputMode="tel"
-              defaultValue={selected?.guardianPhone || ""}
-              placeholder="Optional"
-            />
-          </label>
-          {selected && (
+          {isAdmin && (
+            <>
+              <label>
+                Student phone
+                <input
+                  name="phoneNumber"
+                  inputMode="tel"
+                  defaultValue={selected?.phoneNumber || ""}
+                  placeholder="Optional"
+                />
+              </label>
+              <label>
+                Guardian phone
+                <input
+                  name="guardianPhone"
+                  inputMode="tel"
+                  defaultValue={selected?.guardianPhone || ""}
+                  placeholder="Optional"
+                />
+              </label>
+            </>
+          )}
+          {isAdmin && selected && (
             <label>
               Card token
               <input
@@ -534,23 +543,27 @@ export function Students() {
             Photo URL
             <input name="photoUrl" defaultValue={selected?.photoUrl || ""} />
           </label>
-          <label className="full">
-            Administrative notes
-            <textarea
-              name="notes"
-              rows="3"
-              maxLength="1000"
-              defaultValue={selected?.notes || ""}
-              placeholder="Optional; never shown to CR accounts"
-            />
-          </label>
-          <div className="student-form-privacy full">
-            <ShieldAlert />
-            <span>
-              Phone numbers, guardian contact, notes, and card tokens are
-              visible only to administrators.
-            </span>
-          </div>
+          {isAdmin && (
+            <>
+              <label className="full">
+                Administrative notes
+                <textarea
+                  name="notes"
+                  rows="3"
+                  maxLength="1000"
+                  defaultValue={selected?.notes || ""}
+                  placeholder="Optional; never shown to CR accounts"
+                />
+              </label>
+              <div className="student-form-privacy full">
+                <ShieldAlert />
+                <span>
+                  Phone numbers, guardian contact, notes, and card tokens are
+                  visible only to administrators.
+                </span>
+              </div>
+            </>
+          )}
           <div className="dialog-actions full">
             {selected && can("students.delete") && (
               <button

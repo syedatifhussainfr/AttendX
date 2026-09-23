@@ -21,6 +21,7 @@ const studentImport = await import("../src/services/studentImportService.js");
 const sessions = await import("../src/services/sessionService.js");
 const attendance = await import("../src/services/attendanceService.js");
 const authSessions = await import("../src/services/authSessionService.js");
+const policyService = await import("../src/policy/policyService.js");
 
 let admin;
 let normalAdmin;
@@ -61,13 +62,19 @@ before(async () => {
     passwordHash: await bcrypt.hash("SessionTest@123", 4),
     role: "CR",
   });
-  adminToken = (await authSessions.createAuthSession(admin, { userAgent: "Admin test browser" })).accessToken;
+  adminToken = (
+    await authSessions.createAuthSession(admin, {
+      userAgent: "Admin test browser",
+    })
+  ).accessToken;
   normalAdminToken = (
     await authSessions.createAuthSession(normalAdmin, {
       userAgent: "Standard admin test browser",
     })
   ).accessToken;
-  crToken = (await authSessions.createAuthSession(cr, { userAgent: "CR test browser" })).accessToken;
+  crToken = (
+    await authSessions.createAuthSession(cr, { userAgent: "CR test browser" })
+  ).accessToken;
   const elevation = await request(app)
     .post("/api/auth/elevate")
     .set("Authorization", `Bearer ${adminToken}`)
@@ -172,7 +179,11 @@ test("secure browser sessions rotate, reject stale access, and revoke on logout"
     parallelResume.map((response) => response.status),
     [200, 200],
   );
-  assert.ok(parallelResume.every((response) => response.body.user.id === sessionUser.id));
+  assert.ok(
+    parallelResume.every(
+      (response) => response.body.user.id === sessionUser.id,
+    ),
+  );
   const otherDevice = await authSessions.createAuthSession(sessionUser, {
     userAgent: "Other test device",
   });
@@ -181,9 +192,18 @@ test("secure browser sessions rotate, reject stale access, and revoke on logout"
     .get("/api/auth/sessions")
     .set("Authorization", `Bearer ${firstAccessToken}`)
     .expect(200);
-  assert.equal(sessionsResponse.body.sessions.filter((row) => row.current).length, 1);
-  assert.ok(sessionsResponse.body.sessions.some((row) => row.userAgent === "AttendX test browser"));
-  const otherRow = sessionsResponse.body.sessions.find((row) => row.userAgent === "Other test device");
+  assert.equal(
+    sessionsResponse.body.sessions.filter((row) => row.current).length,
+    1,
+  );
+  assert.ok(
+    sessionsResponse.body.sessions.some(
+      (row) => row.userAgent === "AttendX test browser",
+    ),
+  );
+  const otherRow = sessionsResponse.body.sessions.find(
+    (row) => row.userAgent === "Other test device",
+  );
   await agent
     .delete(`/api/auth/sessions/${otherRow.id}`)
     .set("Authorization", `Bearer ${firstAccessToken}`)
@@ -382,6 +402,13 @@ test("student import applies additions, edits and deactivation atomically", asyn
 });
 
 test("session service blocks duplicates and requires overlap confirmation", async () => {
+  for (const key of [
+    "lateThresholdMinutes",
+    "lateModeEnabled",
+    "lateAttendanceCredit",
+    "crCanCorrectRecent",
+  ])
+    await db.Setting.upsert({ key, value: "broken" });
   const base = {
     sessionDate: "2026-09-18",
     subjectId: subject.id,
@@ -398,6 +425,23 @@ test("session service blocks duplicates and requires overlap confirmation", asyn
     userId: cr.id,
     now: new Date("2026-09-18T04:00:00Z"),
   });
+  assert.equal(first.lateThresholdMinutes, 15);
+  assert.equal(first.lateModeEnabled, true);
+  assert.equal(first.lateAttendanceCredit, 0);
+  await request(app)
+    .get(`/api/attendance/sessions/${first.id}`)
+    .set("Authorization", `Bearer ${crToken}`)
+    .expect(200)
+    .expect((response) => {
+      assert.equal(response.body.capabilities.canCorrectOpen, true);
+    });
+  for (const [key, value] of [
+    ["lateThresholdMinutes", "15"],
+    ["lateModeEnabled", "true"],
+    ["lateAttendanceCredit", "0"],
+    ["crCanCorrectRecent", "true"],
+  ])
+    await db.Setting.upsert({ key, value });
   await assert.rejects(
     sessions.openAttendanceSession({
       input: base,
@@ -521,7 +565,25 @@ test("review export is authenticated, validated and securely named", async () =>
     .expect(200)
     .expect("Content-Type", /spreadsheetml/)
     .expect("Cache-Control", "private, no-store")
-    .expect("Content-Disposition", 'attachment; filename="attendance_2026-09-18.xlsx"');
+    .expect(
+      "Content-Disposition",
+      'attachment; filename="attendance_2026-09-18.xlsx"',
+    );
+});
+
+test("attendance history rejects malformed and reversed filters", async () => {
+  await request(app)
+    .get("/api/attendance/sessions?from=not-a-date")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .expect(400);
+  await request(app)
+    .get("/api/attendance/sessions?subjectId=not-a-number")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .expect(400);
+  await request(app)
+    .get("/api/attendance/sessions?from=2026-09-20&to=2026-09-19")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .expect(400);
 });
 
 test("student workspace summarizes attendance and protects personal fields", async () => {
@@ -578,7 +640,52 @@ test("student workspace summarizes attendance and protects personal fields", asy
     .get(`/api/attendance/export/review?studentId=${student.id}`)
     .set("Authorization", `Bearer ${crToken}`)
     .expect(200)
-    .expect("Content-Disposition", /attendance_student_\d+_\d{4}-\d{2}-\d{2}\.xlsx/);
+    .expect(
+      "Content-Disposition",
+      /attendance_student_\d+_\d{4}-\d{2}-\d{2}\.xlsx/,
+    );
+});
+
+test("configurable CR student management cannot expose private profile fields", async () => {
+  const originalPolicy = policyService.permissionPolicySnapshot();
+  const delegatedPolicy = structuredClone(originalPolicy);
+  let createdStudentId = null;
+  delegatedPolicy.permissions.CR.students.create = true;
+  delegatedPolicy.permissions.CR.students.update = true;
+  policyService.savePermissionPolicy(delegatedPolicy);
+  try {
+    const created = await request(app)
+      .post("/api/admin/students")
+      .set("Authorization", `Bearer ${crToken}`)
+      .send({ rollNumber: "97", name: "Delegated Student" })
+      .expect(201);
+    createdStudentId = created.body.id;
+    assert.equal(Object.hasOwn(created.body, "notes"), false);
+    assert.equal(Object.hasOwn(created.body, "cardToken"), false);
+
+    const basicUpdate = await request(app)
+      .patch(`/api/admin/students/${created.body.id}`)
+      .set("Authorization", `Bearer ${crToken}`)
+      .send({ section: "Delegated section" })
+      .expect(200);
+    assert.equal(basicUpdate.body.section, "Delegated section");
+    assert.equal(Object.hasOwn(basicUpdate.body, "phoneNumber"), false);
+
+    await request(app)
+      .patch(`/api/admin/students/${created.body.id}`)
+      .set("Authorization", `Bearer ${crToken}`)
+      .send({ notes: "CR must not write this" })
+      .expect(403);
+    await request(app)
+      .patch(`/api/admin/students/${created.body.id}`)
+      .set("Authorization", `Bearer ${crToken}`)
+      .send({ cardToken: "delegated-secret-token" })
+      .expect(403);
+  } finally {
+    if (createdStudentId)
+      await db.Student.destroy({ where: { id: createdStudentId } });
+    policyService.savePermissionPolicy(originalPolicy);
+  }
 });
 
 test("ADMIN manages accounts while Admin++ elevation protects destructive actions", async () => {
@@ -701,7 +808,9 @@ test("only Admin++ changes browser roles and Admin++ status remains CLI-only", a
     .set("X-Admin-Elevation", adminElevationToken)
     .send({ role: "CR" })
     .expect(409)
-    .expect((response) => assert.equal(response.body.code, "ADMIN_PLUS_CLI_REQUIRED"));
+    .expect((response) =>
+      assert.equal(response.body.code, "ADMIN_PLUS_CLI_REQUIRED"),
+    );
   await request(app)
     .delete(`/api/admin/users/${created.body.id}`)
     .set("Authorization", `Bearer ${adminToken}`)
@@ -740,7 +849,9 @@ test("permission editor is elevated Admin++ only and preserves security ceilings
 });
 
 test("disabling CR correction blocks open-session overrides", async () => {
-  const session = await db.AttendanceSession.findOne({ where: { status: "OPEN" } });
+  const session = await db.AttendanceSession.findOne({
+    where: { status: "OPEN" },
+  });
   const existing = await db.AttendanceRecord.findOne({
     where: { AttendanceSessionId: session.id },
   });
@@ -922,7 +1033,9 @@ test("roll selection marks present or late, close assigns absence, and only elev
   assert.equal(marked.body.record.status, "LATE");
 
   const overwritten = await request(app)
-    .patch(`/api/attendance/sessions/${live.id}/students/${rollOne.id}/selection`)
+    .patch(
+      `/api/attendance/sessions/${live.id}/students/${rollOne.id}/selection`,
+    )
     .set("Authorization", `Bearer ${crToken}`)
     .send({ status: "PRESENT" })
     .expect(200);
@@ -939,7 +1052,9 @@ test("roll selection marks present or late, close assigns absence, and only elev
   );
 
   const removed = await request(app)
-    .patch(`/api/attendance/sessions/${live.id}/students/${rollOne.id}/selection`)
+    .patch(
+      `/api/attendance/sessions/${live.id}/students/${rollOne.id}/selection`,
+    )
     .set("Authorization", `Bearer ${crToken}`)
     .send({ status: null })
     .expect(200);
@@ -961,7 +1076,9 @@ test("roll selection marks present or late, close assigns absence, and only elev
   );
 
   const reselected = await request(app)
-    .patch(`/api/attendance/sessions/${live.id}/students/${rollOne.id}/selection`)
+    .patch(
+      `/api/attendance/sessions/${live.id}/students/${rollOne.id}/selection`,
+    )
     .set("Authorization", `Bearer ${crToken}`)
     .send({ status: "LATE" })
     .expect(200);
@@ -1058,7 +1175,11 @@ test("ADMIN cannot disable their own account but can disable another account", a
   assert.equal((await db.User.findByPk(cr.id)).active, false);
   await db.User.update({ active: true }, { where: { id: cr.id } });
   await cr.reload();
-  crToken = (await authSessions.createAuthSession(cr, { userAgent: "CR replacement browser" })).accessToken;
+  crToken = (
+    await authSessions.createAuthSession(cr, {
+      userAgent: "CR replacement browser",
+    })
+  ).accessToken;
 });
 
 test("password change revokes the old token and replaces the password", async () => {

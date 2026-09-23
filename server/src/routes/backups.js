@@ -44,11 +44,11 @@ router.get(
   "/:filename/download",
   requirePermission("backups.download"),
   async (req, res, next) => {
-  try {
-    res.download(backupPath(req.params.filename), req.params.filename);
-  } catch (error) {
-    next(error);
-  }
+    try {
+      res.download(backupPath(req.params.filename), req.params.filename);
+    } catch (error) {
+      next(error);
+    }
   },
 );
 router.delete(
@@ -79,33 +79,42 @@ router.post(
   "/restore",
   requirePermission("backups.restore"),
   upload.single("backup"),
-  async (req, res) => {
-  const data = z
-    .object({
-      password: z.string().min(1),
-      confirmation: z.literal("RESTORE ATTENDX"),
-    })
-    .parse(req.body);
-  if (!req.file)
-    return res.status(400).json({ message: "Choose a SQLite backup file." });
-  const user = await User.findByPk(req.user.id);
-  if (!(await bcrypt.compare(data.password, user.passwordHash)))
-    return res
-      .status(400)
-      .json({ message: "Administrator password is incorrect." });
-  const staged = await stageUploadedBackup(req.file.buffer);
-  const result = await restoreStagedBackup({
-    stagedPath: staged.stagedPath,
-    userId: user.id,
-    sourceName: req.file.originalname,
-  });
-  res.json({
-    message:
-      "Database restored. The API will stop so it can be restarted safely.",
-    validation: staged.validation,
-    ...result,
-  });
-  if (process.env.NODE_ENV !== "test") setTimeout(() => process.exit(0), 750);
+  async (req, res, next) => {
+    try {
+      const data = z
+        .object({
+          password: z.string().min(1),
+          confirmation: z.literal("RESTORE ATTENDX"),
+        })
+        .parse(req.body);
+      if (!req.file)
+        return res
+          .status(400)
+          .json({ message: "Choose a SQLite backup file." });
+      const user = await User.findByPk(req.user.id);
+      if (!(await bcrypt.compare(data.password, user.passwordHash)))
+        return res
+          .status(400)
+          .json({ message: "Administrator password is incorrect." });
+      const staged = await stageUploadedBackup(req.file.buffer);
+      const result = await restoreStagedBackup({
+        stagedPath: staged.stagedPath,
+        userId: user.id,
+        sourceName: req.file.originalname,
+      });
+      res.json({
+        message:
+          "Database restored. The API will stop so it can be restarted safely.",
+        validation: staged.validation,
+        ...result,
+      });
+      if (process.env.NODE_ENV !== "test")
+        setTimeout(() => process.exit(0), 750);
+    } catch (error) {
+      if (error.restartRequired && process.env.NODE_ENV !== "test")
+        setTimeout(() => process.exit(1), 750);
+      next(error);
+    }
   },
 );
 
