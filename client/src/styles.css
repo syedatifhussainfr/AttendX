@@ -7093,7 +7093,7 @@ body.class-switcher-open::after {
   content: "";
   position: fixed;
   inset: 0;
-  z-index: 21;
+  z-index: 19;
   pointer-events: none;
   background: rgba(238, 246, 249, 0.025);
   backdrop-filter: blur(0.75px);
@@ -7212,7 +7212,8 @@ body.class-switcher-open .topbar {
   width: min(520px, 80vw);
   overflow: hidden;
   padding: 9px;
-  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.74);
   border-radius: 15px;
   background: linear-gradient(
     145deg,
@@ -7220,6 +7221,7 @@ body.class-switcher-open .topbar {
     rgba(216, 232, 240, 0.56)
   );
   box-shadow:
+    0 0 0 1px rgba(45, 88, 112, 0.08),
     0 26px 64px rgba(18, 50, 72, 0.19),
     0 7px 20px rgba(18, 50, 72, 0.08),
     inset 0 1px rgba(255, 255, 255, 0.96),
@@ -7251,6 +7253,8 @@ body.class-switcher-open .topbar {
   align-items: center;
   gap: 7px;
   margin-bottom: 7px;
+  width: 100%;
+  box-sizing: border-box;
   padding: 0 10px;
   border: 1px solid rgba(255, 255, 255, 0.72);
   border-radius: 10px;
@@ -7268,9 +7272,11 @@ body.class-switcher-open .topbar {
 }
 .class-switcher-search input {
   appearance: none;
+  min-width: 0;
   width: 100%;
+  box-sizing: border-box;
   min-height: 36px;
-  padding: 0 28px 0 0;
+  padding: 0;
   border: 0 !important;
   border-radius: 0;
   outline: 0 !important;
@@ -7278,6 +7284,9 @@ body.class-switcher-open .topbar {
   box-shadow: none !important;
   color: #183b54;
   font-size: 0.75rem;
+}
+.class-switcher-search:has(button) input {
+  padding-right: 28px;
 }
 .class-switcher-search:focus-within {
   border-color: rgba(39, 106, 148, 0.28);
