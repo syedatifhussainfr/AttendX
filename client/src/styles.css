@@ -7081,6 +7081,25 @@ body.sidebar-resizing * {
   }
 }
 /* V1.1.9 database-backed class workspaces */
+body.class-switcher-open .topbar {
+  z-index: 22;
+}
+.class-switcher-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 21;
+  background: rgba(10, 34, 51, 0.045);
+  backdrop-filter: blur(2px) saturate(96%);
+  animation: class-switcher-backdrop-in 140ms ease-out both;
+}
+@keyframes class-switcher-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
 .class-switcher {
   position: absolute;
   left: 50%;
@@ -7781,4 +7800,16 @@ body.sidebar-resizing * {
 }
 .manual-entry-status.matched {
   color: #247253;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .class-switcher-backdrop {
+    background: rgba(10, 34, 51, 0.08);
+    backdrop-filter: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .class-switcher-backdrop {
+    animation: none;
+  }
 }

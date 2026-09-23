@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown, Search, X } from "lucide-react";
 import { useClass } from "../state/ClassContext.jsx";
 
@@ -48,6 +49,17 @@ export function ClassSwitcher() {
 
   useEffect(() => {
     if (!open) return undefined;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    const savedPageStyles = {
+      bodyOverflow: document.body.style.overflow,
+      bodyPaddingRight: document.body.style.paddingRight,
+      htmlOverflow: document.documentElement.style.overflow,
+    };
+    document.body.classList.add("class-switcher-open");
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    if (scrollbarWidth > 0)
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
     const animationFrame = window.requestAnimationFrame(() => {
       searchRef.current?.focus();
       optionsRef.current
@@ -71,6 +83,10 @@ export function ClassSwitcher() {
     document.addEventListener("keydown", closeOnEscape);
     return () => {
       window.cancelAnimationFrame(animationFrame);
+      document.body.classList.remove("class-switcher-open");
+      document.body.style.overflow = savedPageStyles.bodyOverflow;
+      document.body.style.paddingRight = savedPageStyles.bodyPaddingRight;
+      document.documentElement.style.overflow = savedPageStyles.htmlOverflow;
       document.removeEventListener("pointerdown", closeOutside);
       document.removeEventListener("keydown", closeOnEscape);
     };
@@ -111,7 +127,18 @@ export function ClassSwitcher() {
   };
 
   return (
-    <div className="class-switcher" ref={rootRef}>
+    <>
+      {open &&
+        createPortal(
+          <div
+            className="class-switcher-backdrop"
+            aria-hidden="true"
+            onPointerDown={close}
+            onWheel={(event) => event.preventDefault()}
+          />,
+          document.body,
+        )}
+      <div className="class-switcher" ref={rootRef}>
       <button
         type="button"
         className="class-switcher-trigger"
@@ -206,6 +233,7 @@ export function ClassSwitcher() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
