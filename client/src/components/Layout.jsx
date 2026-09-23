@@ -23,7 +23,7 @@ import {
 import { useEffect, useState } from "react";
 import { useAuth } from "../state/AuthContext.jsx";
 import { Dialog } from "./Dialog.jsx";
-import { useClass } from "../state/ClassContext.jsx";
+import { ClassSwitcher } from "./ClassSwitcher.jsx";
 const baseLinks = [
   ["/", "Overview", LayoutDashboard, "dashboard.view"],
   ["/history", "Attendance history", FileClock, "attendance.view"],
@@ -47,7 +47,6 @@ const clampSidebarWidth = (value) =>
 
 export function Layout() {
   const { user, logout, can } = useAuth(),
-    { classes, selectedClass, selectClass } = useClass(),
     navigate = useNavigate(),
     [open, setOpen] = useState(false),
     [passwordPrompt, setPasswordPrompt] = useState(false),
@@ -250,45 +249,7 @@ export function Layout() {
             >
               {sidebarVisible ? <PanelLeftClose /> : <PanelLeftOpen />}
             </button>
-            <label className="class-switcher">
-              <span className="class-switcher-content">
-                <small>
-                  <i /> Active class
-                </small>
-                <span className="class-switcher-row">
-                  <select
-                    value={selectedClass?.id || ""}
-                    onChange={(event) => selectClass(event.target.value)}
-                    aria-label="Choose active class"
-                  >
-                    {!classes.length && <option value="">No assigned class</option>}
-                    {classes
-                      .filter((item) => item.active)
-                      .map((item) => (
-                        <option value={item.id} key={item.id}>
-                          {item.displayName}
-                        </option>
-                      ))}
-                  </select>
-                </span>
-                <span className="class-switcher-meta">
-                  {selectedClass ? (
-                    [
-                      selectedClass.course,
-                      selectedClass.specialization,
-                      selectedClass.semester && `Semester ${selectedClass.semester}`,
-                      selectedClass.academicYear,
-                    ]
-                      .filter(Boolean)
-                      .map((item, index) => (
-                        <b key={`${item}-${index}`}>{item}</b>
-                      ))
-                  ) : (
-                    <b>Assignment required</b>
-                  )}
-                </span>
-              </span>
-            </label>
+            <ClassSwitcher />
           </div>
           <span className="role-pill">
             <ShieldCheck />
