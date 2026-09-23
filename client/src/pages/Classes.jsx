@@ -38,6 +38,9 @@ export function Classes() {
   const [creating, setCreating] = useState(false);
   const [staff, setStaff] = useState([]);
   const [subjects, setSubjects] = useState([]);
+  const [staffRemoval, setStaffRemoval] = useState(null);
+  const [staffRemovalConfirmation, setStaffRemovalConfirmation] = useState("");
+  const [removingStaff, setRemovingStaff] = useState(false);
   const [deleteClass, setDeleteClass] = useState(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -88,15 +91,32 @@ export function Classes() {
     }
   };
 
-  const removeStaff = async (assignment) => {
+  const removeStaff = async (event) => {
+    event.preventDefault();
+    if (staffRemovalConfirmation !== "REMOVE ACCESS") {
+      toast("Type REMOVE ACCESS exactly to continue.", "error");
+      return;
+    }
+    setRemovingStaff(true);
     try {
+      const form = new FormData(event.currentTarget);
       await api.delete(
-        `/admin/classes/${selected.id}/assignments/${assignment.User.id}`,
+        `/admin/classes/${selected.id}/assignments/${staffRemoval.User.id}`,
+        {
+          data: {
+            confirmation: staffRemovalConfirmation,
+            password: form.get("password"),
+          },
+        },
       );
       toast("Class access removed.");
+      setStaffRemoval(null);
+      setStaffRemovalConfirmation("");
       await reloadClasses();
     } catch (error) {
       toast(messageOf(error), "error");
+    } finally {
+      setRemovingStaff(false);
     }
   };
 
@@ -301,7 +321,10 @@ export function Classes() {
                       <button
                         type="button"
                         title={`Remove ${assignment.User?.name} from this class`}
-                        onClick={() => removeStaff(assignment)}
+                        onClick={() => {
+                          setStaffRemoval(assignment);
+                          setStaffRemovalConfirmation("");
+                        }}
                       >
                         <UserMinus /> Remove
                       </button>
@@ -408,6 +431,76 @@ export function Classes() {
         </div>
       )}
 
+      <Dialog
+        open={!!staffRemoval}
+        title={
+          staffRemoval
+            ? `Remove ${staffRemoval.User?.name}?`
+            : "Remove class access"
+        }
+        onClose={() => {
+          if (!removingStaff) {
+            setStaffRemoval(null);
+            setStaffRemovalConfirmation("");
+          }
+        }}
+      >
+        <form className="form-stack class-unassign-form" onSubmit={removeStaff}>
+          <section className="class-unassign-summary">
+            <span><UserMinus /></span>
+            <div>
+              <strong>Revoke access to {selected?.displayName}</strong>
+              <p>
+                {staffRemoval?.User?.name} will lose their {staffRemoval?.assignmentRole?.toLowerCase()} assignment for this class.
+              </p>
+            </div>
+          </section>
+          <label className="class-delete-field">
+            <span>Type <code>REMOVE ACCESS</code> to confirm</span>
+            <ManualEntryInput
+              id="class-staff-remove-confirmation"
+              name="confirmation"
+              type="text"
+              expected="REMOVE ACCESS"
+              value={staffRemovalConfirmation}
+              onChange={(event) =>
+                setStaffRemovalConfirmation(event.target.value)
+              }
+              required
+              data-dialog-initial-focus
+            />
+          </label>
+          <label className="class-delete-field">
+            <span>Your current password</span>
+            <ManualEntryInput
+              id="class-staff-remove-password"
+              name="password"
+              required
+            />
+          </label>
+          <div className="dialog-actions">
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => {
+                setStaffRemoval(null);
+                setStaffRemovalConfirmation("");
+              }}
+              disabled={removingStaff}
+            >
+              Keep access
+            </button>
+            <button
+              className="danger"
+              disabled={
+                removingStaff || staffRemovalConfirmation !== "REMOVE ACCESS"
+              }
+            >
+              <UserMinus /> {removingStaff ? "Removing…" : "Remove access"}
+            </button>
+          </div>
+        </form>
+      </Dialog>
       <Dialog
         open={creating || !!editing}
         title={editing ? "Edit class" : "Create class"}

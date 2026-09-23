@@ -288,6 +288,58 @@ test("class workspaces isolate faculty access and roll numbers", async () => {
   }
 });
 
+test("class staff removal requires a typed phrase and current password", async () => {
+  const removableStaff = await db.User.create({
+    name: "Removable Faculty",
+    email: "removable-faculty@test.local",
+    passwordHash: await bcrypt.hash("FacultyTest@123", 4),
+    role: "FACULTY",
+  });
+  await db.ClassAssignment.create({
+    AcademicClassId: defaultClass.id,
+    UserId: removableStaff.id,
+    assignmentRole: "FACULTY",
+  });
+  const path = `/api/admin/classes/${defaultClass.id}/assignments/${removableStaff.id}`;
+
+  try {
+    await request(app)
+      .delete(path)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ confirmation: "REMOVE ACCESS", password: "wrong-password" })
+      .expect(401);
+    assert.equal(
+      await db.ClassAssignment.count({
+        where: {
+          AcademicClassId: defaultClass.id,
+          UserId: removableStaff.id,
+        },
+      }),
+      1,
+    );
+
+    await request(app)
+      .delete(path)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ confirmation: "REMOVE ACCESS", password: "AdminTest@123" })
+      .expect(204);
+    assert.equal(
+      await db.ClassAssignment.count({
+        where: {
+          AcademicClassId: defaultClass.id,
+          UserId: removableStaff.id,
+        },
+      }),
+      0,
+    );
+  } finally {
+    await db.ClassAssignment.destroy({
+      where: { UserId: removableStaff.id },
+    });
+    await removableStaff.destroy();
+  }
+});
+
 test("only elevated Admin++ permanently deletes an empty class", async () => {
   const emptyClass = await db.AcademicClass.create({
     displayName: "Disposable Test Class",

@@ -7502,6 +7502,9 @@ body.class-switcher-open .topbar {
 .class-page-intro p {
   max-width: 720px;
 }
+.class-workspace .eyebrow {
+  color: #627886;
+}
 .class-card {
   position: relative;
   overflow: hidden;
@@ -7521,24 +7524,16 @@ body.class-switcher-open .topbar {
     box-shadow 150ms ease;
 }
 .class-card.selected {
-  border-color: rgba(194, 111, 55, 0.28);
+  border-color: rgba(66, 94, 111, 0.2);
   background: linear-gradient(
     145deg,
-    rgba(255, 253, 250, 0.85),
-    rgba(239, 241, 240, 0.66)
+    rgba(255, 255, 255, 0.86),
+    rgba(226, 237, 242, 0.66)
   );
   box-shadow:
-    0 17px 40px rgba(42, 45, 44, 0.09),
-    inset 0 1px rgba(255, 255, 255, 0.92);
-}
-.class-card.selected::before {
-  content: "";
-  position: absolute;
-  z-index: 2;
-  inset: 16px auto 16px 0;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
-  background: #d6722e;
+    0 18px 42px rgba(25, 49, 64, 0.09),
+    inset 0 1px rgba(255, 255, 255, 0.94),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22);
 }
 .class-card-main {
   display: block;
@@ -7588,9 +7583,9 @@ body.class-switcher-open .topbar {
   text-transform: uppercase;
 }
 .class-card.selected .class-card-topline b {
-  border-color: rgba(197, 104, 43, 0.22);
-  background: rgba(248, 232, 220, 0.72);
-  color: #9a4d1d;
+  border-color: rgba(60, 89, 106, 0.14);
+  background: rgba(226, 235, 240, 0.78);
+  color: #496575;
 }
 .class-card-main h2 {
   margin: 11px 0 8px;
@@ -7661,7 +7656,7 @@ body.class-switcher-open .topbar {
   grid-row: 1 / 3;
   width: 16px;
   height: 16px;
-  color: #c96b2d;
+  color: #607e90;
 }
 .class-edit {
   position: absolute;
@@ -7776,7 +7771,7 @@ body.class-switcher-open .topbar {
   gap: 2px;
 }
 .class-assignment-list small {
-  color: #b45d24;
+  color: #607886;
   font-weight: 800;
 }
 .class-assignment-list button {
@@ -7874,8 +7869,8 @@ body.class-switcher-open .topbar {
   height: 26px;
   place-items: center;
   border-radius: 8px;
-  background: rgba(239, 229, 220, 0.76);
-  color: #9c5223;
+  background: rgba(226, 235, 240, 0.74);
+  color: #506d7d;
   font-size: 0.68rem;
   font-weight: 850;
 }
@@ -7900,8 +7895,8 @@ body.class-switcher-open .topbar {
 }
 .class-subject-picker button:hover {
   transform: none;
-  border-color: rgba(194, 107, 50, 0.22);
-  background: rgba(255, 252, 248, 0.72);
+  border-color: rgba(65, 96, 114, 0.18);
+  background: rgba(255, 255, 255, 0.7);
 }
 .class-subject-picker button svg {
   grid-row: 1 / 3;
@@ -7922,17 +7917,17 @@ body.class-switcher-open .topbar {
   white-space: nowrap;
 }
 .class-subject-picker button.active {
-  border-color: rgba(200, 109, 49, 0.22);
+  border-color: rgba(68, 96, 112, 0.16);
   background: linear-gradient(
     135deg,
-    rgba(251, 239, 229, 0.76),
-    rgba(255, 253, 250, 0.58)
+    rgba(236, 243, 246, 0.78),
+    rgba(255, 255, 255, 0.6)
   );
-  color: #74421f;
+  color: #36576a;
   box-shadow: inset 0 1px rgba(255, 255, 255, 0.72);
 }
 .class-subject-picker button.active svg {
-  color: #c36327;
+  color: #526f80;
 }
 .class-subject-empty {
   grid-column: 1 / -1;
@@ -7946,6 +7941,50 @@ body.class-switcher-open .topbar {
 }
 .dialog:has(.class-delete-form) {
   width: min(560px, calc(100vw - 28px));
+}
+.dialog:has(.class-unassign-form) {
+  width: min(520px, calc(100vw - 28px));
+}
+.class-unassign-form {
+  gap: 15px;
+}
+.class-unassign-summary {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(52, 83, 102, 0.1);
+  border-radius: 12px;
+  background: linear-gradient(
+    135deg,
+    rgba(250, 252, 253, 0.8),
+    rgba(229, 238, 242, 0.62)
+  );
+}
+.class-unassign-summary > span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(56, 88, 107, 0.1);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.55);
+  color: #526f80;
+}
+.class-unassign-summary svg {
+  width: 19px;
+  height: 19px;
+}
+.class-unassign-summary strong {
+  color: #294b60;
+  font-size: 0.84rem;
+}
+.class-unassign-summary p {
+  margin: 4px 0 0;
+  color: #657b88;
+  font-size: 0.72rem;
+  line-height: 1.5;
 }
 .class-delete-form {
   gap: 15px;

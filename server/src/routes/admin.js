@@ -233,6 +233,15 @@ router.delete(
     const academicClass = await assertClassAccess(req.user, req.params.id, {
       manage: true,
     });
+    const confirmation = z
+      .object({
+        confirmation: z.literal("REMOVE ACCESS"),
+        password: z.string().min(1).max(128),
+      })
+      .parse(req.body);
+    const operator = await User.findByPk(req.user.id);
+    if (!(await bcrypt.compare(confirmation.password, operator.passwordHash)))
+      return res.status(401).json({ message: "Password is incorrect." });
     if (
       Number(req.params.userId) === req.user.id &&
       !isInstitutionAdmin(req.user)
