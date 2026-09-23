@@ -148,6 +148,11 @@ export const AttendanceSession = sequelize.define(
       allowNull: false,
       defaultValue: true,
     },
+    lateAttendanceCredit: {
+      type: DataTypes.FLOAT,
+      allowNull: false,
+      defaultValue: 0,
+    },
     scheduledSubjectId: { type: DataTypes.INTEGER, allowNull: true },
     reopenedAt: { type: DataTypes.DATE, allowNull: true },
     reopenReason: { type: DataTypes.STRING(250), allowNull: true },
@@ -163,6 +168,11 @@ export const AttendanceRecord = sequelize.define(
       allowNull: false,
     },
     attendanceCredit: { type: DataTypes.BOOLEAN, allowNull: false },
+    attendanceCreditValue: {
+      type: DataTypes.FLOAT,
+      allowNull: true,
+      defaultValue: null,
+    },
     markedAt: { type: DataTypes.DATE, allowNull: false },
     method: { type: DataTypes.ENUM("MANUAL", "QR"), defaultValue: "MANUAL" },
     correctedFromStatus: { type: DataTypes.STRING(20), allowNull: true },

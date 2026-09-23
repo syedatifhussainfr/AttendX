@@ -4,8 +4,34 @@ let accessToken = null;
 let refreshPromise = null;
 let resumePromise = null;
 let adminElevation = { token: null, expiresAt: 0 };
+let pendingRequests = 0;
+let progressSequence = 0;
 
 export const api = axios.create({ baseURL: "/api", withCredentials: true });
+
+function emitPendingRequests() {
+  window.dispatchEvent(
+    new CustomEvent("attendx:api-pending", {
+      detail: { pending: pendingRequests },
+    }),
+  );
+}
+
+function startRequestProgress(request) {
+  if (request.skipProgress || request._progressId) return;
+  request._progressId = ++progressSequence;
+  pendingRequests += 1;
+  emitPendingRequests();
+}
+
+function finishRequestProgress(request) {
+  if (!request?._progressId || request._progressFinished) return;
+  request._progressFinished = true;
+  pendingRequests = Math.max(0, pendingRequests - 1);
+  emitPendingRequests();
+}
+
+export const getPendingRequestCount = () => pendingRequests;
 
 export function setAccessToken(token) {
   accessToken = token || null;
@@ -88,6 +114,7 @@ async function refreshAccessToken() {
 }
 
 api.interceptors.request.use((request) => {
+  startRequestProgress(request);
   if (accessToken && !request.skipAuthorization)
     request.headers.Authorization = `Bearer ${accessToken}`;
   if (hasAdminElevation())
@@ -96,7 +123,10 @@ api.interceptors.request.use((request) => {
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    finishRequestProgress(response.config);
+    return response;
+  },
   async (error) => {
     const request = error.config || {};
     if (error.response?.data?.code === "ADMIN_ELEVATION_REQUIRED") {
@@ -119,6 +149,7 @@ api.interceptors.response.use(
         window.dispatchEvent(new Event("attendx:session-ended"));
       }
     }
+    finishRequestProgress(request);
     return Promise.reject(error);
   },
 );

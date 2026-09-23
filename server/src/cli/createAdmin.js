@@ -43,6 +43,7 @@ const askPassword = async (question) => {
 const defaults = {
   lateThresholdMinutes: 15,
   lateModeEnabled: true,
+  lateAttendanceCredit: 0,
   institutionName: "EIILM Kolkata",
   className: "Semester I",
   academicSession: "2026–27",

@@ -24,7 +24,7 @@ async function attendanceTarget() {
 }
 
 function blankCounts() {
-  return { total: 0, present: 0, late: 0, absent: 0 };
+  return { total: 0, present: 0, late: 0, absent: 0, credited: 0 };
 }
 
 function addRecord(counts, record) {
@@ -32,13 +32,19 @@ function addRecord(counts, record) {
   if (record.status === "PRESENT") counts.present += 1;
   else if (record.status === "LATE") counts.late += 1;
   else counts.absent += 1;
+  counts.credited += record.attendanceCreditValue != null &&
+    Number.isFinite(Number(record.attendanceCreditValue))
+    ? Number(record.attendanceCreditValue)
+    : record.status === "PRESENT"
+      ? 1
+      : 0;
 }
 
 export function summarizeStudentAttendance(records, target = DEFAULT_TARGET) {
   const counts = blankCounts();
   for (const record of records) addRecord(counts, record);
   const percentage = counts.total
-    ? Number(((counts.present / counts.total) * 100).toFixed(2))
+    ? Number(((counts.credited / counts.total) * 100).toFixed(2))
     : null;
   const risk =
     percentage == null
@@ -54,13 +60,13 @@ export function summarizeStudentAttendance(records, target = DEFAULT_TARGET) {
     classesNeeded = Math.max(
       0,
       Math.ceil(
-        (target * counts.total - 100 * counts.present) / (100 - target),
+        (target * counts.total - 100 * counts.credited) / (100 - target),
       ),
     );
   else if (percentage != null && percentage >= target && target > 0)
     classesCanMiss = Math.max(
       0,
-      Math.floor((counts.present * 100) / target - counts.total),
+      Math.floor((counts.credited * 100) / target - counts.total),
     );
 
   const chronological = [...records].sort((a, b) => {
@@ -77,14 +83,24 @@ export function summarizeStudentAttendance(records, target = DEFAULT_TARGET) {
     absenceStreak += 1;
   }
   const recent = chronological.slice(0, 10);
-  const recentPresent = recent.filter((record) => record.status === "PRESENT").length;
+  const recentPresent = recent.reduce(
+    (sum, record) =>
+      sum +
+      (record.attendanceCreditValue != null &&
+      Number.isFinite(Number(record.attendanceCreditValue))
+        ? Number(record.attendanceCreditValue)
+        : record.status === "PRESENT"
+          ? 1
+          : 0),
+    0,
+  );
   const recentPercentage = recent.length
     ? Number(((recentPresent / recent.length) * 100).toFixed(2))
     : null;
 
   return {
     ...counts,
-    attended: counts.present,
+    attended: counts.credited,
     appearance: counts.present + counts.late,
     percentage,
     roundedPercentage: percentage == null ? null : Math.round(percentage),
@@ -134,6 +150,7 @@ async function closedRecords(studentIds) {
       "AttendanceSessionId",
       "status",
       "attendanceCredit",
+      "attendanceCreditValue",
       "markedAt",
       "correctedAt",
       "correctionReason",
@@ -234,6 +251,7 @@ export async function studentProfile(id, { sensitive = false } = {}) {
       id: record.id,
       status: record.status,
       attendanceCredit: record.attendanceCredit,
+      attendanceCreditValue: record.attendanceCreditValue,
       markedAt: record.markedAt,
       correctedAt: record.correctedAt,
       correctionReason: record.correctionReason,

@@ -413,6 +413,7 @@ router.get("/settings", requirePermission("settings.view"), async (req, res) => 
   res.json(
     {
       lateModeEnabled: true,
+      lateAttendanceCredit: 0,
       attendanceTargetPercentage: 75,
       ...Object.fromEntries(
         rows.map((row) => [row.key, settingValue(row)]),
@@ -450,6 +451,38 @@ router.put(
         );
     });
     res.json({ lateModeEnabled: enabled });
+  },
+);
+router.put(
+  "/settings/late-credit",
+  requirePermission("settings.manageLateMode"),
+  requireAdminPlus,
+  async (req, res) => {
+    const { credit } = z
+      .object({ credit: z.union([z.literal(0), z.literal(0.5), z.literal(1)]) })
+      .parse(req.body);
+    const current = await Setting.findByPk("lateAttendanceCredit");
+    const oldValue = current ? Number(settingValue(current)) : 0;
+    await sequelize.transaction(async (transaction) => {
+      await Setting.upsert(
+        { key: "lateAttendanceCredit", value: JSON.stringify(credit) },
+        { transaction },
+      );
+      if (oldValue !== credit)
+        await AuditLog.create(
+          {
+            entityType: "SETTING",
+            entityId: 0,
+            action: "LATE_ATTENDANCE_CREDIT_CHANGED",
+            oldValue: String(oldValue),
+            newValue: String(credit),
+            reason: `Late marks now earn ${credit} attendance credit`,
+            UserId: req.user.id,
+          },
+          { transaction },
+        );
+    });
+    res.json({ lateAttendanceCredit: credit });
   },
 );
 router.put("/settings", requirePermission("settings.manage"), async (req, res) => {

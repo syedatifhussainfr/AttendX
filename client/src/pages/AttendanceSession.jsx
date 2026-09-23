@@ -241,7 +241,15 @@ export function AttendanceSessionPage() {
             id: existing?.id || `draft-${student.id}`,
             StudentId: student.id,
             status,
-            attendanceCredit: status === "PRESENT",
+            attendanceCredit:
+              status === "PRESENT" ||
+              (status === "LATE" && Number(s.lateAttendanceCredit) > 0),
+            attendanceCreditValue:
+              status === "PRESENT"
+                ? 1
+                : status === "LATE"
+                  ? Number(s.lateAttendanceCredit) || 0
+                  : 0,
             markedAt: existing?.markedAt || new Date().toISOString(),
             pendingSave: true,
           }
@@ -531,7 +539,7 @@ export function AttendanceSessionPage() {
                 onClick={() => setMarkTool("LATE")}
               >
                 <Clock3 />
-                <span><strong>Late</strong><small>{s.lateModeEnabled ? "Record without credit" : "Disabled for this session"}</small></span>
+                <span><strong>Late</strong><small>{s.lateModeEnabled ? `${Number(s.lateAttendanceCredit || 0) * 100}% attendance credit` : "Disabled for this session"}</small></span>
                 <kbd>2</kbd>
               </button>
               <button

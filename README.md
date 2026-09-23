@@ -178,6 +178,9 @@ npm run dev
 - Optional enrolment number, section, admission date, contact, guardian contact, and administrative notes.
 - Phone, guardian, notes, and card-token fields are omitted from CR API responses and exposed only to administrators.
 - Additive `006-student-profile` migration, duplicate-enrolment protection, and integrity verification.
+- Polished table actions, CSV affordances, vertically constrained administrator notes, and request-aware navigation progress.
+- Admin++ Late credit policy with full (`1`), half (`0.5`), or zero (`0`) credit snapshotted into each new session.
+- Additive `007-late-attendance-credit` migration preserves existing credited records while enabling weighted reports and student analytics.
 
 ## Permission model
 
@@ -413,21 +416,21 @@ A release-ready SQLite database must pass `PRAGMA integrity_check`, have zero fo
 
 The default late threshold is 15 minutes and is configurable. Its value is copied into each attendance session when opened, so later configuration changes cannot rewrite history. The threshold control is disabled in Settings while Late Mode is off because it has no effect in that mode.
 
-The student attendance target defaults to 75% and is configurable in Settings. Student standing, recovery guidance, and subject risk labels are calculated by the backend from closed attendance records; Late represents a physical appearance but does not grant attendance credit.
+The student attendance target defaults to 75% and is configurable in Settings. Student standing, recovery guidance, subject risk labels, and exports are calculated by the backend from closed attendance records using each record's numeric credit value.
 
-Admin++ can enable or disable **Late Mode** from Settings. The choice is copied into each newly opened session: enabled sessions classify arrivals after the threshold as Late, while disabled sessions record every marked arrival as Present. Existing sessions and historical records retain the mode under which they were created.
+Admin++ can enable or disable **Late Mode** from Settings. When enabled, its Advanced section lets Admin++ choose whether a Late mark earns full (`1`), half (`0.5`), or zero (`0`) attendance credit. Both the mode and credit value are copied into each newly opened session: enabled sessions classify arrivals after the threshold as Late, while disabled sessions record every marked arrival as Present. Existing sessions and historical records retain the rules under which they were created.
 
 For a class beginning at `09:30` with a 15-minute threshold:
 
 - `09:30:00`–`09:44:59`: `PRESENT`, attendance credit granted.
-- `09:45:00` onward: `LATE`, no attendance credit.
+- `09:45:00` onward: `LATE`, with the session's snapshotted full, half, or zero credit.
 - Unmarked when the session closes: `ABSENT`, no attendance credit.
 
 During an open session, choose the persistent **Present**, **Late**, or **Remove mark** tool and then select as many roll cards as needed. Present and Late can overwrite one another, while Remove mark returns a roll to pending; those live changes preserve actor, time, and before/after audit history. Each selection is written to a browser-local recovery queue before its API request. Pending changes replay after reconnect or reload, duplicate replay is safe, and AttendX refuses to close the session while unsynced changes remain. Leaving a roll untouched keeps it pending, and AttendX does not silently mark it absent while the session is live. The close review lists all pending rolls, and only confirmation converts them to **Absent**. Authorized closed-session corrections still require an explicit reason.
 
 Admin++ may permanently delete a closed attendance session from **Attendance history**. This destructive workflow requires fresh password elevation, the exact confirmation phrase, and a reason. Open sessions cannot be deleted, ordinary ADMIN cannot use the action, and a permanent audit snapshot of the deleted session and its totals remains available.
 
-Credited attendance percentage is `PRESENT / classes conducted × 100`. Physical appearance may be reported as `PRESENT + LATE`, but a late arrival never increases credited attendance.
+Credited attendance percentage is `sum of attendance credit values / classes conducted × 100`. A Present mark contributes `1`; a Late mark contributes the session's snapshotted `1`, `0.5`, or `0`; and an Absent mark contributes `0`. Physical appearance remains `PRESENT + LATE` regardless of credit policy.
 
 ## Security model
 

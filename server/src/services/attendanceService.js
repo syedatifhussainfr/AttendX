@@ -24,7 +24,22 @@ export function deriveAttendanceStatus({
   const time = DateTime.fromJSDate(new Date(markedAt), { zone: timezone });
   return time < start.plus({ minutes: thresholdMinutes }) ? "PRESENT" : "LATE";
 }
-export const creditFor = (status) => status === "PRESENT";
+export const creditFor = (status, lateAttendanceCredit = 0) =>
+  status === "PRESENT"
+    ? 1
+    : status === "LATE"
+      ? [0, 0.5, 1].includes(Number(lateAttendanceCredit))
+        ? Number(lateAttendanceCredit)
+        : 0
+      : 0;
+
+const creditFields = (status, session) => {
+  const value = creditFor(status, session.lateAttendanceCredit);
+  return {
+    attendanceCredit: value > 0,
+    attendanceCreditValue: value,
+  };
+};
 
 export async function getSessionDetail(id, transaction) {
   const session = await AttendanceSession.findByPk(id, {
@@ -121,7 +136,7 @@ export async function markAttendance({
       await existing.update(
         {
           status: resolvedStatus,
-          attendanceCredit: creditFor(resolvedStatus),
+          ...creditFields(resolvedStatus, session),
           correctedFromStatus: existing.correctedFromStatus || oldStatus,
           correctionReason: reason,
           correctedAt: now,
@@ -150,7 +165,7 @@ export async function markAttendance({
         AttendanceSessionId: session.id,
         StudentId: student.id,
         status: resolvedStatus,
-        attendanceCredit: creditFor(resolvedStatus),
+        ...creditFields(resolvedStatus, session),
         markedAt: now,
         markedById,
         method,
@@ -228,6 +243,7 @@ export async function setLiveAttendanceSelection({
         recordId: existing.id,
         status: existing.status,
         attendanceCredit: existing.attendanceCredit,
+        attendanceCreditValue: existing.attendanceCreditValue,
         markedAt: existing.markedAt,
         markedById: existing.markedById,
         method: existing.method,
@@ -255,7 +271,7 @@ export async function setLiveAttendanceSelection({
       await existing.update(
         {
           status,
-          attendanceCredit: creditFor(status),
+          ...creditFields(status, session),
           correctedFromStatus: existing.correctedFromStatus || oldStatus,
           correctionReason: "Changed with the live attendance tool",
           correctedAt: now,
@@ -285,7 +301,7 @@ export async function setLiveAttendanceSelection({
         AttendanceSessionId: session.id,
         StudentId: student.id,
         status,
-        attendanceCredit: creditFor(status),
+        ...creditFields(status, session),
         markedAt: now,
         markedById,
         method: "MANUAL",
@@ -382,6 +398,7 @@ export async function closeSession({ sessionId, userId, now = new Date() }) {
         StudentId: student.id,
         status: "ABSENT",
         attendanceCredit: false,
+        attendanceCreditValue: 0,
         markedAt: now,
         markedById: userId,
         method: "MANUAL",
@@ -477,16 +494,24 @@ export function summarize(records) {
   const total = records.length,
     present = records.filter((r) => r.status === "PRESENT").length,
     late = records.filter((r) => r.status === "LATE").length,
-    absent = records.filter((r) => r.status === "ABSENT").length;
+    absent = records.filter((r) => r.status === "ABSENT").length,
+    credited = records.reduce((sum, record) => {
+      if (
+        record.attendanceCreditValue != null &&
+        Number.isFinite(Number(record.attendanceCreditValue))
+      )
+        return sum + Number(record.attendanceCreditValue);
+      return sum + creditFor(record.status);
+    }, 0);
   return {
     total,
     present,
     late,
     absent,
-    credited: present,
+    credited,
     physicalAppearances: present + late,
     attendancePercentage: total
-      ? Number(((present / total) * 100).toFixed(2))
+      ? Number(((credited / total) * 100).toFixed(2))
       : 0,
   };
 }

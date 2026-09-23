@@ -1611,6 +1611,36 @@ textarea:focus {
 .student-table-name strong,
 .student-table-name small { display: block; }
 .student-table-name small { margin-top: 2px; color: #85939c; font-size: 9px; }
+.student-table-panel .icon-button {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  padding: 0;
+  color: #315f7b;
+  border: 1px solid rgba(42, 82, 109, .12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .5);
+  box-shadow: none;
+}
+.student-table-panel .icon-button svg { width: 14px; height: 14px; }
+.student-table-panel .icon-button:hover {
+  color: #153f5b;
+  border-color: rgba(42, 82, 109, .22);
+  background: rgba(220, 235, 242, .78);
+  transform: none;
+}
+.student-directory-page .file-button { cursor: pointer; }
+.student-directory-page .file-button * { pointer-events: none; }
+.student-form textarea {
+  width: 100%;
+  min-height: 88px;
+  max-height: 220px;
+  padding: 11px 12px;
+  resize: vertical;
+  line-height: 1.5;
+  text-align: left;
+}
 .student-empty { padding: 55px 20px; color: #78909e; text-align: center; }
 .student-empty svg { width: 30px; }
 .student-empty h2 { margin: 10px 0 4px; color: #31546a; font-size: 17px; }
@@ -1874,6 +1904,63 @@ textarea:focus {
   cursor: not-allowed;
   opacity: 0.58;
 }
+
+.late-mode-advanced {
+  overflow: hidden;
+  border: 1px solid rgba(43, 82, 108, .11);
+  border-radius: 11px;
+  background: rgba(239, 246, 249, .45);
+  backdrop-filter: blur(18px) saturate(120%);
+}
+.late-mode-advanced summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+.late-mode-advanced summary::-webkit-details-marker { display: none; }
+.late-mode-advanced summary span,
+.late-mode-advanced summary strong,
+.late-mode-advanced summary small { display: block; }
+.late-mode-advanced summary strong { color: #29485f; font-size: 11px; }
+.late-mode-advanced summary small { margin-top: 2px; color: #7a8c97; font-size: 8px; }
+.late-mode-advanced summary > b {
+  padding: 5px 8px;
+  color: #375f78;
+  border-radius: 7px;
+  background: rgba(216, 231, 239, .7);
+  font-size: 9px;
+}
+.late-credit-panel { padding: 0 14px 14px; border-top: 1px solid rgba(43, 82, 108, .08); }
+.late-credit-panel > div:first-child { padding: 12px 0 9px; }
+.late-credit-panel > div:first-child strong { color: #34566c; font-size: 10px; }
+.late-credit-panel p { margin: 3px 0 0; color: #788a95; font-size: 9px; line-height: 1.5; }
+.late-credit-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.late-credit-options button {
+  display: grid;
+  min-height: 60px;
+  place-items: center;
+  gap: 1px;
+  padding: 8px;
+  color: #637985;
+  border: 1px solid rgba(45, 81, 105, .11);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .45);
+  box-shadow: none;
+}
+.late-credit-options button:hover { transform: none; background: rgba(255,255,255,.7); }
+.late-credit-options button.active {
+  color: #1e644b;
+  border-color: rgba(49, 139, 103, .23);
+  background: rgba(222, 242, 233, .76);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.55);
+}
+.late-credit-options b { font-size: 18px; line-height: 1; }
+.late-credit-options span { font-size: 8px; font-weight: 700; }
+.late-credit-note { display: block; margin-top: 9px; color: #758894; font-size: 8px; line-height: 1.45; }
 
 .security-brand-partner {
   border-radius: 6px;

@@ -7,6 +7,7 @@ export function SettingsPage() {
   const [data, setData] = useState(null),
     [saving, setSaving] = useState(false),
     [lateBusy, setLateBusy] = useState(false),
+    [creditBusy, setCreditBusy] = useState(false),
     [policy, setPolicy] = useState(null),
     [policyBusy, setPolicyBusy] = useState(false),
     toast = useToast(),
@@ -112,6 +113,27 @@ export function SettingsPage() {
       setLateBusy(false);
     }
   };
+  const setLateCredit = async (credit) => {
+    setCreditBusy(true);
+    try {
+      const response = await api.put("/admin/settings/late-credit", { credit });
+      setData((current) => ({
+        ...current,
+        lateAttendanceCredit: response.data.lateAttendanceCredit,
+      }));
+      toast(
+        credit === 1
+          ? "Late marks now receive full attendance credit."
+          : credit === 0.5
+            ? "Late marks now receive half attendance credit."
+            : "Late marks are recorded without attendance credit.",
+      );
+    } catch (error) {
+      toast(messageOf(error), "error");
+    } finally {
+      setCreditBusy(false);
+    }
+  };
   if (!data)
     return (
       <div className="page">
@@ -162,6 +184,55 @@ export function SettingsPage() {
               <span>{data.lateModeEnabled ? "On" : "Off"}</span>
             </button>
           </div>
+          {data.lateModeEnabled && (
+            <details className="late-mode-advanced">
+              <summary>
+                <span>
+                  <strong>Advanced Late credit</strong>
+                  <small>Choose how much one Late record contributes.</small>
+                </span>
+                <b>
+                  {Number(data.lateAttendanceCredit) === 1
+                    ? "Full credit"
+                    : Number(data.lateAttendanceCredit) === 0.5
+                      ? "Half credit"
+                      : "No credit"}
+                </b>
+              </summary>
+              <div className="late-credit-panel">
+                <div>
+                  <strong>Late attendance deduction</strong>
+                  <p>
+                    The status remains Late in registers and audit logs. Only
+                    its contribution to attendance percentage changes.
+                  </p>
+                </div>
+                <div className="late-credit-options" role="group" aria-label="Late attendance credit">
+                  {[
+                    [1, "1", "No deduction"],
+                    [0.5, "½", "Half credit"],
+                    [0, "0", "No credit"],
+                  ].map(([value, label, description]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={Number(data.lateAttendanceCredit) === value ? "active" : ""}
+                      aria-pressed={Number(data.lateAttendanceCredit) === value}
+                      disabled={!can("settings.manageLateMode") || creditBusy}
+                      onClick={() => setLateCredit(value)}
+                    >
+                      <b>{label}</b>
+                      <span>{description}</span>
+                    </button>
+                  ))}
+                </div>
+                <small className="late-credit-note">
+                  Admin++ only · The selected value is copied into each newly
+                  opened session, so historical reports never change later.
+                </small>
+              </div>
+            </details>
+          )}
           <label>
             Late threshold (minutes)
             <input

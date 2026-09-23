@@ -100,12 +100,22 @@ function addTitle(sheet, title, subtitle, lastColumn) {
   sheet.getRow(2).height = 24;
 }
 
-const blankCounts = () => ({ total: 0, present: 0, late: 0, absent: 0 });
-function addStatus(counts, status) {
+const blankCounts = () => ({ total: 0, present: 0, late: 0, absent: 0, credited: 0 });
+function recordCredit(record) {
+  if (
+    record.attendanceCreditValue != null &&
+    Number.isFinite(Number(record.attendanceCreditValue))
+  )
+    return Number(record.attendanceCreditValue);
+  return record.status === "PRESENT" ? 1 : 0;
+}
+function addStatus(counts, record) {
+  const { status } = record;
   counts.total += 1;
   if (status === "PRESENT") counts.present += 1;
   else if (status === "LATE") counts.late += 1;
   else counts.absent += 1;
+  counts.credited += recordCredit(record);
 }
 const ratio = (value, total) => (total ? value / total : null);
 const excelDate = (isoDate) => new Date(`${isoDate}T00:00:00.000Z`);
@@ -205,7 +215,7 @@ export async function buildAttendanceWorkbook(filters) {
         roll: record.Student.rollNumber,
         student: record.Student.name,
         status: record.status,
-        credit: record.attendanceCredit ? 1 : 0,
+        credit: recordCredit(record),
         attendance_time: record.markedAt,
       });
   sheet.autoFilter = { from: "A1", to: "I1" };
@@ -275,10 +285,10 @@ export async function buildAttendanceReviewWorkbook(filters) {
           studentName: record.Student.name,
           ...blankCounts(),
         });
-      addStatus(subjectMap.get(subjectKey), record.status);
-      addStatus(studentMap.get(studentKey), record.status);
-      addStatus(subjectStudentMap.get(pairKey), record.status);
-      addStatus(overall, record.status);
+      addStatus(subjectMap.get(subjectKey), record);
+      addStatus(studentMap.get(studentKey), record);
+      addStatus(subjectStudentMap.get(pairKey), record);
+      addStatus(overall, record);
       sessionStudentMap.set(`${session.id}:${studentKey}`, record.status);
     }
   }
@@ -373,8 +383,8 @@ export async function buildAttendanceReviewWorkbook(filters) {
       student.present,
       student.late,
       student.absent,
-      roundedPercent(student.present, student.total),
-      precisePercent(student.present, student.total),
+      roundedPercent(student.credited, student.total),
+      precisePercent(student.credited, student.total),
     ];
     for (const subject of subjects) {
       const subjectStudent = subjectStudentMap.get(
@@ -386,8 +396,8 @@ export async function buildAttendanceReviewWorkbook(filters) {
         subjectStudent.present,
         subjectStudent.late,
         subjectStudent.absent,
-        roundedPercent(subjectStudent.present, subjectStudent.total),
-        precisePercent(subjectStudent.present, subjectStudent.total),
+        roundedPercent(subjectStudent.credited, subjectStudent.total),
+        precisePercent(subjectStudent.credited, subjectStudent.total),
       );
     }
     studentSheet.addRow(row);
@@ -400,8 +410,8 @@ export async function buildAttendanceReviewWorkbook(filters) {
     overall.present,
     overall.late,
     overall.absent,
-    roundedPercent(overall.present, overall.total),
-    precisePercent(overall.present, overall.total),
+    roundedPercent(overall.credited, overall.total),
+    precisePercent(overall.credited, overall.total),
   ];
   for (const subject of subjects)
     studentTotals.push(
@@ -410,8 +420,8 @@ export async function buildAttendanceReviewWorkbook(filters) {
       subject.present,
       subject.late,
       subject.absent,
-      roundedPercent(subject.present, subject.total),
-      precisePercent(subject.present, subject.total),
+      roundedPercent(subject.credited, subject.total),
+      precisePercent(subject.credited, subject.total),
     );
   styleTotal(studentSheet.addRow(studentTotals));
   studentSheet.getColumn(1).numFmt = "@";
@@ -492,8 +502,8 @@ export async function buildAttendanceReviewWorkbook(filters) {
       student.present,
       student.late,
       student.absent,
-      roundedPercent(student.present, student.total),
-      precisePercent(student.present, student.total),
+      roundedPercent(student.credited, student.total),
+      precisePercent(student.credited, student.total),
       ...statuses,
     ]);
     statuses.forEach((status, index) =>
@@ -509,8 +519,8 @@ export async function buildAttendanceReviewWorkbook(filters) {
       overall.present,
       overall.late,
       overall.absent,
-      roundedPercent(overall.present, overall.total),
-      precisePercent(overall.present, overall.total),
+      roundedPercent(overall.credited, overall.total),
+      precisePercent(overall.credited, overall.total),
       ...sessions.map(
         (session) =>
           `${session.AttendanceRecords.filter((record) => record.status === "PRESENT").length} attended`,
@@ -565,8 +575,8 @@ export async function buildAttendanceReviewWorkbook(filters) {
         row.present,
         row.late,
         row.absent,
-        roundedPercent(row.present, row.total),
-        precisePercent(row.present, row.total),
+        roundedPercent(row.credited, row.total),
+        precisePercent(row.credited, row.total),
       ]);
     }
   }
@@ -581,8 +591,8 @@ export async function buildAttendanceReviewWorkbook(filters) {
       overall.present,
       overall.late,
       overall.absent,
-      roundedPercent(overall.present, overall.total),
-      precisePercent(overall.present, overall.total),
+      roundedPercent(overall.credited, overall.total),
+      precisePercent(overall.credited, overall.total),
     ]),
   );
   bySubject.getColumn(1).numFmt = "@";
@@ -599,7 +609,7 @@ export async function buildAttendanceReviewWorkbook(filters) {
   addTitle(
     overview,
     "AttendX Attendance Review",
-    `Closed sessions from ${reportPeriod(sessions)}. Present earns attendance credit. Late counts only as physical appearance.`,
+    `Closed sessions from ${reportPeriod(sessions)}. Attendance percentages use each record's snapshotted credit value; Late may earn full, half, or no credit.`,
     "I",
   );
   overview.addRow([]);
@@ -625,7 +635,7 @@ export async function buildAttendanceReviewWorkbook(filters) {
   ]);
   overview.addRow([
     "Overall attendance",
-    ratio(overall.present, overall.total),
+    ratio(overall.credited, overall.total),
     "Physical appearance",
     ratio(overall.present + overall.late, overall.total),
   ]);
@@ -653,7 +663,7 @@ export async function buildAttendanceReviewWorkbook(filters) {
       subject.present,
       subject.late,
       subject.absent,
-      ratio(subject.present, subject.total),
+      ratio(subject.credited, subject.total),
       ratio(subject.present + subject.late, subject.total),
     ]);
   const overviewTotal = overview.addRow([
@@ -664,7 +674,7 @@ export async function buildAttendanceReviewWorkbook(filters) {
     overall.present,
     overall.late,
     overall.absent,
-    ratio(overall.present, overall.total),
+    ratio(overall.credited, overall.total),
     ratio(overall.present + overall.late, overall.total),
   ]);
   styleTotal(overviewTotal);
@@ -702,7 +712,7 @@ export async function buildAttendanceReviewWorkbook(filters) {
   for (const session of sessions) {
     const counts = blankCounts();
     for (const record of session.AttendanceRecords)
-      addStatus(counts, record.status);
+      addStatus(counts, record);
     sessionSheet.addRow([
       excelDate(session.sessionDate),
       session.Subject.name,
@@ -714,7 +724,7 @@ export async function buildAttendanceReviewWorkbook(filters) {
       counts.present,
       counts.late,
       counts.absent,
-      ratio(counts.present, counts.total),
+      ratio(counts.credited, counts.total),
       ratio(counts.present + counts.late, counts.total),
     ]);
   }
@@ -729,7 +739,7 @@ export async function buildAttendanceReviewWorkbook(filters) {
     overall.present,
     overall.late,
     overall.absent,
-    ratio(overall.present, overall.total),
+    ratio(overall.credited, overall.total),
     ratio(overall.present + overall.late, overall.total),
   ]);
   styleTotal(sessionTotal);

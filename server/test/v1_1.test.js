@@ -104,11 +104,13 @@ test("versioned migration adds V1.1 columns and records itself", async () => {
   assert.ok(users.must_change_password);
   assert.ok(users.token_version);
   assert.ok(records.correction_reason);
+  assert.ok(records.attendance_credit_value);
   assert.ok(authSessionsTable.current_token_hash);
   const attendanceSessionsTable = await db.sequelize
     .getQueryInterface()
     .describeTable("attendance_sessions");
   assert.ok(attendanceSessionsTable.late_mode_enabled);
+  assert.ok(attendanceSessionsTable.late_attendance_credit);
   assert.ok(authSessionsTable.expires_at);
   assert.ok(users.admin_plus);
   assert.ok(users.phone_number);
@@ -145,6 +147,10 @@ test("versioned migration adds V1.1 columns and records itself", async () => {
     "SELECT id FROM app_migrations WHERE id = '006-student-profile'",
   );
   assert.equal(studentProfileMigrations.length, 1);
+  const [lateCreditMigrations] = await db.sequelize.query(
+    "SELECT id FROM app_migrations WHERE id = '007-late-attendance-credit'",
+  );
+  assert.equal(lateCreditMigrations.length, 1);
 });
 
 test("secure browser sessions rotate, reject stale access, and revoke on logout", async () => {
@@ -869,6 +875,26 @@ test("only Admin++ can change Late Mode and the choice is audited", async () => 
     .set("Authorization", `Bearer ${adminToken}`)
     .send({ enabled: true })
     .expect(200);
+  await request(app)
+    .put("/api/admin/settings/late-credit")
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .send({ credit: 0.5 })
+    .expect(403);
+  const halfCredit = await request(app)
+    .put("/api/admin/settings/late-credit")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .send({ credit: 0.5 })
+    .expect(200);
+  assert.equal(halfCredit.body.lateAttendanceCredit, 0.5);
+  assert.equal(
+    JSON.parse((await db.Setting.findByPk("lateAttendanceCredit")).value),
+    0.5,
+  );
+  assert.ok(
+    await db.AuditLog.findOne({
+      where: { action: "LATE_ATTENDANCE_CREDIT_CHANGED" },
+    }),
+  );
 });
 
 test("roll selection marks present or late, close assigns absence, and only elevated Admin++ deletes history", async () => {

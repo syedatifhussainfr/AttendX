@@ -263,16 +263,22 @@ export function Students() {
         </select>
         <div className="student-view-toggle">
           <button
+            type="button"
             className={view === "CARDS" ? "active" : ""}
             onClick={() => changeView("CARDS")}
             title="Card view"
+            aria-label="Use card view"
+            aria-pressed={view === "CARDS"}
           >
             <Grid2X2 />
           </button>
           <button
+            type="button"
             className={view === "TABLE" ? "active" : ""}
             onClick={() => changeView("TABLE")}
             title="Table view"
+            aria-label="Use table view"
+            aria-pressed={view === "TABLE"}
           >
             <List />
           </button>
@@ -282,7 +288,7 @@ export function Students() {
         <span>
           {shown.length} student{shown.length === 1 ? "" : "s"}
         </span>
-        <small>Credited attendance counts Present records only.</small>
+        <small>Attendance uses each record’s full, half, or zero credit value.</small>
       </div>
       {view === "CARDS" ? (
         <section className="student-card-grid">
@@ -419,7 +425,10 @@ export function Students() {
                   <td>
                     {can("students.update") && (
                       <button
+                        type="button"
                         className="icon-button"
+                        title={`Edit ${student.name}`}
+                        aria-label={`Edit ${student.name}`}
                         onClick={(event) => {
                           event.stopPropagation();
                           setSelected(student);

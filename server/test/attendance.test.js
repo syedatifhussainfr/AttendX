@@ -114,6 +114,30 @@ test("late appearance is permanent LATE with zero credit", async () => {
   });
   assert.equal(result.record.status, "LATE");
   assert.equal(result.record.attendanceCredit, false);
+  assert.equal(result.record.attendanceCreditValue, 0);
+});
+
+test("late appearance can earn snapshotted half credit", async () => {
+  const halfCreditSession = await db.AttendanceSession.create({
+    sessionDate: "2026-09-19",
+    scheduledStartTime: "09:30",
+    scheduledEndTime: "10:45",
+    openedAt: new Date(),
+    lateThresholdMinutes: 15,
+    lateAttendanceCredit: 0.5,
+    SubjectId: subject.id,
+    createdById: user.id,
+  });
+  const result = await service.markAttendance({
+    sessionId: halfCreditSession.id,
+    studentId: students[0].id,
+    status: "LATE",
+    markedById: user.id,
+  });
+  assert.equal(result.record.status, "LATE");
+  assert.equal(result.record.attendanceCredit, true);
+  assert.equal(result.record.attendanceCreditValue, 0.5);
+  assert.equal(service.summarize([result.record]).attendancePercentage, 50);
 });
 
 test("closing assigns absent, locks session, and creates an audit log", async () => {

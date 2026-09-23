@@ -71,6 +71,20 @@ export async function openAttendanceSession({ input, userId, now }) {
       transaction,
       lock: transaction.LOCK.UPDATE,
     });
+    const lateCreditSetting = await Setting.findByPk("lateAttendanceCredit", {
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    let lateAttendanceCredit = 0;
+    try {
+      const configuredCredit = Number(
+        lateCreditSetting ? JSON.parse(lateCreditSetting.value) : 0,
+      );
+      if ([0, 0.5, 1].includes(configuredCredit))
+        lateAttendanceCredit = configuredCredit;
+    } catch {
+      lateAttendanceCredit = 0;
+    }
     const subject = await Subject.findOne({
       where: { id: input.subjectId, active: true },
       transaction,
@@ -158,6 +172,7 @@ export async function openAttendanceSession({ input, userId, now }) {
         lateModeEnabled: lateModeSetting
           ? JSON.parse(lateModeSetting.value)
           : true,
+        lateAttendanceCredit,
         faculty: input.faculty,
         sessionType: input.sessionType,
         reason: input.reason,

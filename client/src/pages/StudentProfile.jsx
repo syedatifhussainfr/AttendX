@@ -56,7 +56,7 @@ export function StudentProfile() {
     <section className="student-profile-metrics">
       <article><span>Recorded classes</span><strong>{attendance.total}</strong><small>{attendance.appearance} physical appearances</small></article>
       <article className="present"><span>Present</span><strong>{attendance.present}</strong><small>Credited attendance</small></article>
-      <article className="late"><span>Late</span><strong>{attendance.late}</strong><small>Appearance without credit</small></article>
+      <article className="late"><span>Late</span><strong>{attendance.late}</strong><small>Credit follows each session rule</small></article>
       <article className="absent"><span>Absent</span><strong>{attendance.absent}</strong><small>{attendance.absenceStreak ? `${attendance.absenceStreak} current streak` : "No current streak"}</small></article>
     </section>
     <section className="student-guidance-panel">

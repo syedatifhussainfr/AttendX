@@ -1,9 +1,10 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./state/AuthContext.jsx";
 import { Layout } from "./components/Layout.jsx";
 import { Login } from "./pages/Login.jsx";
 import { AdminPlusGate } from "./components/AdminPlusGate.jsx";
+import { getPendingRequestCount } from "./api.js";
 
 const lazyNamed = (loader, name) =>
   lazy(() => loader().then((module) => ({ default: module[name] })));
@@ -41,27 +42,64 @@ function Protected({ children, permission, allowPasswordChange = false }) {
 }
 
 function Deferred({ children }) {
+  const { pathname } = useLocation();
   return (
     <Suspense
       fallback={<div className="route-loading"><i /><span>Loading view…</span></div>}
     >
-      {children}
+      <RouteReadySignal pathname={pathname}>{children}</RouteReadySignal>
     </Suspense>
   );
+}
+
+function RouteReadySignal({ children, pathname }) {
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("attendx:view-ready", { detail: { pathname } }),
+    );
+  }, [pathname]);
+  return children;
 }
 
 function RouteProgress() {
   const { pathname } = useLocation();
   const [state, setState] = useState("idle");
+  const [pending, setPending] = useState(getPendingRequestCount());
+  const [viewReady, setViewReady] = useState(false);
+  const startedAt = useRef(Date.now());
+
   useEffect(() => {
-    setState("loading");
-    const finishing = setTimeout(() => setState("finishing"), 40);
-    const finished = setTimeout(() => setState("idle"), 240);
+    const onPending = (event) => setPending(event.detail?.pending || 0);
+    const onReady = (event) => {
+      if (event.detail?.pathname === pathname) setViewReady(true);
+    };
+    window.addEventListener("attendx:api-pending", onPending);
+    window.addEventListener("attendx:view-ready", onReady);
     return () => {
-      clearTimeout(finishing);
-      clearTimeout(finished);
+      window.removeEventListener("attendx:api-pending", onPending);
+      window.removeEventListener("attendx:view-ready", onReady);
     };
   }, [pathname]);
+
+  useEffect(() => {
+    startedAt.current = Date.now();
+    setState("loading");
+    setViewReady(pathname === "/login");
+    setPending(getPendingRequestCount());
+  }, [pathname]);
+
+  useEffect(() => {
+    if (state !== "loading" || !viewReady || pending > 0) return undefined;
+    const minimumDelay = Math.max(0, 140 - (Date.now() - startedAt.current));
+    const finishing = window.setTimeout(() => setState("finishing"), minimumDelay);
+    return () => window.clearTimeout(finishing);
+  }, [pending, state, viewReady]);
+
+  useEffect(() => {
+    if (state !== "finishing") return undefined;
+    const finished = window.setTimeout(() => setState("idle"), 210);
+    return () => window.clearTimeout(finished);
+  }, [state]);
   return (
     <div className={`route-progress ${state}`} aria-hidden="true">
       <i />
