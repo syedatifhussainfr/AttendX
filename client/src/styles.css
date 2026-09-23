@@ -7084,12 +7084,17 @@ body.sidebar-resizing * {
 body.class-switcher-open .topbar {
   z-index: 22;
 }
+body.class-switcher-open .sidebar,
+body.class-switcher-open .main > :not(.topbar),
+body.class-switcher-open .topbar-start > .desktop-sidebar-toggle,
+body.class-switcher-open .topbar > .role-pill {
+  filter: blur(0.75px);
+}
 .class-switcher-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 21;
-  background: rgba(10, 34, 51, 0.022);
-  backdrop-filter: blur(0.75px) saturate(98%);
+  z-index: 9;
+  background: rgba(10, 34, 51, 0.018);
   animation: class-switcher-backdrop-in 140ms ease-out both;
 }
 @keyframes class-switcher-backdrop-in {
@@ -7806,7 +7811,12 @@ body.class-switcher-open .topbar {
 @media (prefers-reduced-transparency: reduce) {
   .class-switcher-backdrop {
     background: rgba(10, 34, 51, 0.045);
-    backdrop-filter: none;
+  }
+  body.class-switcher-open .sidebar,
+  body.class-switcher-open .main > :not(.topbar),
+  body.class-switcher-open .topbar-start > .desktop-sidebar-toggle,
+  body.class-switcher-open .topbar > .role-pill {
+    filter: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {
