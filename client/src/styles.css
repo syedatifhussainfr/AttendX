@@ -1657,8 +1657,9 @@ textarea:focus {
 .student-empty svg { width: 30px; }
 .student-empty h2 { margin: 10px 0 4px; color: #31546a; font-size: 17px; }
 .student-empty p { margin: 0; font-size: 11px; }
-.student-form-privacy { display: flex; gap: 9px; align-items: flex-start; padding: 10px 12px; color: #607887; border: 1px solid rgba(43, 85, 112, .1); border-radius: 9px; background: rgba(228, 239, 244, .55); font-size: 10px; line-height: 1.45; }
-.student-form-privacy svg { width: 15px; flex: 0 0 auto; }
+.student-form-privacy { display: flex; gap: 9px; align-items: center; padding: 10px 12px; color: #607887; border: 1px solid rgba(43, 85, 112, .1); border-radius: 9px; background: rgba(228, 239, 244, .55); font-size: 10px; line-height: 1.45; }
+.student-form-privacy svg { width: 15px; height: 15px; flex: 0 0 15px; }
+.student-form-privacy span { display: flex; min-height: 15px; align-items: center; }
 
 .student-profile-actions { display: flex; justify-content: space-between; margin-bottom: 14px; }
 .student-profile-hero { display: grid; grid-template-columns: 72px minmax(0,1fr) auto; gap: 18px; align-items: center; padding: clamp(22px, 4vw, 34px); color: #eef8fc; border: 1px solid rgba(255,255,255,.13); border-radius: 17px 17px 0 0; background: linear-gradient(118deg, rgba(5,38,66,.97), rgba(9,71,108,.91)); box-shadow: 0 20px 50px rgba(7,39,62,.14); }
