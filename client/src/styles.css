@@ -7088,8 +7088,8 @@ body.class-switcher-open .topbar {
   position: fixed;
   inset: 0;
   z-index: 21;
-  background: rgba(10, 34, 51, 0.045);
-  backdrop-filter: blur(2px) saturate(96%);
+  background: rgba(10, 34, 51, 0.022);
+  backdrop-filter: blur(0.75px) saturate(98%);
   animation: class-switcher-backdrop-in 140ms ease-out both;
 }
 @keyframes class-switcher-backdrop-in {
@@ -7107,6 +7107,7 @@ body.class-switcher-open .topbar {
   margin: 0;
   transform: translateX(-50%);
   z-index: 14;
+  isolation: isolate;
 }
 .class-switcher-trigger {
   display: grid;
@@ -7804,7 +7805,7 @@ body.class-switcher-open .topbar {
 
 @media (prefers-reduced-transparency: reduce) {
   .class-switcher-backdrop {
-    background: rgba(10, 34, 51, 0.08);
+    background: rgba(10, 34, 51, 0.045);
     backdrop-filter: none;
   }
 }
