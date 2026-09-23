@@ -8,6 +8,7 @@ import {
   setAdminElevation,
 } from "../api.js";
 import { useAuth } from "../state/AuthContext.jsx";
+import { ManualEntryInput } from "./ManualEntryInput.jsx";
 
 export function AdminPlusGate({
   children,
@@ -77,10 +78,9 @@ export function AdminPlusGate({
         <form onSubmit={unlock} className="form-stack admin-plus-lock-form">
           <label>
             <span>Current password</span>
-            <input
+            <ManualEntryInput
+              id={`protected-area-${area.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-password`}
               name="password"
-              type="password"
-              autoComplete="current-password"
               required
               autoFocus
             />

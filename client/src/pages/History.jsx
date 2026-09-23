@@ -12,6 +12,7 @@ import { useToast } from "../state/ToastContext.jsx";
 import { downloadAttendanceExport } from "../utils/download.js";
 import { useAuth } from "../state/AuthContext.jsx";
 import { Dialog } from "../components/Dialog.jsx";
+import { ManualEntryInput } from "../components/ManualEntryInput.jsx";
 import { useClass } from "../state/ClassContext.jsx";
 export function History() {
   const [rows, setRows] = useState([]),
@@ -254,20 +255,20 @@ export function History() {
             <small className="field-help">
               Type <code>DELETE ATTENDANCE</code> exactly as shown.
             </small>
-            <input
+            <ManualEntryInput
+              id="attendance-delete-confirmation"
               name="confirmation"
-              autoComplete="off"
+              type="text"
+              expected="DELETE ATTENDANCE"
               pattern="DELETE ATTENDANCE"
-              spellCheck="false"
               required
             />
           </label>
           <label className="delete-attendance-field">
             <span className="field-label">Your Admin++ password</span>
-            <input
+            <ManualEntryInput
+              id="attendance-delete-admin-password"
               name="password"
-              type="password"
-              autoComplete="current-password"
               required
             />
             <small className="field-help">

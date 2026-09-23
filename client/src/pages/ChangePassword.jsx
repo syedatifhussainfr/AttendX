@@ -14,6 +14,7 @@ import { api, messageOf } from "../api.js";
 import { useAuth } from "../state/AuthContext.jsx";
 import { useToast } from "../state/ToastContext.jsx";
 import { SessionManager } from "../components/SessionManager.jsx";
+import { ManualEntryInput } from "../components/ManualEntryInput.jsx";
 
 const requirements = [
   ["10+ characters", (value) => value.length >= 10],
@@ -22,20 +23,20 @@ const requirements = [
   ["A symbol", (value) => /[^A-Za-z0-9]/.test(value)],
 ];
 
-function PasswordInput({ label, name, value, onChange, autoComplete }) {
+function PasswordInput({ label, name, value, onChange }) {
   const [visible, setVisible] = useState(false);
   return (
     <label className="secure-field">
       <span>{label}</span>
       <div>
         <LockKeyhole />
-        <input
+        <ManualEntryInput
+          id={`change-password-${name}`}
           name={name}
           type={visible ? "text" : "password"}
           value={value}
           onChange={onChange}
           minLength={name === "currentPassword" ? undefined : 10}
-          autoComplete={autoComplete}
           required
         />
         <button
@@ -196,7 +197,6 @@ export function ChangePassword() {
               name="currentPassword"
               value={values.currentPassword}
               onChange={set("currentPassword")}
-              autoComplete="current-password"
             />
             <div className="password-divider">
               <span>NEW PASSWORD</span>
@@ -206,7 +206,6 @@ export function ChangePassword() {
               name="newPassword"
               value={values.newPassword}
               onChange={set("newPassword")}
-              autoComplete="new-password"
             />
             <div
               className="strength-track"
@@ -228,7 +227,6 @@ export function ChangePassword() {
               name="confirmPassword"
               value={values.confirmPassword}
               onChange={set("confirmPassword")}
-              autoComplete="new-password"
             />
             {values.confirmPassword && (
               <small className={matches ? "match-note good" : "match-note"}>

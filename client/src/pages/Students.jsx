@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { api, messageOf, setAdminElevation } from "../api.js";
 import { Dialog } from "../components/Dialog.jsx";
+import { ManualEntryInput } from "../components/ManualEntryInput.jsx";
 import { useToast } from "../state/ToastContext.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
 import { useClass } from "../state/ClassContext.jsx";
@@ -605,10 +606,9 @@ export function Students() {
           </div>
           <label>
             Confirm your Admin++ password
-            <input
+            <ManualEntryInput
+              id="student-delete-admin-password"
               name="password"
-              type="password"
-              autoComplete="current-password"
               required
             />
           </label>

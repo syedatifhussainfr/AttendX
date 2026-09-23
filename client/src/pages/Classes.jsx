@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   BookOpen,
+  CalendarRange,
   GraduationCap,
+  Layers3,
   Pencil,
   Plus,
   Trash2,
@@ -10,6 +12,7 @@ import {
 } from "lucide-react";
 import { api, messageOf, setAdminElevation } from "../api.js";
 import { Dialog } from "../components/Dialog.jsx";
+import { ManualEntryInput } from "../components/ManualEntryInput.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
 import { useClass } from "../state/ClassContext.jsx";
 import { useToast } from "../state/ToastContext.jsx";
@@ -183,7 +186,16 @@ export function Classes() {
               onClick={() => item.active && selectClass(item.id)}
               disabled={!item.active}
             >
-              <span>{item.code}</span>
+              <div className="class-card-topline">
+                <span>{item.code}</span>
+                <b className={item.active ? "active" : "archived"}>
+                  {item.id === classId
+                    ? "Current"
+                    : item.active
+                      ? "Available"
+                      : "Archived"}
+                </b>
+              </div>
               <h2>{item.displayName}</h2>
               <p>
                 {[
@@ -219,22 +231,33 @@ export function Classes() {
       {selected && (
         <div className="class-management-grid">
           <section className="glass-card class-detail-card">
-            <span className="eyebrow">ACTIVE WORKSPACE</span>
-            <h2>{selected.displayName}</h2>
+            <header className="class-panel-heading">
+              <div>
+                <span className="eyebrow">ACTIVE WORKSPACE</span>
+                <h2>{selected.displayName}</h2>
+              </div>
+              <span className="class-live-state">
+                <Layers3 /> Database workspace
+              </span>
+            </header>
             <dl>
               <div>
+                <CalendarRange />
                 <dt>Academic year</dt>
                 <dd>{selected.academicYear || "Not set"}</dd>
               </div>
               <div>
+                <GraduationCap />
                 <dt>Batch</dt>
                 <dd>{selected.batch || "Not set"}</dd>
               </div>
               <div>
+                <Layers3 />
                 <dt>Section</dt>
                 <dd>{selected.section || "Not set"}</dd>
               </div>
               <div>
+                <BookOpen />
                 <dt>Weekly lectures</dt>
                 <dd>{selected.timetableCount}</dd>
               </div>
@@ -381,10 +404,9 @@ export function Classes() {
           </div>
           <label>
             Confirm your Admin++ password
-            <input
+            <ManualEntryInput
+              id="class-delete-admin-password"
               name="password"
-              type="password"
-              autoComplete="current-password"
               required
             />
           </label>

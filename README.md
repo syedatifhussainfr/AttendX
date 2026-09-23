@@ -229,6 +229,8 @@ The additive `006-student-profile` and `007-late-attendance-credit` migrations r
 - Migrations enforce class ownership, preserve attendance-to-student links while rebuilding the roster table, reject future unowned attendance rows, and safely replace the legacy global roll-number uniqueness constraint.
 - Data verification and backup validation now reject attendance rows that have lost either their student or session owner.
 - Settings owns institution-wide identity and attendance policy; class metadata is edited in the dedicated glass Classes workspace.
+- The centered glass class switcher keeps the selected workspace and academic metadata balanced across desktop and responsive layouts.
+- Password-manager autofill is limited to Login. Protected password and destructive-confirmation fields require manual typing, reject clipboard paste/drop, and confirmation phrases show live match progress.
 - Development startup waits for API health before launching the browser interface, preventing initial login requests from racing API initialization.
 
 ## Permission model

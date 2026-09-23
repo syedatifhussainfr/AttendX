@@ -13,6 +13,7 @@ import { api, messageOf, setAdminElevation } from "../api.js";
 import { useToast } from "../state/ToastContext.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
 import { useClass } from "../state/ClassContext.jsx";
+import { ManualEntryInput } from "../components/ManualEntryInput.jsx";
 export function SettingsPage() {
   const [data, setData] = useState(null),
     [saving, setSaving] = useState(false),
@@ -403,10 +404,9 @@ export function SettingsPage() {
                 <strong>Protected configuration</strong>
                 <small>Confirm your Admin++ password to edit config.yml.</small>
               </div>
-              <input
+              <ManualEntryInput
+                id="settings-policy-admin-password"
                 name="password"
-                type="password"
-                autoComplete="current-password"
                 placeholder="Admin++ password"
                 required
               />

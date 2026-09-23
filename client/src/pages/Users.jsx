@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { api, messageOf, setAdminElevation } from "../api.js";
 import { Dialog } from "../components/Dialog.jsx";
+import { ManualEntryInput } from "../components/ManualEntryInput.jsx";
 import {
   deviceName,
   formatSessionTime,
@@ -283,7 +284,12 @@ export function UsersPage() {
           </label>
           <label>
             Temporary password
-            <input name="password" type="password" minLength="10" required />
+            <ManualEntryInput
+              id="user-create-temporary-password"
+              name="password"
+              minLength="10"
+              required
+            />
             <small>
               10+ characters with uppercase, lowercase, number, and symbol.
             </small>
@@ -341,10 +347,9 @@ export function UsersPage() {
           </div>
           <label>
             Confirm your Admin++ password
-            <input
+            <ManualEntryInput
+              id="user-delete-admin-password"
               name="password"
-              type="password"
-              autoComplete="current-password"
               required
             />
           </label>
@@ -382,10 +387,9 @@ export function UsersPage() {
           </p>
           <label>
             Current Admin++ password
-            <input
+            <ManualEntryInput
+              id="user-sessions-admin-password"
               name="password"
-              type="password"
-              autoComplete="current-password"
               required
               autoFocus
             />
@@ -493,18 +497,18 @@ export function UsersPage() {
           </p>
           <label>
             Temporary password
-            <input
+            <ManualEntryInput
+              id="user-reset-temporary-password"
               name="temporaryPassword"
-              type="password"
               minLength="10"
               required
             />
           </label>
           <label>
             Confirm temporary password
-            <input
+            <ManualEntryInput
+              id="user-reset-confirm-password"
               name="confirmation"
-              type="password"
               minLength="10"
               required
             />

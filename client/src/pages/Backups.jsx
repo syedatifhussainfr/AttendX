@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { api, messageOf, setAdminElevation } from "../api.js";
 import { Dialog } from "../components/Dialog.jsx";
+import { ManualEntryInput } from "../components/ManualEntryInput.jsx";
 import { useToast } from "../state/ToastContext.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
 
@@ -283,20 +284,20 @@ export function BackupsPage() {
           </div>
           <label>
             Your ADMIN password
-            <input
+            <ManualEntryInput
+              id="backup-restore-admin-password"
               name="password"
-              type="password"
-              autoComplete="current-password"
               required
             />
           </label>
           <label>
             Type <code>RESTORE ATTENDX</code>
-            <input
+            <ManualEntryInput
+              id="backup-restore-confirmation"
               name="confirmation"
+              type="text"
+              expected="RESTORE ATTENDX"
               pattern="RESTORE ATTENDX"
-              autoComplete="off"
-              spellCheck="false"
               required
             />
           </label>
@@ -343,19 +344,20 @@ export function BackupsPage() {
           </label>
           <label>
             Type <code>DELETE BACKUP</code>
-            <input
+            <ManualEntryInput
+              id="backup-delete-confirmation"
               name="confirmation"
+              type="text"
+              expected="DELETE BACKUP"
               pattern="DELETE BACKUP"
-              autoComplete="off"
               required
             />
           </label>
           <label>
             Your Admin++ password
-            <input
+            <ManualEntryInput
+              id="backup-delete-admin-password"
               name="password"
-              type="password"
-              autoComplete="current-password"
               required
             />
           </label>
