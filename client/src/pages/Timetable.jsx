@@ -98,19 +98,21 @@ export function Timetable() {
                   </time>
                   <strong>{r.Subject.name}</strong>
                   <small>{r.faculty || "Faculty not assigned"}</small>
-                  {can("timetable.manage") && <div>
-                    <button
-                      onClick={() => {
-                        setEdit(r);
-                        setOpen(true);
-                      }}
-                    >
-                      <Pencil />
-                    </button>
-                    <button onClick={() => remove(r)}>
-                      <Trash2 />
-                    </button>
-                  </div>}
+                  {can("timetable.manage") && (
+                    <div>
+                      <button
+                        onClick={() => {
+                          setEdit(r);
+                          setOpen(true);
+                        }}
+                      >
+                        <Pencil />
+                      </button>
+                      <button onClick={() => remove(r)}>
+                        <Trash2 />
+                      </button>
+                    </div>
+                  )}
                 </article>
               ))}
             {!rows.some((r) => r.dayOfWeek === i + 1) && (

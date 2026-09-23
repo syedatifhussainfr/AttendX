@@ -108,11 +108,17 @@ export function Audit() {
       <section className="audit-summary" aria-label="Audit log summary">
         <div>
           <ShieldCheck />
-          <span><small>Visible entries</small><strong>{rows.length}</strong></span>
+          <span>
+            <small>Visible entries</small>
+            <strong>{rows.length}</strong>
+          </span>
         </div>
         <div>
           <FileText />
-          <span><small>Export format</small><strong>Plain text</strong></span>
+          <span>
+            <small>Export format</small>
+            <strong>Plain text</strong>
+          </span>
         </div>
         <label className="audit-search">
           <Search />
@@ -140,30 +146,50 @@ export function Audit() {
             {shown.map((row) => {
               const target = targetOf(row);
               const timestamp = new Date(row.createdAt);
-              return <tr key={row.id}>
-                <td className="audit-time">
-                  <strong>{timestamp.toLocaleDateString("en-IN")}</strong>
-                  <small>{timestamp.toLocaleTimeString("en-IN")}</small>
-                </td>
-                <td>
-                  <span className="audit-action">
-                    {row.action.replaceAll("_", " ")}
-                  </span>
-                </td>
-                <td className="audit-target">
-                  <strong>{target.primary}</strong>
-                  <small>{target.secondary}</small>
-                </td>
-                <td>
-                  <div className="audit-change">
-                    {row.oldValue && <span><small>FROM</small>{readable(row.oldValue)}</span>}
-                    {row.newValue && <span><small>TO</small>{readable(row.newValue)}</span>}
-                    {!row.oldValue && !row.newValue && <span>Metadata-only action</span>}
-                  </div>
-                </td>
-                <td className="audit-reason">{row.reason || "No reason supplied"}</td>
-                <td><span className="audit-actor">{row.User?.name || "System"}</span></td>
-              </tr>;
+              return (
+                <tr key={row.id}>
+                  <td className="audit-time">
+                    <strong>{timestamp.toLocaleDateString("en-IN")}</strong>
+                    <small>{timestamp.toLocaleTimeString("en-IN")}</small>
+                  </td>
+                  <td>
+                    <span className="audit-action">
+                      {row.action.replaceAll("_", " ")}
+                    </span>
+                  </td>
+                  <td className="audit-target">
+                    <strong>{target.primary}</strong>
+                    <small>{target.secondary}</small>
+                  </td>
+                  <td>
+                    <div className="audit-change">
+                      {row.oldValue && (
+                        <span>
+                          <small>FROM</small>
+                          {readable(row.oldValue)}
+                        </span>
+                      )}
+                      {row.newValue && (
+                        <span>
+                          <small>TO</small>
+                          {readable(row.newValue)}
+                        </span>
+                      )}
+                      {!row.oldValue && !row.newValue && (
+                        <span>Metadata-only action</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="audit-reason">
+                    {row.reason || "No reason supplied"}
+                  </td>
+                  <td>
+                    <span className="audit-actor">
+                      {row.User?.name || "System"}
+                    </span>
+                  </td>
+                </tr>
+              );
             })}
           </tbody>
         </table>

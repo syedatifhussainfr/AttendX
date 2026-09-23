@@ -23,7 +23,8 @@ export function AdminPlusGate({
   useEffect(() => {
     const ended = () => setUnlocked(false);
     window.addEventListener("attendx:admin-elevation-ended", ended);
-    return () => window.removeEventListener("attendx:admin-elevation-ended", ended);
+    return () =>
+      window.removeEventListener("attendx:admin-elevation-ended", ended);
   }, []);
 
   useEffect(() => {
@@ -59,7 +60,11 @@ export function AdminPlusGate({
           </span>
           <div>
             <span className="eyebrow">PROTECTED AREA</span>
-            <small>{adminPlus ? "Admin++ verification" : "Administrator verification"}</small>
+            <small>
+              {adminPlus
+                ? "Admin++ verification"
+                : "Administrator verification"}
+            </small>
           </div>
         </header>
         <div className="admin-plus-lock-copy">

@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { Clock3, KeyRound, Save, ShieldCheck, SlidersHorizontal, TimerReset } from "lucide-react";
+import {
+  Clock3,
+  KeyRound,
+  Save,
+  ShieldCheck,
+  SlidersHorizontal,
+  TimerReset,
+} from "lucide-react";
 import { api, messageOf, setAdminElevation } from "../api.js";
 import { useToast } from "../state/ToastContext.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
@@ -158,12 +165,18 @@ export function SettingsPage() {
               <p>The threshold is snapshotted on every new session.</p>
             </div>
           </div>
-          <div className={`late-mode-control ${data.lateModeEnabled ? "enabled" : "disabled"}`}>
-            <span className="late-mode-icon"><Clock3 /></span>
+          <div
+            className={`late-mode-control ${data.lateModeEnabled ? "enabled" : "disabled"}`}
+          >
+            <span className="late-mode-icon">
+              <Clock3 />
+            </span>
             <div>
               <span className="late-mode-title">
                 <strong>Late Mode</strong>
-                <small><ShieldCheck /> Admin++ only</small>
+                <small>
+                  <ShieldCheck /> Admin++ only
+                </small>
               </span>
               <p>
                 {data.lateModeEnabled
@@ -207,7 +220,11 @@ export function SettingsPage() {
                     its contribution to attendance percentage changes.
                   </p>
                 </div>
-                <div className="late-credit-options" role="group" aria-label="Late attendance credit">
+                <div
+                  className="late-credit-options"
+                  role="group"
+                  aria-label="Late attendance credit"
+                >
                   {[
                     [1, "1", "No deduction"],
                     [0.5, "½", "Half credit"],
@@ -216,7 +233,11 @@ export function SettingsPage() {
                     <button
                       key={value}
                       type="button"
-                      className={Number(data.lateAttendanceCredit) === value ? "active" : ""}
+                      className={
+                        Number(data.lateAttendanceCredit) === value
+                          ? "active"
+                          : ""
+                      }
                       aria-pressed={Number(data.lateAttendanceCredit) === value}
                       disabled={!can("settings.manageLateMode") || creditBusy}
                       onClick={() => setLateCredit(value)}
@@ -291,7 +312,12 @@ export function SettingsPage() {
           </label>
           <label>
             Class / section
-            <input name="className" defaultValue={data.className} disabled={!can("settings.manage")} required />
+            <input
+              name="className"
+              defaultValue={data.className}
+              disabled={!can("settings.manage")}
+              required
+            />
           </label>
           <label>
             Academic session
@@ -304,16 +330,22 @@ export function SettingsPage() {
           </label>
           <label>
             Timezone
-            <select name="timezone" defaultValue={data.timezone} disabled={!can("settings.manage")}>
+            <select
+              name="timezone"
+              defaultValue={data.timezone}
+              disabled={!can("settings.manage")}
+            >
               <option>Asia/Kolkata</option>
             </select>
           </label>
         </section>
         <div className="settings-save">
-          {can("settings.manage") && <button className="primary" disabled={saving}>
-            <Save />
-            {saving ? "Saving…" : "Save settings"}
-          </button>}
+          {can("settings.manage") && (
+            <button className="primary" disabled={saving}>
+              <Save />
+              {saving ? "Saving…" : "Save settings"}
+            </button>
+          )}
         </div>
       </form>
       {can("settings.managePermissions") && (
@@ -331,7 +363,9 @@ export function SettingsPage() {
           </div>
           {!policy ? (
             <form className="permission-unlock" onSubmit={unlockPolicy}>
-              <span><KeyRound /></span>
+              <span>
+                <KeyRound />
+              </span>
               <div>
                 <strong>Protected configuration</strong>
                 <small>Confirm your Admin++ password to edit config.yml.</small>
@@ -352,7 +386,12 @@ export function SettingsPage() {
               <div className="permission-matrix-wrap">
                 <table className="permission-matrix">
                   <thead>
-                    <tr><th>Capability</th><th>CR</th><th>ADMIN</th><th>ADMIN++</th></tr>
+                    <tr>
+                      <th>Capability</th>
+                      <th>CR</th>
+                      <th>ADMIN</th>
+                      <th>ADMIN++</th>
+                    </tr>
                   </thead>
                   <tbody>
                     {Object.entries(policy.permissions.ADMIN_PLUS).flatMap(
@@ -363,14 +402,25 @@ export function SettingsPage() {
                         ...Object.keys(permissions).map((permission) => (
                           <tr key={`${area}.${permission}`}>
                             <td>{permission.replace(/([A-Z])/g, " $1")}</td>
-                            {['CR', 'ADMIN', 'ADMIN_PLUS'].map((role) => (
+                            {["CR", "ADMIN", "ADMIN_PLUS"].map((role) => (
                               <td key={role}>
                                 <input
                                   type="checkbox"
-                                  checked={Boolean(policy.permissions[role]?.[area]?.[permission])}
-                                  disabled={role === 'ADMIN_PLUS' || policyBusy}
+                                  checked={Boolean(
+                                    policy.permissions[role]?.[area]?.[
+                                      permission
+                                    ],
+                                  )}
+                                  disabled={role === "ADMIN_PLUS" || policyBusy}
                                   aria-label={`${role} ${area}.${permission}`}
-                                  onChange={(event) => setPermission(role, area, permission, event.target.checked)}
+                                  onChange={(event) =>
+                                    setPermission(
+                                      role,
+                                      area,
+                                      permission,
+                                      event.target.checked,
+                                    )
+                                  }
                                 />
                               </td>
                             ))}
@@ -382,8 +432,16 @@ export function SettingsPage() {
                 </table>
               </div>
               <div className="permission-policy-actions">
-                <span><ShieldCheck /> Protected boundaries and dependencies are enforced on save.</span>
-                <button className="primary" type="button" disabled={policyBusy} onClick={savePolicy}>
+                <span>
+                  <ShieldCheck /> Protected boundaries and dependencies are
+                  enforced on save.
+                </span>
+                <button
+                  className="primary"
+                  type="button"
+                  disabled={policyBusy}
+                  onClick={savePolicy}
+                >
                   <Save /> {policyBusy ? "Saving…" : "Save permission policy"}
                 </button>
               </div>

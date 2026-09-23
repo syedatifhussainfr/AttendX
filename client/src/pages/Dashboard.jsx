@@ -135,10 +135,7 @@ export function Dashboard() {
             )}
           </p>
         </div>
-        <button
-          className="hero-action"
-          onClick={() => setOpen(true)}
-        >
+        <button className="hero-action" onClick={() => setOpen(true)}>
           {liveOrNext
             ? "Open attendance console"
             : "Start an unscheduled lecture"}
@@ -146,9 +143,7 @@ export function Dashboard() {
         </button>
       </section>
       <div className="metric-row" aria-label="Today at a glance">
-        <article
-          className={`metric-card ${data.current ? "is-live" : ""}`}
-        >
+        <article className={`metric-card ${data.current ? "is-live" : ""}`}>
           <span className="metric-icon">
             <Clock3 />
           </span>

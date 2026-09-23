@@ -59,7 +59,9 @@ export function History() {
           reason: form.reason,
         },
       });
-      toast("Attendance session permanently deleted. Its audit snapshot was preserved.");
+      toast(
+        "Attendance session permanently deleted. Its audit snapshot was preserved.",
+      );
       setDeleteSession(null);
       await load(filters);
     } catch (error) {
@@ -114,22 +116,26 @@ export function History() {
           <Filter />
           Apply
         </button>
-        {can("reports.export") && <button
-          type="button"
-          className="secondary"
-          onClick={(e) => exportRange(e, false)}
-        >
-          <Download />
-          Machine data
-        </button>}
-        {can("reports.export") && <button
-          type="button"
-          className="primary"
-          onClick={(e) => exportRange(e, true)}
-        >
-          <Download />
-          Review report
-        </button>}
+        {can("reports.export") && (
+          <button
+            type="button"
+            className="secondary"
+            onClick={(e) => exportRange(e, false)}
+          >
+            <Download />
+            Machine data
+          </button>
+        )}
+        {can("reports.export") && (
+          <button
+            type="button"
+            className="primary"
+            onClick={(e) => exportRange(e, true)}
+          >
+            <Download />
+            Review report
+          </button>
+        )}
       </form>
       <section className="panel table-panel">
         <table>
@@ -163,9 +169,7 @@ export function History() {
                   <b className="text-late">{r.summary.late}</b>
                 </td>
                 <td>
-                  {r.status === "CLOSED"
-                    ? r.summary.absent
-                    : r.summary.pending}
+                  {r.status === "CLOSED" ? r.summary.absent : r.summary.pending}
                 </td>
                 <td>
                   <span className={`table-status ${r.status.toLowerCase()}`}>

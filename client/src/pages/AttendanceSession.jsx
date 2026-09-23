@@ -62,7 +62,9 @@ export function AttendanceSessionPage() {
     }
   };
   const transientFailure = (error) =>
-    !error.response || error.response.status >= 500 || error.response.status === 429;
+    !error.response ||
+    error.response.status >= 500 ||
+    error.response.status === 429;
   const updateLocalRecord = (studentId, record) =>
     setData((current) => {
       if (!current) return current;
@@ -113,7 +115,9 @@ export function AttendanceSessionPage() {
     setSaveState(remaining.length ? "pending" : "saved");
     await load(true);
     if (announce && before && !remaining.length)
-      toast(`${before} recovered attendance mark${before === 1 ? "" : "s"} saved.`);
+      toast(
+        `${before} recovered attendance mark${before === 1 ? "" : "s"} saved.`,
+      );
     return remaining;
   };
   useEffect(() => {
@@ -187,7 +191,10 @@ export function AttendanceSessionPage() {
       await load(true);
     } catch (err) {
       if (transientFailure(err))
-        toast("Network unavailable. This roll is saved locally and will retry.", "error");
+        toast(
+          "Network unavailable. This roll is saved locally and will retry.",
+          "error",
+        );
       else {
         removeAttendanceDraft(id, draft.id);
         toast(messageOf(err), "error");
@@ -223,7 +230,10 @@ export function AttendanceSessionPage() {
     const status = markTool === "REMOVE" ? null : markTool;
     if ((!existing && status === null) || existing?.status === status) return;
     if (existing && !canCorrectOpen) {
-      toast("You do not have permission to overwrite or remove this mark.", "error");
+      toast(
+        "You do not have permission to overwrite or remove this mark.",
+        "error",
+      );
       return;
     }
     const draft = queueAttendanceDraft(id, {
@@ -265,7 +275,10 @@ export function AttendanceSessionPage() {
       updateLocalRecord(student.id, result.record);
     } catch (error) {
       if (transientFailure(error))
-        toast("Network unavailable. This change is saved locally and will retry.", "error");
+        toast(
+          "Network unavailable. This change is saved locally and will retry.",
+          "error",
+        );
       else {
         removeAttendanceDraft(id, draft.id);
         toast(messageOf(error), "error");
@@ -369,10 +382,12 @@ export function AttendanceSessionPage() {
           )}
         </div>
         <div className="session-actions">
-          {can("reports.export") && <button className="secondary" onClick={() => download(false)}>
-            <Download />
-            Machine data
-          </button>}
+          {can("reports.export") && (
+            <button className="secondary" onClick={() => download(false)}>
+              <Download />
+              Machine data
+            </button>
+          )}
           {s.status === "CLOSED" && can("reports.export") && (
             <button className="primary" onClick={() => download(true)}>
               <Download /> Review report
@@ -409,9 +424,25 @@ export function AttendanceSessionPage() {
             {s.createdBy?.name ? ` by ${s.createdBy.name}` : ""}
           </p>
         </div>
-        <div className={!s.lateModeEnabled ? "countdown disabled" : left ? "countdown" : "countdown elapsed"}>
-          <small>{!s.lateModeEnabled ? "LATE MODE" : left ? "ON-TIME WINDOW" : "LATE WINDOW"}</small>
-          <strong>{!s.lateModeEnabled ? "OFF" : left ? `${min}:${sec}` : "00:00"}</strong>
+        <div
+          className={
+            !s.lateModeEnabled
+              ? "countdown disabled"
+              : left
+                ? "countdown"
+                : "countdown elapsed"
+          }
+        >
+          <small>
+            {!s.lateModeEnabled
+              ? "LATE MODE"
+              : left
+                ? "ON-TIME WINDOW"
+                : "LATE WINDOW"}
+          </small>
+          <strong>
+            {!s.lateModeEnabled ? "OFF" : left ? `${min}:${sec}` : "00:00"}
+          </strong>
           <span>
             {!s.lateModeEnabled
               ? "all marked arrivals count as Present"
@@ -478,7 +509,11 @@ export function AttendanceSessionPage() {
       <section className="panel grid-panel">
         <div className="panel-title">
           <div>
-            <h2>{s.status === "OPEN" ? "Live attendance board" : "Attendance roll"}</h2>
+            <h2>
+              {s.status === "OPEN"
+                ? "Live attendance board"
+                : "Attendance roll"}
+            </h2>
             <p>
               {s.status === "OPEN"
                 ? "Choose a tool, then select as many rolls as needed. Pending rolls become absent only after final review."
@@ -495,7 +530,10 @@ export function AttendanceSessionPage() {
           </div>
         </div>
         {s.status === "OPEN" && (
-          <div className={`attendance-autosave ${saveState}`} aria-live="polite">
+          <div
+            className={`attendance-autosave ${saveState}`}
+            aria-live="polite"
+          >
             {saveState === "pending" ? <CloudOff /> : <CheckCircle2 />}
             <span>
               <strong>
@@ -505,12 +543,20 @@ export function AttendanceSessionPage() {
                     ? `${draftCount} saved locally`
                     : "All changes saved"}
               </strong>
-              <small>{saveState === "pending" ? "Retries when online" : "SQLite + recovery queue"}</small>
+              <small>
+                {saveState === "pending"
+                  ? "Retries when online"
+                  : "SQLite + recovery queue"}
+              </small>
             </span>
           </div>
         )}
         {s.status === "OPEN" && can("attendance.mark") && (
-          <div className="attendance-toolbox" role="toolbar" aria-label="Attendance marking tools">
+          <div
+            className="attendance-toolbox"
+            role="toolbar"
+            aria-label="Attendance marking tools"
+          >
             <div className="toolbox-heading">
               <MousePointer2 />
               <div>
@@ -527,7 +573,10 @@ export function AttendanceSessionPage() {
                 onClick={() => setMarkTool("PRESENT")}
               >
                 <CheckCircle2 />
-                <span><strong>Present</strong><small>Give attendance credit</small></span>
+                <span>
+                  <strong>Present</strong>
+                  <small>Give attendance credit</small>
+                </span>
                 <kbd>1</kbd>
               </button>
               <button
@@ -539,7 +588,14 @@ export function AttendanceSessionPage() {
                 onClick={() => setMarkTool("LATE")}
               >
                 <Clock3 />
-                <span><strong>Late</strong><small>{s.lateModeEnabled ? `${Number(s.lateAttendanceCredit || 0) * 100}% attendance credit` : "Disabled for this session"}</small></span>
+                <span>
+                  <strong>Late</strong>
+                  <small>
+                    {s.lateModeEnabled
+                      ? `${Number(s.lateAttendanceCredit || 0) * 100}% attendance credit`
+                      : "Disabled for this session"}
+                  </small>
+                </span>
                 <kbd>2</kbd>
               </button>
               <button
@@ -551,7 +607,10 @@ export function AttendanceSessionPage() {
                 onClick={() => setMarkTool("REMOVE")}
               >
                 <Eraser />
-                <span><strong>Remove mark</strong><small>Return roll to pending</small></span>
+                <span>
+                  <strong>Remove mark</strong>
+                  <small>Return roll to pending</small>
+                </span>
                 <kbd>3</kbd>
               </button>
             </div>
@@ -595,7 +654,9 @@ export function AttendanceSessionPage() {
             <div className="pending-review-head">
               <div>
                 <strong>Pending review</strong>
-                <small>These rolls become Absent only when you confirm closure.</small>
+                <small>
+                  These rolls become Absent only when you confirm closure.
+                </small>
               </div>
               <span>{missing.length} unmarked</span>
             </div>
@@ -655,32 +716,34 @@ export function AttendanceSessionPage() {
           {records.has(selected?.id) &&
             ((s.status === "OPEN" && canCorrectOpen) ||
               (s.status === "CLOSED" && can("attendance.correctClosed"))) && (
-            <form onSubmit={correct} className="form-stack">
-              <label>
-                Set attendance status
-                <select
-                  name="status"
-                  defaultValue={records.get(selected?.id)?.status || "PRESENT"}
-                >
-                  <option>PRESENT</option>
-                  {s.lateModeEnabled && <option>LATE</option>}
-                  <option>ABSENT</option>
-                </select>
-              </label>
-              <label>
-                Reason for manual action
-                <input
-                  name="reason"
-                  required
-                  minLength="2"
-                  placeholder="Required for the audit log"
-                />
-              </label>
-              <button className="primary" disabled={busy}>
-                Save with audit trail
-              </button>
-            </form>
-          )}
+              <form onSubmit={correct} className="form-stack">
+                <label>
+                  Set attendance status
+                  <select
+                    name="status"
+                    defaultValue={
+                      records.get(selected?.id)?.status || "PRESENT"
+                    }
+                  >
+                    <option>PRESENT</option>
+                    {s.lateModeEnabled && <option>LATE</option>}
+                    <option>ABSENT</option>
+                  </select>
+                </label>
+                <label>
+                  Reason for manual action
+                  <input
+                    name="reason"
+                    required
+                    minLength="2"
+                    placeholder="Required for the audit log"
+                  />
+                </label>
+                <button className="primary" disabled={busy}>
+                  Save with audit trail
+                </button>
+              </form>
+            )}
         </div>
       </Dialog>
       <Dialog

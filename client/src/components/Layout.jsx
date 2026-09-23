@@ -78,10 +78,7 @@ export function Layout() {
     document.body.classList.add("mobile-nav-open");
     return () => document.body.classList.remove("mobile-nav-open");
   }, [open]);
-  useEffect(
-    () => () => document.body.classList.remove("sidebar-resizing"),
-    [],
-  );
+  useEffect(() => () => document.body.classList.remove("sidebar-resizing"), []);
   useEffect(() => {
     const desktop = window.matchMedia("(min-width: 901px)");
     const closeDrawer = (event) => {
@@ -180,30 +177,30 @@ export function Layout() {
         </div>
         <nav>
           <p>Workspace</p>
-          {baseLinks.filter(([, , , permission]) => !permission || can(permission)).map(([to, label, Icon]) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === "/"}
-              onClick={(event) => handleNavigation(event, to)}
-            >
-              <Icon />
-              {label}
-            </NavLink>
-          ))}
+          {baseLinks
+            .filter(([, , , permission]) => !permission || can(permission))
+            .map(([to, label, Icon]) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={to === "/"}
+                onClick={(event) => handleNavigation(event, to)}
+              >
+                <Icon />
+                {label}
+              </NavLink>
+            ))}
           {adminLinks.some(([, , , permission]) => can(permission)) && (
             <>
               <p>Administration</p>
-              {adminLinks.filter(([, , , permission]) => can(permission)).map(([to, label, Icon]) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  onClick={() => setOpen(false)}
-                >
-                  <Icon />
-                  {label}
-                </NavLink>
-              ))}
+              {adminLinks
+                .filter(([, , , permission]) => can(permission))
+                .map(([to, label, Icon]) => (
+                  <NavLink key={to} to={to} onClick={() => setOpen(false)}>
+                    <Icon />
+                    {label}
+                  </NavLink>
+                ))}
             </>
           )}
         </nav>

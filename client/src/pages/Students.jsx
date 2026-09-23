@@ -288,7 +288,9 @@ export function Students() {
         <span>
           {shown.length} student{shown.length === 1 ? "" : "s"}
         </span>
-        <small>Attendance uses each record’s full, half, or zero credit value.</small>
+        <small>
+          Attendance uses each record’s full, half, or zero credit value.
+        </small>
       </div>
       {view === "CARDS" ? (
         <section className="student-card-grid">

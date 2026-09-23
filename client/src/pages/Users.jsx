@@ -144,9 +144,7 @@ export function UsersPage() {
   const revokeSession = async (sessionId) => {
     setSessionsBusy(sessionId);
     try {
-      await api.delete(
-        `/admin/users/${sessionsUser.id}/sessions/${sessionId}`,
-      );
+      await api.delete(`/admin/users/${sessionsUser.id}/sessions/${sessionId}`);
       setSessions((current) => current.filter((item) => item.id !== sessionId));
       toast("That login session was revoked.");
     } catch (error) {
@@ -174,7 +172,9 @@ export function UsersPage() {
       <div className="page-intro">
         <div>
           <span className="eyebrow">
-            {user.adminPlus ? "ADMIN++ · ACCESS CONTROL" : "ADMIN · USER MANAGEMENT"}
+            {user.adminPlus
+              ? "ADMIN++ · ACCESS CONTROL"
+              : "ADMIN · USER MANAGEMENT"}
           </span>
           <h1>Users & CR access</h1>
           <p>
@@ -199,7 +199,8 @@ export function UsersPage() {
               <strong>{u.name}</strong>
               <p>{u.email}</p>
               <small>
-                {u.adminPlus ? "ADMIN++" : u.role} · {u.active ? "Active" : "Disabled"}
+                {u.adminPlus ? "ADMIN++" : u.role} ·{" "}
+                {u.active ? "Active" : "Disabled"}
                 {u.phoneNumber ? ` · ${u.phoneNumber}` : ""}
               </small>
             </div>
@@ -222,27 +223,29 @@ export function UsersPage() {
                   <UserRoundCog /> Change role
                 </button>
               )}
-              {can("users.update") && <button
-                className="secondary"
-                onClick={() => toggle(u)}
-                disabled={
-                  (u.id === user.id && u.active) ||
-                  (u.adminPlus && !user.adminPlus)
-                }
-                title={
-                  u.id === user.id && u.active
-                    ? "You cannot disable your own active account."
-                    : u.adminPlus && !user.adminPlus
-                      ? "Only Admin++ can change an Admin++ account."
-                    : ""
-                }
-              >
-                {u.id === user.id && u.active
-                  ? "Current account"
-                  : u.active
-                    ? "Disable"
-                    : "Enable"}
-              </button>}
+              {can("users.update") && (
+                <button
+                  className="secondary"
+                  onClick={() => toggle(u)}
+                  disabled={
+                    (u.id === user.id && u.active) ||
+                    (u.adminPlus && !user.adminPlus)
+                  }
+                  title={
+                    u.id === user.id && u.active
+                      ? "You cannot disable your own active account."
+                      : u.adminPlus && !user.adminPlus
+                        ? "Only Admin++ can change an Admin++ account."
+                        : ""
+                  }
+                >
+                  {u.id === user.id && u.active
+                    ? "Current account"
+                    : u.active
+                      ? "Disable"
+                      : "Enable"}
+                </button>
+              )}
               {can("users.delete") && u.id !== user.id && (
                 <button
                   className="danger-outline"
@@ -304,14 +307,21 @@ export function UsersPage() {
             </select>
           </label>
           <div className="danger-note">
-            ADMIN++ cannot be assigned or removed here. Use <code>npm run
-            admin-pp</code> on the server for promotion or revocation.
+            ADMIN++ cannot be assigned or removed here. Use{" "}
+            <code>npm run admin-pp</code> on the server for promotion or
+            revocation.
           </div>
           <div className="dialog-actions">
-            <button type="button" className="secondary" onClick={() => setRoleUser(null)}>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => setRoleUser(null)}
+            >
               Cancel
             </button>
-            <button className="primary"><UserRoundCog /> Apply role</button>
+            <button className="primary">
+              <UserRoundCog /> Apply role
+            </button>
           </div>
         </form>
       </Dialog>
@@ -322,8 +332,8 @@ export function UsersPage() {
       >
         <form className="form-stack" onSubmit={remove}>
           <div className="danger-note">
-            This permanently removes the account. AttendX will block deletion
-            if the user owns attendance or audit history; disable the account
+            This permanently removes the account. AttendX will block deletion if
+            the user owns attendance or audit history; disable the account
             instead in that case.
           </div>
           <label>
@@ -395,7 +405,11 @@ export function UsersPage() {
       </Dialog>
       <Dialog
         open={!!sessionsUser}
-        title={sessionsUser ? `Login sessions · ${sessionsUser.name}` : "Login sessions"}
+        title={
+          sessionsUser
+            ? `Login sessions · ${sessionsUser.name}`
+            : "Login sessions"
+        }
         onClose={() => !sessionsBusy && setSessionsUser(null)}
       >
         <div className="form-stack">
@@ -417,14 +431,16 @@ export function UsersPage() {
                     <DeviceIcon />
                     <div>
                       <strong>
-                        {session.current ? "This Admin++ session" : device.browser}
+                        {session.current
+                          ? "This Admin++ session"
+                          : device.browser}
                       </strong>
                       <span>
                         {device.browser} on {device.platform}
                       </span>
                       <small>
-                        Last active {formatSessionTime(session.lastUsedAt)} · Expires{" "}
-                        {formatSessionTime(session.expiresAt)}
+                        Last active {formatSessionTime(session.lastUsedAt)} ·
+                        Expires {formatSessionTime(session.expiresAt)}
                       </small>
                     </div>
                     {session.current ? (

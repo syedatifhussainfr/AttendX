@@ -128,8 +128,8 @@ export function SessionManager() {
                     {device.browser} on {device.platform}
                   </span>
                   <small>
-                    Last active {formatSessionTime(session.lastUsedAt)} · Expires{" "}
-                    {formatSessionTime(session.expiresAt)}
+                    Last active {formatSessionTime(session.lastUsedAt)} ·
+                    Expires {formatSessionTime(session.expiresAt)}
                   </small>
                 </div>
                 {session.current ? (

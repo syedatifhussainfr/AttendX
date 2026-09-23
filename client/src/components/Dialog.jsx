@@ -89,7 +89,11 @@ export function Dialog({ open, title, children, onClose, actions }) {
       }
       const first = focusable[0];
       const last = focusable.at(-1);
-      if (event.shiftKey && (document.activeElement === first || !dialogRef.current.contains(document.activeElement))) {
+      if (
+        event.shiftKey &&
+        (document.activeElement === first ||
+          !dialogRef.current.contains(document.activeElement))
+      ) {
         event.preventDefault();
         last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
@@ -152,7 +156,12 @@ export function Dialog({ open, title, children, onClose, actions }) {
       >
         <header>
           <h2 id={titleId}>{title}</h2>
-          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={onClose}
+            aria-label="Close"
+          >
             <X />
           </button>
         </header>

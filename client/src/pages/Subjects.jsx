@@ -128,17 +128,25 @@ export function Subjects() {
       </Dialog>
       <Dialog
         open={!!deleteSubject}
-        title={deleteSubject ? `Delete ${deleteSubject.name}?` : "Delete subject"}
+        title={
+          deleteSubject ? `Delete ${deleteSubject.name}?` : "Delete subject"
+        }
         onClose={() => !deleting && setDeleteSubject(null)}
       >
         <form className="form-stack" onSubmit={remove}>
           <div className="danger-note">
             This is only allowed when the subject has never been used in the
-            timetable or attendance history. Used subjects must be made inactive.
+            timetable or attendance history. Used subjects must be made
+            inactive.
           </div>
           <label>
             Confirm your Admin++ password
-            <input name="password" type="password" autoComplete="current-password" required />
+            <input
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+            />
           </label>
           <div className="dialog-actions">
             <button
