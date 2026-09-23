@@ -251,9 +251,6 @@ export function Layout() {
               {sidebarVisible ? <PanelLeftClose /> : <PanelLeftOpen />}
             </button>
             <label className="class-switcher">
-              <span className="class-switcher-icon" aria-hidden="true">
-                <School />
-              </span>
               <span className="class-switcher-content">
                 <small>
                   <i /> Active class
@@ -273,22 +270,22 @@ export function Layout() {
                         </option>
                       ))}
                   </select>
-                  <span className="class-switcher-meta">
-                    {selectedClass ? (
-                      [
-                        selectedClass.course,
-                        selectedClass.specialization,
-                        selectedClass.semester && `Sem ${selectedClass.semester}`,
-                        selectedClass.academicYear,
-                      ]
-                        .filter(Boolean)
-                        .map((item, index) => (
-                          <b key={`${item}-${index}`}>{item}</b>
-                        ))
-                    ) : (
-                      <b>Assignment required</b>
-                    )}
-                  </span>
+                </span>
+                <span className="class-switcher-meta">
+                  {selectedClass ? (
+                    [
+                      selectedClass.course,
+                      selectedClass.specialization,
+                      selectedClass.semester && `Semester ${selectedClass.semester}`,
+                      selectedClass.academicYear,
+                    ]
+                      .filter(Boolean)
+                      .map((item, index) => (
+                        <b key={`${item}-${index}`}>{item}</b>
+                      ))
+                  ) : (
+                    <b>Assignment required</b>
+                  )}
                 </span>
               </span>
             </label>
