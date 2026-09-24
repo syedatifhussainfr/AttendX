@@ -247,7 +247,7 @@ The additive `006-student-profile` and `007-late-attendance-credit` migrations r
 - Atomic profile/logo writes and an audit record without storing passwords or image bytes in audit history.
 - Backup restore now accepts `.sqlite` files only, validates the SQLite signature before opening the database, streams uploads to staged storage instead of holding 100 MB in memory, and rate-limits restore attempts.
 - Google/browser password-manager autofill and credential-save discovery are restricted to Login; protected modals and password-change fields use unnamed masked-text surfaces with manager-specific ignore hints and a hidden submission bridge, so no real password input exists for Google Password Manager to fill or save outside Login.
-- Database → Students now resolves every roster row to its class name and class code, keeps roll number beside the student name, and distinguishes the internal database ID from the class-scoped student identity.
+- The database console is relationship-aware: users show assigned classes (`ADMIN`/`ADMIN++` show `All classes`), students show class plus roll number, subjects list consuming classes, timetable/sessions/records resolve class and subject context, and audits/login sessions identify their related users. Class, staff-assignment, class-subject, and branding-metadata tables are also available without exposing credential hashes, phone numbers, IP hashes, token material, or logo bytes.
 - 44 automated tests include Admin++ branding authorization, persistence, public delivery, optional-logo behavior, and audit coverage.
 
 ## Permission model

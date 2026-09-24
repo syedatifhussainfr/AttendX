@@ -14,6 +14,7 @@ import {
   Subject,
   Timetable,
   Setting,
+  BrandingAsset,
   User,
   AuditLog,
   AttendanceSession,
@@ -1405,7 +1406,93 @@ const databaseTables = {
   users: {
     model: User,
     attributes: { exclude: ["passwordHash", "phoneNumber"] },
+    include: [
+      {
+        model: AcademicClass,
+        as: "assignedClasses",
+        attributes: ["displayName", "code"],
+        through: { attributes: ["assignmentRole"] },
+        required: false,
+      },
+    ],
     order: [["id", "ASC"]],
+    serialize: (row) => {
+      const { assignedClasses = [], ...user } = row.toJSON();
+      const institutionWide = user.role === "ADMIN";
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        classAccess: institutionWide
+          ? "All classes"
+          : assignedClasses.length
+            ? assignedClasses
+                .map(
+                  (academicClass) =>
+                    `${academicClass.displayName} (${academicClass.ClassAssignment?.assignmentRole || user.role})`,
+                )
+                .join(" · ")
+            : "No class assigned",
+        assignedClassCodes: institutionWide
+          ? "ALL"
+          : assignedClasses.map((academicClass) => academicClass.code).join(", ") || null,
+        ...Object.fromEntries(
+          Object.entries(user).filter(
+            ([key]) => !["id", "name", "email", "role"].includes(key),
+          ),
+        ),
+      };
+    },
+  },
+  academic_classes: { model: AcademicClass, order: [["id", "ASC"]] },
+  class_assignments: {
+    model: ClassAssignment,
+    include: [
+      { model: User, attributes: ["name", "email", "role"] },
+      { model: AcademicClass, attributes: ["displayName", "code"] },
+    ],
+    order: [["id", "ASC"]],
+    serialize: (row) => {
+      const { User: user, AcademicClass: academicClass, ...assignment } =
+        row.toJSON();
+      return {
+        id: assignment.id,
+        staffName: user?.name || null,
+        staffEmail: user?.email || null,
+        accountRole: user?.role || null,
+        assignmentRole: assignment.assignmentRole,
+        className: academicClass?.displayName || null,
+        classCode: academicClass?.code || null,
+        ...Object.fromEntries(
+          Object.entries(assignment).filter(
+            ([key]) => !["id", "assignmentRole"].includes(key),
+          ),
+        ),
+      };
+    },
+  },
+  class_subjects: {
+    model: ClassSubject,
+    include: [
+      { model: AcademicClass, attributes: ["displayName", "code"] },
+      { model: Subject, attributes: ["name", "code"] },
+    ],
+    order: [["id", "ASC"]],
+    serialize: (row) => {
+      const { AcademicClass: academicClass, Subject: subject, ...link } =
+        row.toJSON();
+      return {
+        id: link.id,
+        className: academicClass?.displayName || null,
+        classCode: academicClass?.code || null,
+        subjectName: subject?.name || null,
+        subjectCode: subject?.code || null,
+        ...Object.fromEntries(
+          Object.entries(link).filter(([key]) => key !== "id"),
+        ),
+      };
+    },
   },
   students: {
     model: Student,
@@ -1433,22 +1520,216 @@ const databaseTables = {
       };
     },
   },
-  subjects: { model: Subject, order: [["id", "ASC"]] },
-  timetable: { model: Timetable, order: [["id", "ASC"]] },
+  subjects: {
+    model: Subject,
+    include: [
+      {
+        model: AcademicClass,
+        as: "AcademicClasses",
+        attributes: ["displayName", "code"],
+        through: { attributes: [] },
+        required: false,
+      },
+    ],
+    order: [["id", "ASC"]],
+    serialize: (row) => {
+      const { AcademicClasses = [], ...subject } = row.toJSON();
+      return {
+        id: subject.id,
+        code: subject.code,
+        name: subject.name,
+        usedByClasses:
+          AcademicClasses.map((academicClass) => academicClass.displayName).join(
+            " · ",
+          ) || "Not assigned",
+        usedByClassCodes:
+          AcademicClasses.map((academicClass) => academicClass.code).join(", ") ||
+          null,
+        ...Object.fromEntries(
+          Object.entries(subject).filter(
+            ([key]) => !["id", "code", "name"].includes(key),
+          ),
+        ),
+      };
+    },
+  },
+  timetable: {
+    model: Timetable,
+    include: [
+      { model: AcademicClass, attributes: ["displayName", "code"] },
+      { model: Subject, attributes: ["name", "code"] },
+    ],
+    order: [["id", "ASC"]],
+    serialize: (row) => {
+      const { AcademicClass: academicClass, Subject: subject, ...entry } =
+        row.toJSON();
+      return {
+        id: entry.id,
+        className: academicClass?.displayName || null,
+        classCode: academicClass?.code || null,
+        subjectName: subject?.name || null,
+        subjectCode: subject?.code || null,
+        ...Object.fromEntries(
+          Object.entries(entry).filter(([key]) => key !== "id"),
+        ),
+      };
+    },
+  },
   attendance_sessions: {
     model: AttendanceSession,
+    include: [
+      { model: AcademicClass, attributes: ["displayName", "code"] },
+      { model: Subject, attributes: ["name", "code"] },
+      {
+        model: Subject,
+        as: "scheduledSubject",
+        attributes: ["name", "code"],
+      },
+      { model: User, as: "createdBy", attributes: ["name", "email"] },
+      { model: User, as: "closedBy", attributes: ["name", "email"] },
+      { model: User, as: "reopenedBy", attributes: ["name", "email"] },
+    ],
     order: [["id", "DESC"]],
+    serialize: (row) => {
+      const {
+        AcademicClass: academicClass,
+        Subject: subject,
+        scheduledSubject,
+        createdBy,
+        closedBy,
+        reopenedBy,
+        ...session
+      } = row.toJSON();
+      return {
+        id: session.id,
+        className: academicClass?.displayName || null,
+        classCode: academicClass?.code || null,
+        subjectName: subject?.name || null,
+        subjectCode: subject?.code || null,
+        scheduledSubjectName: scheduledSubject?.name || null,
+        createdBy: createdBy?.name || null,
+        closedBy: closedBy?.name || null,
+        reopenedBy: reopenedBy?.name || null,
+        ...Object.fromEntries(
+          Object.entries(session).filter(([key]) => key !== "id"),
+        ),
+      };
+    },
   },
   attendance_records: {
     model: AttendanceRecord,
+    include: [
+      {
+        model: Student,
+        attributes: ["name", "rollNumber"],
+        include: [
+          { model: AcademicClass, attributes: ["displayName", "code"] },
+        ],
+      },
+      {
+        model: AttendanceSession,
+        attributes: ["sessionDate", "AcademicClassId", "SubjectId"],
+        include: [
+          { model: AcademicClass, attributes: ["displayName", "code"] },
+          { model: Subject, attributes: ["name", "code"] },
+        ],
+      },
+      { model: User, as: "markedBy", attributes: ["name", "email"] },
+      { model: User, as: "correctedBy", attributes: ["name", "email"] },
+    ],
     order: [["id", "DESC"]],
+    serialize: (row) => {
+      const { Student: student, AttendanceSession: session, markedBy, correctedBy, ...record } =
+        row.toJSON();
+      const academicClass = session?.AcademicClass || student?.AcademicClass;
+      return {
+        id: record.id,
+        studentName: student?.name || null,
+        rollNumber: student?.rollNumber || null,
+        className: academicClass?.displayName || null,
+        classCode: academicClass?.code || null,
+        subjectName: session?.Subject?.name || null,
+        subjectCode: session?.Subject?.code || null,
+        sessionDate: session?.sessionDate || null,
+        status: record.status,
+        markedBy: markedBy?.name || null,
+        correctedBy: correctedBy?.name || null,
+        ...Object.fromEntries(
+          Object.entries(record).filter(
+            ([key]) => !["id", "status"].includes(key),
+          ),
+        ),
+      };
+    },
   },
   settings: { model: Setting, order: [["key", "ASC"]] },
-  audit_logs: { model: AuditLog, order: [["id", "DESC"]] },
+  branding_assets: {
+    model: BrandingAsset,
+    attributes: { exclude: ["data"] },
+    order: [["slot", "ASC"]],
+  },
+  audit_logs: {
+    model: AuditLog,
+    include: [
+      { model: User, attributes: ["name", "email", "role"] },
+      {
+        model: Student,
+        attributes: ["name", "rollNumber"],
+        include: [
+          { model: AcademicClass, attributes: ["displayName", "code"] },
+        ],
+      },
+      {
+        model: AttendanceSession,
+        attributes: ["sessionDate"],
+        include: [
+          { model: AcademicClass, attributes: ["displayName", "code"] },
+          { model: Subject, attributes: ["name", "code"] },
+        ],
+      },
+    ],
+    order: [["id", "DESC"]],
+    serialize: (row) => {
+      const { User: actor, Student: student, AttendanceSession: session, ...log } =
+        row.toJSON();
+      return {
+        id: log.id,
+        actorName: actor?.name || "System",
+        actorRole: actor?.role || null,
+        targetStudent: student
+          ? `${student.rollNumber} · ${student.name}`
+          : null,
+        className:
+          student?.AcademicClass?.displayName ||
+          session?.AcademicClass?.displayName ||
+          null,
+        sessionDate: session?.sessionDate || null,
+        subjectName: session?.Subject?.name || null,
+        ...Object.fromEntries(
+          Object.entries(log).filter(([key]) => key !== "id"),
+        ),
+      };
+    },
+  },
   auth_sessions: {
     model: AuthSession,
     attributes: { exclude: ["currentTokenHash", "tokenHistory", "ipHash"] },
+    include: [
+      { model: User, as: "user", attributes: ["name", "email", "role"] },
+    ],
     order: [["lastUsedAt", "DESC"]],
+    serialize: (row) => {
+      const { user, ...session } = row.toJSON();
+      return {
+        id: session.id,
+        userName: user?.name || null,
+        userEmail: user?.email || null,
+        userRole: user?.role || null,
+        ...Object.fromEntries(
+          Object.entries(session).filter(([key]) => key !== "id"),
+        ),
+      };
+    },
   },
   app_migrations: { model: AppMigration, order: [["appliedAt", "DESC"]] },
 };
@@ -1550,6 +1831,7 @@ router.get(
     const result = await definition.model.findAndCountAll({
       attributes: definition.attributes,
       include: definition.include,
+      distinct: Boolean(definition.include),
       order: definition.order,
       limit: pageSize,
       offset: (page - 1) * pageSize,

@@ -21,12 +21,16 @@ import { useAuth } from "../state/AuthContext.jsx";
 
 const labels = {
   users: "Users",
+  academic_classes: "Academic classes",
+  class_assignments: "Staff assignments",
+  class_subjects: "Class subjects",
   students: "Students",
   subjects: "Subjects",
   timetable: "Timetable",
   attendance_sessions: "Attendance sessions",
   attendance_records: "Attendance records",
   settings: "Settings",
+  branding_assets: "Branding assets",
   audit_logs: "Audit logs",
   auth_sessions: "Login sessions",
   app_migrations: "Schema migrations",
@@ -39,16 +43,58 @@ const columnLabels = {
   className: "Class",
   classCode: "Class code",
   AcademicClassId: "Class ID",
+  SubjectId: "Subject ID",
+  StudentId: "Student ID",
+  AttendanceSessionId: "Session ID",
+  UserId: "User ID",
+  classAccess: "Assigned classes",
+  assignedClassCodes: "Class codes",
+  usedByClasses: "Used by classes",
+  usedByClassCodes: "Class codes",
+  staffName: "Staff member",
+  staffEmail: "Staff email",
+  accountRole: "Account role",
+  assignmentRole: "Assignment role",
+  subjectName: "Subject",
+  subjectCode: "Subject code",
+  studentName: "Student",
+  sessionDate: "Session date",
+  createdBy: "Opened by",
+  closedBy: "Closed by",
+  reopenedBy: "Reopened by",
+  markedBy: "Marked by",
+  correctedBy: "Corrected by",
+  actorName: "Actor",
+  actorRole: "Actor role",
+  targetStudent: "Target student",
+  userName: "User",
+  userEmail: "User email",
+  userRole: "User role",
 };
 
-const studentColumnOrder = [
-  "id",
-  "rollNumber",
-  "name",
-  "className",
-  "classCode",
-  "AcademicClassId",
-];
+const priorityColumns = {
+  users: ["id", "name", "email", "role", "classAccess", "assignedClassCodes"],
+  academic_classes: ["id", "displayName", "code", "course", "specialization", "semester", "section", "academicYear", "batch", "active"],
+  class_assignments: ["id", "staffName", "staffEmail", "accountRole", "assignmentRole", "className", "classCode", "UserId", "AcademicClassId"],
+  class_subjects: ["id", "className", "classCode", "subjectName", "subjectCode", "active", "AcademicClassId", "SubjectId"],
+  students: ["id", "rollNumber", "name", "className", "classCode", "AcademicClassId"],
+  subjects: ["id", "code", "name", "usedByClasses", "usedByClassCodes", "courseCategory", "active"],
+  timetable: ["id", "className", "classCode", "subjectName", "subjectCode", "dayOfWeek", "startTime", "endTime", "faculty", "active", "AcademicClassId", "SubjectId"],
+  attendance_sessions: ["id", "className", "classCode", "subjectName", "subjectCode", "sessionDate", "scheduledStartTime", "scheduledEndTime", "status", "sessionType", "createdBy", "closedBy", "reopenedBy"],
+  attendance_records: ["id", "studentName", "rollNumber", "className", "classCode", "subjectName", "subjectCode", "sessionDate", "status", "attendanceCreditValue", "markedBy", "correctedBy", "StudentId", "AttendanceSessionId"],
+  audit_logs: ["id", "actorName", "actorRole", "action", "entityType", "entityId", "targetStudent", "className", "sessionDate", "subjectName", "reason", "createdAt"],
+  auth_sessions: ["id", "userName", "userEmail", "userRole", "userAgent", "lastUsedAt", "expiresAt", "revokedAt", "UserId"],
+  branding_assets: ["slot", "originalName", "mimeType", "byteSize", "width", "height", "checksum", "updatedAt"],
+  app_migrations: ["id", "appliedAt"],
+};
+
+const databaseContextNotes = {
+  users: "ADMIN and ADMIN++ accounts cover all classes. FACULTY and CR rows list their database-backed class assignments.",
+  students: "Database ID is internal. Use class and roll number to identify a student across workspaces.",
+  subjects: "Used by classes is resolved from the class-subject relationship table.",
+  attendance_records: "Each record is resolved to its student, class, subject, and attendance session.",
+  app_migrations: "Schema migrations record which structural database upgrades AttendX has already applied.",
+};
 
 const readableColumn = (column) =>
   columnLabels[column] ||
@@ -58,6 +104,14 @@ const readableColumn = (column) =>
     .replace(/^./, (character) => character.toUpperCase());
 
 const managementAreas = [
+  {
+    tables: ["academic_classes", "class_assignments"],
+    route: "/classes",
+    label: "Classes & staff",
+    description: "Manage class workspaces, mentors, faculty, and CR assignments.",
+    action: "Manage classes",
+    Icon: GraduationCap,
+  },
   {
     tables: ["users"],
     route: "/users",
@@ -75,7 +129,7 @@ const managementAreas = [
     Icon: GraduationCap,
   },
   {
-    tables: ["subjects"],
+    tables: ["subjects", "class_subjects"],
     route: "/subjects",
     label: "Subjects",
     description: "Create subjects and update their names or status.",
@@ -99,7 +153,7 @@ const managementAreas = [
     Icon: FileClock,
   },
   {
-    tables: ["settings"],
+    tables: ["settings", "branding_assets"],
     route: "/settings",
     label: "System settings",
     description: "Update attendance rules and academic configuration.",
@@ -163,9 +217,9 @@ export function DatabasePage() {
     const names = new Set();
     for (const row of result?.rows || [])
       Object.keys(row).forEach((key) => names.add(key));
-    if (selected !== "students") return [...names];
+    const preferred = priorityColumns[selected] || [];
     return [
-      ...studentColumnOrder.filter((column) => names.delete(column)),
+      ...preferred.filter((column) => names.delete(column)),
       ...names,
     ];
   }, [result, selected]);
@@ -272,10 +326,9 @@ export function DatabasePage() {
             <span className="eyebrow">TABLE</span>
             <h2>{labels[selected]}</h2>
             <p>{result?.total ?? 0} stored records</p>
-            {selected === "students" && (
+            {databaseContextNotes[selected] && (
               <small className="database-context-note">
-                Database ID is internal. Use class and roll number to identify a
-                student across workspaces.
+                {databaseContextNotes[selected]}
               </small>
             )}
           </div>

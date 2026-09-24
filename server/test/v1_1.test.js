@@ -955,6 +955,13 @@ test("ADMIN manages accounts while Admin++ elevation protects destructive action
     .expect((response) => {
       assert.equal("passwordHash" in response.body.rows[0], false);
       assert.equal("phoneNumber" in response.body.rows[0], false);
+      const institutionAdmin = response.body.rows.find(
+        (row) => row.id === admin.id,
+      );
+      const assignedCr = response.body.rows.find((row) => row.id === cr.id);
+      assert.equal(institutionAdmin.classAccess, "All classes");
+      assert.match(assignedCr.classAccess, /ANASUYA BCA AI 3B\.UG/);
+      assert.match(assignedCr.assignedClassCodes, /ANASUYA-BCA-AI-3B-UG/);
     });
   await request(app)
     .get("/api/admin/database/tables/students")
@@ -972,6 +979,41 @@ test("ADMIN manages accounts while Admin++ elevation protects destructive action
       assert.equal(student.AcademicClassId, defaultClass.id);
       assert.equal("AcademicClass" in student, false);
     });
+  await request(app)
+    .get("/api/admin/database/tables/subjects")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .expect(200)
+    .expect((response) => {
+      const relatedSubject = response.body.rows.find(
+        (row) => row.code === subject.code,
+      );
+      assert.match(relatedSubject.usedByClasses, /ANASUYA BCA AI 3B\.UG/);
+      assert.match(
+        relatedSubject.usedByClassCodes,
+        /ANASUYA-BCA-AI-3B-UG/,
+      );
+      assert.equal("AcademicClasses" in relatedSubject, false);
+    });
+  for (const table of [
+    "academic_classes",
+    "class_assignments",
+    "class_subjects",
+    "timetable",
+    "attendance_sessions",
+    "attendance_records",
+    "settings",
+    "branding_assets",
+    "audit_logs",
+    "auth_sessions",
+    "app_migrations",
+  ]) {
+    await request(app)
+      .get(`/api/admin/database/tables/${table}`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .set("X-Admin-Elevation", adminElevationToken)
+      .expect(200);
+  }
   await request(app)
     .post("/api/auth/elevate")
     .set("Authorization", `Bearer ${adminToken}`)
