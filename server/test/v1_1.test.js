@@ -209,6 +209,10 @@ test("versioned migration adds V1.1 columns and records itself", async () => {
     "SELECT id FROM app_migrations WHERE id = '011-subject-course-category'",
   );
   assert.equal(subjectCategoryMigrations.length, 1);
+  const [legacySettingMigrations] = await db.sequelize.query(
+    "SELECT id FROM app_migrations WHERE id = '013-remove-legacy-class-settings'",
+  );
+  assert.equal(legacySettingMigrations.length, 1);
   assert.equal(await db.AcademicClass.count(), 3);
   assert.equal(defaultClass.semester, "1");
   assert.equal(defaultClass.specialization, "AI/ML");

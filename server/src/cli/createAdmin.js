@@ -45,8 +45,6 @@ const defaults = {
   lateModeEnabled: true,
   lateAttendanceCredit: 0,
   institutionName: "EIILM Kolkata",
-  className: "Semester I",
-  academicSession: "2026–27",
   timezone: "Asia/Kolkata",
   crCanCorrectRecent: true,
   attendanceTargetPercentage: 75,

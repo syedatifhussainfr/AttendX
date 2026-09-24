@@ -11,6 +11,7 @@ import { migration009 } from "./migrations/009-class-ownership.js";
 import { migration010 } from "./migrations/010-attendance-record-ownership.js";
 import { migration011 } from "./migrations/011-subject-course-category.js";
 import { migration012 } from "./migrations/012-institution-branding.js";
+import { migration013 } from "./migrations/013-remove-legacy-class-settings.js";
 
 const migrations = [
   migration001,
@@ -25,6 +26,7 @@ const migrations = [
   migration010,
   migration011,
   migration012,
+  migration013,
 ];
 
 export async function runMigrations(sequelize) {
