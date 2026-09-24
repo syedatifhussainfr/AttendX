@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 const blockClipboardEntry = (event) => {
   event.preventDefault();
@@ -8,52 +8,97 @@ const blockClipboardEntry = (event) => {
   window.setTimeout(() => input.setCustomValidity(""), 1800);
 };
 
-export function ManualEntryInput({ id, type = "password", expected, ...props }) {
+export function ManualEntryInput({
+  id,
+  type = "password",
+  expected,
+  name,
+  value,
+  defaultValue = "",
+  onChange,
+  onFocus,
+  onBlur,
+  onKeyDown,
+  ...props
+}) {
   const [armed, setArmed] = useState(false);
-  const [typed, setTyped] = useState("");
-  const matched = expected && typed === expected;
+  const [typed, setTyped] = useState(String(value ?? defaultValue ?? ""));
+  const generatedId = useId().replace(/[^a-z0-9]/gi, "");
+  const inputRef = useRef(null);
+  const renderedValue = String(value ?? typed);
+  const passwordField = type === "password";
+  const domId = `manual-entry-${generatedId}`;
+  const statusId = `${domId}-typing-status`;
+  const matched = expected && renderedValue === expected;
+
+  useEffect(() => {
+    const form = inputRef.current?.form;
+    if (!form) return undefined;
+    const priorAutocomplete = form.getAttribute("autocomplete");
+    const priorFormType = form.getAttribute("data-form-type");
+    form.setAttribute("autocomplete", "off");
+    form.setAttribute("data-form-type", "other");
+    return () => {
+      if (priorAutocomplete == null) form.removeAttribute("autocomplete");
+      else form.setAttribute("autocomplete", priorAutocomplete);
+      if (priorFormType == null) form.removeAttribute("data-form-type");
+      else form.setAttribute("data-form-type", priorFormType);
+    };
+  }, []);
+
   return (
     <>
       <input
         {...props}
-        id={id}
+        ref={inputRef}
+        id={domId}
         type={type}
+        name={undefined}
+        value={renderedValue}
         className={["manual-entry-input", props.className]
           .filter(Boolean)
           .join(" ")}
-        autoComplete="off"
+        autoComplete={passwordField ? "one-time-code" : "off"}
         autoCapitalize="none"
+        autoCorrect="off"
         spellCheck="false"
         readOnly={!armed}
+        data-attendx-field={id}
         data-1p-ignore="true"
         data-bwignore="true"
         data-lpignore="true"
+        data-protonpass-ignore="true"
+        data-dashlane-ignore="true"
         data-form-type="other"
-        aria-describedby={expected ? `${id}-typing-status` : props["aria-describedby"]}
+        aria-describedby={expected ? statusId : props["aria-describedby"]}
+        onKeyDown={(event) => {
+          onKeyDown?.(event);
+        }}
         onChange={(event) => {
           setTyped(event.target.value);
-          props.onChange?.(event);
+          onChange?.(event);
         }}
         onFocus={(event) => {
           setArmed(true);
-          props.onFocus?.(event);
+          onFocus?.(event);
         }}
         onBlur={(event) => {
           setArmed(false);
-          props.onBlur?.(event);
+          onBlur?.(event);
         }}
         onPaste={blockClipboardEntry}
         onDrop={blockClipboardEntry}
       />
+      {name && <input type="hidden" name={name} value={renderedValue} />}
       {expected && (
         <small
-          id={`${id}-typing-status`}
+          id={statusId}
           className={`manual-entry-status ${matched ? "matched" : ""}`}
           role="status"
         >
           {matched
             ? "Phrase matched"
-            : `Type manually · ${Math.min(typed.length, expected.length)}/${expected.length}`}
+            : `Type manually · ${Math.min(renderedValue.length, expected.length)}/${expected.length}`}
         </small>
       )}
     </>
