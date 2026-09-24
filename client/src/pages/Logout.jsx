@@ -4,10 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../state/AuthContext.jsx";
 import { useToast } from "../state/ToastContext.jsx";
 import { messageOf } from "../api.js";
+import { useBranding } from "../state/BrandingContext.jsx";
 
 export function LogoutPage() {
   const [busy, setBusy] = useState(false);
   const { user, logout } = useAuth();
+  const { branding } = useBranding();
   const navigate = useNavigate();
   const toast = useToast();
   const staySignedIn = () =>
@@ -30,10 +32,10 @@ export function LogoutPage() {
     <main className="logout-route-page">
       <section className="logout-route-card">
         <header className="logout-route-brand">
-          <img src="/brand/eiilm.png" alt="EIILM Kolkata" />
+          <img src={branding.primaryLogoUrl} alt={branding.institutionName} />
           <div>
             <strong>AttendX</strong>
-            <span>EIILM Kolkata</span>
+            <span>{branding.institutionName}</span>
           </div>
         </header>
         <span className="logout-route-icon">

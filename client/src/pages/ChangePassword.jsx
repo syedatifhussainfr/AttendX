@@ -15,6 +15,7 @@ import { useAuth } from "../state/AuthContext.jsx";
 import { useToast } from "../state/ToastContext.jsx";
 import { SessionManager } from "../components/SessionManager.jsx";
 import { ManualEntryInput } from "../components/ManualEntryInput.jsx";
+import { useBranding } from "../state/BrandingContext.jsx";
 
 const requirements = [
   ["10+ characters", (value) => value.length >= 10],
@@ -59,6 +60,7 @@ export function ChangePassword() {
   });
   const [busy, setBusy] = useState(false);
   const { user, logout } = useAuth();
+  const { branding } = useBranding();
   const navigate = useNavigate();
   const toast = useToast();
   const checks = useMemo(
@@ -100,16 +102,21 @@ export function ChangePassword() {
         <div className="security-brand">
           <div className="security-brand-lockup">
             <span className="security-brand-primary">
-              <img src="/brand/eiilm.png" alt="EIILM Kolkata" />
+              <img src={branding.primaryLogoUrl} alt={branding.institutionName} />
             </span>
             <div className="security-brand-copy">
               <strong>AttendX</strong>
               <span>Secure account centre</span>
             </div>
           </div>
-          <span className="security-brand-partner">
-            <img src="/brand/ekcle.png" alt="EKCLE" />
-          </span>
+          {branding.secondaryLogoUrl && (
+            <span className="security-brand-partner">
+              <img
+                src={branding.secondaryLogoUrl}
+                alt={`${branding.institutionName} partner mark`}
+              />
+            </span>
+          )}
         </div>
         <div className="security-copy">
           <span className="security-kicker">
@@ -144,7 +151,7 @@ export function ChangePassword() {
             </div>
           </div>
         </div>
-        <small className="security-foot">AttendX V1.1.9 · Asia/Kolkata</small>
+        <small className="security-foot">AttendX V1.1.9.1 · Asia/Kolkata</small>
       </section>
 
       <section className="security-form-side">

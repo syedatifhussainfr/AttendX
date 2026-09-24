@@ -24,6 +24,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../state/AuthContext.jsx";
 import { Dialog } from "./Dialog.jsx";
 import { ClassSwitcher } from "./ClassSwitcher.jsx";
+import { useBranding } from "../state/BrandingContext.jsx";
 const baseLinks = [
   ["/", "Overview", LayoutDashboard, "dashboard.view"],
   ["/history", "Attendance history", FileClock, "attendance.view"],
@@ -47,6 +48,7 @@ const clampSidebarWidth = (value) =>
 
 export function Layout() {
   const { user, logout, can } = useAuth(),
+    { branding } = useBranding(),
     navigate = useNavigate(),
     [open, setOpen] = useState(false),
     [passwordPrompt, setPasswordPrompt] = useState(false),
@@ -171,10 +173,10 @@ export function Layout() {
           <X />
         </button>
         <div className="brand">
-          <img src="/brand/eiilm.png" />
+          <img src={branding.primaryLogoUrl} alt={branding.institutionName} />
           <div>
             <strong>AttendX</strong>
-            <small>EIILM Kolkata</small>
+            <small>{branding.institutionName}</small>
           </div>
         </div>
         <nav>

@@ -6,6 +6,7 @@ import authRoutes from "./routes/auth.js";
 import attendanceRoutes from "./routes/attendance.js";
 import adminRoutes from "./routes/admin.js";
 import backupRoutes from "./routes/backups.js";
+import brandingRoutes from "./routes/branding.js";
 import { errorHandler, notFound } from "./middleware/error.js";
 
 export const app = express();
@@ -16,6 +17,7 @@ app.use(express.json({ limit: "2mb" }));
 app.get("/api/health", (req, res) =>
   res.json({ ok: true, serverTime: new Date().toISOString() }),
 );
+app.use("/api/branding", brandingRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/admin", adminRoutes);

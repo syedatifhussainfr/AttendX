@@ -976,9 +976,6 @@ router.put(
     const data = z
       .object({
         lateThresholdMinutes: z.number().int().min(1).max(120),
-        institutionName: z.string().min(2),
-        institutionCode: z.string().trim().max(30).optional(),
-        campusName: z.string().trim().max(100).optional(),
         timezone: z.literal("Asia/Kolkata"),
         crCanCorrectRecent: z.boolean().optional(),
         attendanceTargetPercentage: z.number().int().min(1).max(100).optional(),

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  Building2,
   Clock3,
   KeyRound,
   Save,
@@ -14,6 +13,7 @@ import { useToast } from "../state/ToastContext.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
 import { useClass } from "../state/ClassContext.jsx";
 import { ManualEntryInput } from "../components/ManualEntryInput.jsx";
+import { InstitutionBranding } from "../components/InstitutionBranding.jsx";
 export function SettingsPage() {
   const [data, setData] = useState(null),
     [saving, setSaving] = useState(false),
@@ -22,7 +22,7 @@ export function SettingsPage() {
     [policy, setPolicy] = useState(null),
     [policyBusy, setPolicyBusy] = useState(false),
     toast = useToast(),
-    { can } = useAuth(),
+    { can, user } = useAuth(),
     navigate = useNavigate(),
     { selectedClass } = useClass();
   useEffect(() => {
@@ -302,39 +302,12 @@ export function SettingsPage() {
         </section>
         <section className="panel settings-panel">
           <div className="settings-heading">
-            <Building2 />
+            <ShieldCheck />
             <div>
-              <h2>Institution profile</h2>
-              <p>Global identity shared by every class workspace.</p>
+              <h2>Deployment context</h2>
+              <p>Timezone and active academic workspace.</p>
             </div>
           </div>
-          <label>
-            Institution name
-            <input
-              name="institutionName"
-              defaultValue={data.institutionName}
-              disabled={!can("settings.manage")}
-              required
-            />
-          </label>
-          <label>
-            Institution code
-            <input
-              name="institutionCode"
-              defaultValue={data.institutionCode || ""}
-              disabled={!can("settings.manage")}
-              placeholder="Optional short code"
-            />
-          </label>
-          <label>
-            Campus / location
-            <input
-              name="campusName"
-              defaultValue={data.campusName || ""}
-              disabled={!can("settings.manage")}
-              placeholder="Optional campus name"
-            />
-          </label>
           <label>
             Timezone
             <select
@@ -382,6 +355,7 @@ export function SettingsPage() {
           )}
         </div>
       </form>
+      <InstitutionBranding canManage={Boolean(user?.adminPlus)} />
       {can("settings.managePermissions") && (
         <section className="panel permission-policy-panel">
           <div className="settings-heading">

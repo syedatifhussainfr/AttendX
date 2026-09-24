@@ -2,6 +2,15 @@ export function notFound(req, res) {
   res.status(404).json({ message: "Endpoint not found." });
 }
 export function errorHandler(error, req, res, next) {
+  if (error.name === "MulterError") {
+    const tooLarge = error.code === "LIMIT_FILE_SIZE";
+    return res.status(tooLarge ? 413 : 400).json({
+      message: tooLarge
+        ? "The selected upload exceeds the allowed file size."
+        : "The upload contains too many files or fields.",
+      code: error.code,
+    });
+  }
   if (error.name === "ZodError")
     return res
       .status(400)

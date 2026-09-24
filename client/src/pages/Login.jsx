@@ -2,8 +2,10 @@ import { useState } from "react";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { useAuth } from "../state/AuthContext.jsx";
 import { messageOf } from "../api.js";
+import { useBranding } from "../state/BrandingContext.jsx";
 export function Login() {
   const { login } = useAuth(),
+    { branding } = useBranding(),
     [show, setShow] = useState(false),
     [loading, setLoading] = useState(false),
     [error, setError] = useState("");
@@ -24,11 +26,13 @@ export function Login() {
       <div className="login-story">
         <img
           className="login-mark"
-          src="/brand/eiilm.png"
-          alt="EIILM Kolkata"
+          src={branding.primaryLogoUrl}
+          alt={branding.institutionName}
         />
         <div>
-          <span className="eyebrow">EIILM KOLKATA · ACADEMIC OPERATIONS</span>
+          <span className="eyebrow">
+            {branding.institutionName.toUpperCase()} · ACADEMIC OPERATIONS
+          </span>
           <h1>
             Attendance,
             <br />
@@ -39,7 +43,13 @@ export function Login() {
             college lectures.
           </p>
         </div>
-        <img className="ethics-mark" src="/brand/ekcle.png" />
+        {branding.secondaryLogoUrl && (
+          <img
+            className="ethics-mark"
+            src={branding.secondaryLogoUrl}
+            alt={`${branding.institutionName} partner mark`}
+          />
+        )}
       </div>
       <div className="login-area">
         <form className="login-card" onSubmit={submit} autoComplete="on">
@@ -47,7 +57,7 @@ export function Login() {
             <span className="app-monogram">AX</span>
             <div>
               <h2>Welcome to AttendX</h2>
-              <p>Sign in with your college access</p>
+              <p>Sign in with your institution access</p>
             </div>
           </div>
           {error && <div className="form-error">{error}</div>}

@@ -254,6 +254,23 @@ export const Setting = sequelize.define(
   },
   { ...common, createdAt: false },
 );
+export const BrandingAsset = sequelize.define(
+  "BrandingAsset",
+  {
+    slot: {
+      type: DataTypes.STRING(20),
+      primaryKey: true,
+    },
+    mimeType: { type: DataTypes.STRING(40), allowNull: false },
+    originalName: { type: DataTypes.STRING(180), allowNull: false },
+    byteSize: { type: DataTypes.INTEGER, allowNull: false },
+    width: { type: DataTypes.INTEGER, allowNull: false },
+    height: { type: DataTypes.INTEGER, allowNull: false },
+    checksum: { type: DataTypes.STRING(64), allowNull: false },
+    data: { type: DataTypes.BLOB("long"), allowNull: false },
+  },
+  common,
+);
 export const AuditLog = sequelize.define(
   "AuditLog",
   {
@@ -378,6 +395,7 @@ export const models = {
   AttendanceSession,
   AttendanceRecord,
   Setting,
+  BrandingAsset,
   AuditLog,
   AppMigration,
 };

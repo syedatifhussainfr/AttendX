@@ -10,6 +10,7 @@ import { migration008 } from "./migrations/008-academic-classes.js";
 import { migration009 } from "./migrations/009-class-ownership.js";
 import { migration010 } from "./migrations/010-attendance-record-ownership.js";
 import { migration011 } from "./migrations/011-subject-course-category.js";
+import { migration012 } from "./migrations/012-institution-branding.js";
 
 const migrations = [
   migration001,
@@ -23,6 +24,7 @@ const migrations = [
   migration009,
   migration010,
   migration011,
+  migration012,
 ];
 
 export async function runMigrations(sequelize) {

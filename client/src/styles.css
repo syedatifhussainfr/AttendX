@@ -4450,7 +4450,7 @@ body::after {
   border: 0;
   border-radius: 0;
   box-shadow: none;
-  background: url("/brand/eiilm.png") center / contain no-repeat;
+  background: var(--institution-logo, url("/brand/eiilm.png")) center / contain no-repeat;
   opacity: 0.055;
   filter: grayscale(1) brightness(4);
 }
@@ -8201,4 +8201,200 @@ body.class-switcher-open .topbar {
 }
 .manual-entry-status.matched {
   color: #247253;
+}
+
+/* V1.1.9.1 institution identity: restrained operational glass. */
+.institution-branding-panel {
+  margin-top: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.76), rgba(237, 245, 249, 0.58)), rgba(245, 250, 252, 0.7);
+  backdrop-filter: blur(24px) saturate(125%);
+  box-shadow: 0 24px 60px rgba(16, 51, 72, 0.1), inset 0 1px rgba(255, 255, 255, 0.95);
+}
+.institution-branding-panel .settings-heading > svg { color: #315d74; }
+.branding-workspace {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.45fr);
+  gap: 18px;
+  margin-top: 22px;
+}
+.branding-preview {
+  position: relative;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  padding: 25px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 18px;
+  color: #f6fbff;
+  background: linear-gradient(145deg, rgba(5, 39, 66, 0.98), rgba(9, 69, 103, 0.91)), #073653;
+  box-shadow: 0 22px 44px rgba(8, 48, 73, 0.2), inset 0 1px rgba(255, 255, 255, 0.13);
+}
+.branding-preview::after {
+  content: "";
+  position: absolute;
+  width: 245px;
+  height: 245px;
+  right: -52px;
+  bottom: -42px;
+  background: var(--preview-logo) center / contain no-repeat;
+  opacity: 0.055;
+  filter: grayscale(1) brightness(4);
+  pointer-events: none;
+}
+.branding-preview-top {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+}
+.branding-preview-primary, .branding-preview-secondary {
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.86);
+  box-shadow: 0 14px 30px rgba(0, 24, 42, 0.2);
+}
+.branding-preview-primary { width: 74px; height: 74px; padding: 9px; border-radius: 16px; }
+.branding-preview-secondary { max-width: 150px; height: 58px; padding: 7px 10px; border-radius: 10px; }
+.branding-preview-primary img, .branding-preview-secondary img { width: 100%; height: 100%; object-fit: contain; }
+.branding-preview > div:last-child { position: relative; z-index: 1; display: grid; gap: 7px; }
+.branding-preview > div:last-child small { color: rgba(220, 236, 246, 0.72); font-size: 10px; font-weight: 800; letter-spacing: 1.5px; }
+.branding-preview > div:last-child strong { font-size: clamp(25px, 3vw, 38px); line-height: 1.05; letter-spacing: -1.2px; }
+.branding-preview > div:last-child span { color: rgba(225, 239, 247, 0.78); font-size: 13px; }
+.branding-controls { min-width: 0; display: flex; flex-direction: column; gap: 15px; }
+.branding-fields { display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 12px; }
+.branding-fields .full { grid-column: 1 / -1; }
+.branding-logo-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.branding-logo-grid article {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 66px minmax(0, 1fr);
+  align-items: center;
+  gap: 13px;
+  padding: 15px;
+  border: 1px solid rgba(134, 160, 174, 0.28);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.84);
+}
+.branding-logo-grid article > header, .branding-logo-grid article > .branding-file-actions, .branding-logo-grid article > .branding-file-button { grid-column: 1 / -1; }
+.branding-logo-grid article > header { display: flex; align-items: center; gap: 10px; }
+.branding-logo-grid article > header > span {
+  width: 34px; height: 34px; display: grid; place-items: center;
+  border: 1px solid rgba(83, 124, 145, 0.2); border-radius: 10px;
+  color: #315f77; background: rgba(232, 243, 248, 0.72);
+}
+.branding-logo-grid article > header svg { width: 17px; }
+.branding-logo-grid article > header div, .branding-logo-grid article > div:not(.branding-file-actions) { min-width: 0; display: grid; gap: 3px; }
+.branding-logo-grid article strong, .branding-logo-grid article b { color: #173b51; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.branding-logo-grid article small { color: #718592; font-size: 11px; }
+.branding-logo-grid article > img, .branding-empty-mark {
+  width: 66px; height: 66px; object-fit: contain; padding: 7px;
+  border: 1px solid rgba(118, 148, 164, 0.24); border-radius: 13px;
+  background: rgba(255, 255, 255, 0.76);
+}
+.branding-empty-mark { display: grid; place-items: center; color: #8999a2; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.branding-logo-grid article.optional-empty { border-style: dashed; }
+.branding-logo-grid .branding-favicon-card { grid-column: 1 / -1; }
+.branding-favicon-preview {
+  width: 66px;
+  height: 66px;
+  display: grid;
+  place-items: center;
+  padding: 11px;
+  border: 1px solid rgba(118, 148, 164, 0.24);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.9);
+}
+.branding-favicon-preview img { width: 100%; height: 100%; object-fit: contain; }
+.branding-file-button, .branding-remove {
+  min-height: 39px; display: inline-flex; align-items: center; justify-content: center;
+  gap: 7px; border-radius: 10px; font-weight: 750; font-size: 12px; cursor: pointer;
+}
+.branding-file-button { border: 1px solid rgba(70, 110, 131, 0.24); color: #24546e; background: rgba(239, 247, 250, 0.82); }
+.branding-file-button:hover { border-color: rgba(47, 94, 118, 0.46); background: rgba(229, 241, 247, 0.96); }
+.branding-file-button input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.branding-file-button svg, .branding-remove svg { width: 16px; }
+.branding-file-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.branding-remove { border: 1px solid rgba(166, 74, 74, 0.22); color: #954343; background: rgba(255, 244, 244, 0.66); }
+.branding-safety-note {
+  display: flex; align-items: center; gap: 10px; padding: 11px 13px;
+  border: 1px solid rgba(86, 132, 152, 0.2); border-radius: 12px;
+  color: #5b7482; background: rgba(235, 245, 248, 0.6); font-size: 11px;
+}
+.branding-safety-note svg { width: 17px; flex: 0 0 auto; color: #347089; }
+.branding-safety-note b { color: #315a6e; }
+.branding-review { align-self: flex-end; }
+.dialog:has(.branding-confirm-form) {
+  max-width: 570px;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.91), rgba(231, 242, 247, 0.8)), rgba(244, 249, 251, 0.9);
+  backdrop-filter: blur(26px) saturate(125%);
+}
+.branding-confirm-summary {
+  display: flex; gap: 12px; padding: 14px;
+  border: 1px solid rgba(94, 133, 151, 0.22); border-radius: 13px;
+  background: rgba(255, 255, 255, 0.52);
+}
+.branding-confirm-summary > svg { width: 22px; flex: 0 0 auto; color: #315f77; }
+.branding-confirm-summary p, .branding-confirm-note { margin: 3px 0 0; color: #6d818d; line-height: 1.5; }
+.branding-upload-progress {
+  display: flex; align-items: center; gap: 14px; min-height: 128px; padding: 18px;
+  border: 1px solid rgba(90, 132, 151, 0.22); border-radius: 15px;
+  background: rgba(255, 255, 255, 0.55);
+}
+.branding-upload-progress > span {
+  width: 46px; height: 46px; display: grid; place-items: center;
+  border-radius: 13px; color: #346780; background: rgba(224, 239, 246, 0.9);
+}
+.branding-upload-progress > span svg { animation: spin 0.9s linear infinite; }
+.branding-upload-progress > div { min-width: 0; flex: 1; display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; }
+.branding-upload-progress strong, .branding-upload-progress small { grid-column: 1 / -1; }
+.branding-upload-progress small { color: #71838e; }
+.branding-upload-stages {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-top: 4px;
+}
+.branding-upload-stages b {
+  padding: 5px 6px;
+  border: 1px solid rgba(111, 143, 158, 0.18);
+  border-radius: 7px;
+  color: #8a9aa3;
+  background: rgba(244, 248, 250, 0.7);
+  font-size: 9px;
+  letter-spacing: 0.03em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.branding-upload-stages b.done {
+  border-color: rgba(57, 113, 137, 0.3);
+  color: #315f75;
+  background: rgba(222, 238, 245, 0.82);
+}
+.branding-upload-progress i { height: 7px; overflow: hidden; border-radius: 99px; background: rgba(107, 138, 154, 0.18); }
+.branding-upload-progress i b { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #315e76, #6a91a3); transition: width 180ms linear; }
+.branding-upload-progress em { color: #526f7d; font-size: 11px; font-style: normal; font-weight: 800; }
+
+@media (max-width: 1050px) {
+  .branding-workspace { grid-template-columns: 1fr; }
+  .branding-preview { min-height: 300px; }
+}
+@media (max-width: 680px) {
+  .institution-branding-panel { padding: 17px; }
+  .branding-preview { min-height: 270px; padding: 20px; }
+  .branding-fields, .branding-logo-grid { grid-template-columns: 1fr; }
+  .branding-logo-grid .branding-favicon-card { grid-column: auto; }
+  .branding-fields .full { grid-column: auto; }
+  .branding-review { width: 100%; }
+  .branding-upload-stages { grid-template-columns: repeat(2, 1fr); }
 }

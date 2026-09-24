@@ -5,6 +5,7 @@ import {
   AttendanceRecord,
   Student,
   Subject,
+  Setting,
 } from "../db/index.js";
 import { compareRollNumbers } from "../utils/rollNumber.js";
 
@@ -66,10 +67,20 @@ async function loadSessions(filters, closedOnly = false) {
   return sessions;
 }
 
-function workbookBase() {
+async function institutionName() {
+  const setting = await Setting.findByPk("institutionName");
+  if (!setting) return "AttendX Institution";
+  try {
+    return JSON.parse(setting.value);
+  } catch {
+    return setting.value;
+  }
+}
+
+async function workbookBase() {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "AttendX";
-  workbook.company = "EIILM Kolkata";
+  workbook.company = await institutionName();
   workbook.created = new Date();
   workbook.modified = new Date();
   return workbook;
@@ -193,7 +204,7 @@ export function attendanceExportFilename(filters, sessions, machine = false) {
 
 export async function buildAttendanceWorkbook(filters) {
   const sessions = await loadSessions(filters);
-  const workbook = workbookBase();
+  const workbook = await workbookBase();
   const sheet = workbook.addWorksheet("Machine Data", {
     views: [{ state: "frozen", ySplit: 1 }],
   });
@@ -254,7 +265,7 @@ export async function buildAttendanceReviewWorkbook(filters) {
     error.status = 413;
     throw error;
   }
-  const workbook = workbookBase();
+  const workbook = await workbookBase();
   const subjectMap = new Map(),
     studentMap = new Map(),
     subjectStudentMap = new Map();
@@ -776,7 +787,7 @@ export async function buildAttendanceReviewWorkbook(filters) {
         footer: 0.2,
       },
     };
-    sheet.headerFooter.oddFooter = "AttendX · EIILM Kolkata · Page &P of &N";
+    sheet.headerFooter.oddFooter = `AttendX · ${workbook.company} · Page &P of &N`;
   }
   return { workbook, sessions };
 }

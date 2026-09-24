@@ -65,6 +65,18 @@ export async function validateBackup(filename) {
     throw Object.assign(new Error("The uploaded backup is empty or invalid."), {
       status: 400,
     });
+  const handle = await fs.open(filename, "r");
+  try {
+    const signature = Buffer.alloc(16);
+    await handle.read(signature, 0, 16, 0);
+    if (signature.toString("binary") !== "SQLite format 3\u0000")
+      throw Object.assign(
+        new Error("The selected file is not a valid SQLite 3 database."),
+        { status: 415 },
+      );
+  } finally {
+    await handle.close();
+  }
   const db = await openSqlite(filename);
   try {
     const integrity = await get(db, "PRAGMA integrity_check");
@@ -215,6 +227,17 @@ export async function stageUploadedBackup(buffer) {
   const filename = `.restore-${crypto.randomUUID()}.sqlite`;
   const stagedPath = path.join(directory, filename);
   await fs.writeFile(stagedPath, buffer, { flag: "wx" });
+  try {
+    const validation = await validateBackup(stagedPath);
+    return { stagedPath, validation };
+  } catch (error) {
+    await fs.rm(stagedPath, { force: true });
+    throw error;
+  }
+}
+
+export async function stageUploadedBackupFile(stagedPath) {
+  sqliteOnly();
   try {
     const validation = await validateBackup(stagedPath);
     return { stagedPath, validation };

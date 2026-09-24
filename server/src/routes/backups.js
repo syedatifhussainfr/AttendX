@@ -1,5 +1,9 @@
 import { Router } from "express";
 import multer from "multer";
+import fs from "node:fs";
+import crypto from "node:crypto";
+import path from "node:path";
+import rateLimit from "express-rate-limit";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import {
@@ -11,17 +15,49 @@ import {
 import { User, AuditLog } from "../db/index.js";
 import {
   backupPath,
+  backupDirectory,
   createBackup,
   deleteBackup,
   listBackups,
   restoreStagedBackup,
-  stageUploadedBackup,
+  stageUploadedBackupFile,
 } from "../services/backupService.js";
 
 const router = Router();
+const restoreLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 3,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  keyGenerator: (req) => `restore-${req.user.id}`,
+  message: { message: "Too many restore uploads. Try again in 15 minutes." },
+});
 const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 100 * 1024 * 1024, files: 1 },
+  storage: multer.diskStorage({
+    destination: (req, file, callback) =>
+      fs.mkdir(backupDirectory(), { recursive: true }, (error) =>
+        callback(error, backupDirectory()),
+      ),
+    filename: (req, file, callback) =>
+      callback(null, `.restore-upload-${crypto.randomUUID()}.sqlite`),
+  }),
+  limits: { fileSize: 100 * 1024 * 1024, files: 1, fields: 2, parts: 3 },
+  fileFilter: (req, file, callback) => {
+    const validName = path.extname(file.originalname).toLowerCase() === ".sqlite";
+    const validMime = [
+      "application/x-sqlite3",
+      "application/vnd.sqlite3",
+      "application/octet-stream",
+    ].includes(file.mimetype);
+    if (!validName || !validMime)
+      return callback(
+        Object.assign(
+          new Error("Only AttendX .sqlite backup files are allowed."),
+          { status: 415 },
+        ),
+      );
+    callback(null, true);
+  },
 });
 router.use(requireAuth);
 router.use(requireAdminPlus, requireAdminElevation);
@@ -78,6 +114,7 @@ router.delete(
 router.post(
   "/restore",
   requirePermission("backups.restore"),
+  restoreLimiter,
   upload.single("backup"),
   async (req, res, next) => {
     try {
@@ -96,7 +133,7 @@ router.post(
         return res
           .status(400)
           .json({ message: "Administrator password is incorrect." });
-      const staged = await stageUploadedBackup(req.file.buffer);
+      const staged = await stageUploadedBackupFile(req.file.path);
       const result = await restoreStagedBackup({
         stagedPath: staged.stagedPath,
         userId: user.id,
@@ -111,6 +148,8 @@ router.post(
       if (process.env.NODE_ENV !== "test")
         setTimeout(() => process.exit(0), 750);
     } catch (error) {
+      if (req.file?.path)
+        await fs.promises.rm(req.file.path, { force: true }).catch(() => {});
       if (error.restartRequired && process.env.NODE_ENV !== "test")
         setTimeout(() => process.exit(1), 750);
       next(error);

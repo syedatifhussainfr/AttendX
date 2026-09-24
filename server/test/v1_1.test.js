@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import bcrypt from "bcryptjs";
 import request from "supertest";
 
@@ -148,6 +149,11 @@ test("versioned migration adds V1.1 columns and records itself", async () => {
   assert.ok(attendanceSessionsTable.late_mode_enabled);
   assert.ok(attendanceSessionsTable.late_attendance_credit);
   assert.ok(authSessionsTable.expires_at);
+  const brandingAssets = await db.sequelize
+    .getQueryInterface()
+    .describeTable("branding_assets");
+  assert.ok(brandingAssets.checksum);
+  assert.ok(brandingAssets.data);
   assert.ok(users.admin_plus);
   assert.ok(users.phone_number);
   const studentsTable = await db.sequelize
@@ -1107,6 +1113,67 @@ test("permission editor is elevated Admin++ only and preserves security ceilings
       );
       assert.ok(response.body.repairs.length >= 2);
     });
+});
+
+test("Admin++ branding updates are verified, public, and database-backed", async () => {
+  const logoPath = fileURLToPath(
+    new URL("../../client/public/brand/eiilm.png", import.meta.url),
+  );
+  const initial = await request(app).get("/api/branding").expect(200);
+  assert.equal(initial.body.institutionName, "EIILM Kolkata");
+  assert.ok(initial.body.primaryLogoUrl);
+
+  await request(app)
+    .put("/api/branding")
+    .set("Authorization", `Bearer ${normalAdminToken}`)
+    .set("X-Admin-Elevation", normalAdminElevationToken)
+    .field("institutionName", "Blocked Institution")
+    .field("institutionCode", "BLOCKED")
+    .field("campusName", "Blocked")
+    .field("confirmation", "UPDATE BRANDING")
+    .field("removeSecondary", "false")
+    .expect(403);
+
+  await request(app)
+    .put("/api/branding")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .field("institutionName", "AttendX Test Institute")
+    .field("institutionCode", "ATI")
+    .field("campusName", "Test Campus")
+    .field("confirmation", "UPDATE BRANDING")
+    .field("removeSecondary", "true")
+    .field("removeFavicon", "false")
+    .attach("primaryLogo", logoPath)
+    .attach("favicon", logoPath)
+    .expect(200)
+    .expect((response) => {
+      assert.equal(response.body.institutionName, "AttendX Test Institute");
+      assert.equal(response.body.secondaryLogoUrl, null);
+      assert.match(response.body.primaryLogoUrl, /\/api\/branding\/logo\/primary/);
+      assert.match(response.body.faviconUrl, /\/api\/branding\/logo\/favicon/);
+    });
+
+  const publicBranding = await request(app).get("/api/branding").expect(200);
+  assert.equal(publicBranding.body.institutionCode, "ATI");
+  assert.equal(publicBranding.body.secondaryLogoUrl, null);
+  await request(app)
+    .get(publicBranding.body.primaryLogoUrl)
+    .expect("Content-Type", /image\/png/)
+    .expect(200);
+  await request(app)
+    .get(publicBranding.body.faviconUrl)
+    .expect("Content-Type", /image\/png/)
+    .expect(200);
+  const stored = await db.BrandingAsset.findByPk("PRIMARY");
+  assert.ok(stored.byteSize > 0);
+  assert.equal(stored.checksum.length, 64);
+  assert.ok(await db.BrandingAsset.findByPk("FAVICON"));
+  assert.ok(
+    await db.AuditLog.findOne({
+      where: { action: "INSTITUTION_BRANDING_UPDATED" },
+    }),
+  );
 });
 
 test("disabling CR correction blocks open-session overrides", async () => {

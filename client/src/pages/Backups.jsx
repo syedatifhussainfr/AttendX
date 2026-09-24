@@ -89,6 +89,28 @@ export function BackupsPage() {
       setBusy(false);
     }
   };
+  const chooseRestoreFile = async (event) => {
+    const file = event.target.files?.[0] || null;
+    if (!file) return setRestoreFile(null);
+    if (!/\.sqlite$/i.test(file.name)) {
+      event.target.value = "";
+      setRestoreFile(null);
+      return toast("Choose an AttendX .sqlite backup file only.", "error");
+    }
+    if (file.size < 100 || file.size > 100 * 1024 * 1024) {
+      event.target.value = "";
+      setRestoreFile(null);
+      return toast("SQLite backups must be between 100 bytes and 100 MB.", "error");
+    }
+    const signature = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+    const expected = new TextEncoder().encode("SQLite format 3\u0000");
+    if (!expected.every((byte, index) => signature[index] === byte)) {
+      event.target.value = "";
+      setRestoreFile(null);
+      return toast("The selected file is not a valid SQLite 3 database.", "error");
+    }
+    setRestoreFile(file);
+  };
   const remove = async (event) => {
     event.preventDefault();
     const form = Object.fromEntries(new FormData(event.currentTarget));
@@ -254,10 +276,8 @@ export function BackupsPage() {
               className="restore-file-input"
               name="backup"
               type="file"
-              accept=".sqlite,.db,application/x-sqlite3"
-              onChange={(event) =>
-                setRestoreFile(event.target.files?.[0] || null)
-              }
+              accept=".sqlite,application/x-sqlite3,application/vnd.sqlite3"
+              onChange={chooseRestoreFile}
               required
             />
             <label
@@ -274,7 +294,7 @@ export function BackupsPage() {
                 <small>
                   {restoreFile
                     ? `${sizeOf(restoreFile.size)} · ready for validation`
-                    : "AttendX .sqlite or .db file · maximum 100 MB"}
+                    : "AttendX .sqlite file only · maximum 100 MB"}
                 </small>
               </span>
               <span className="restore-file-browse">
