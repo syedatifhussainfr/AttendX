@@ -207,12 +207,7 @@ async function startDevelopment() {
   let activeSpinner = startSpinner(
     "Initialising secure configuration and database…",
   );
-  run(
-    "API",
-    join(root, "server"),
-    ["--watch-path=src", "src/index.js"],
-    { ATTENDX_DEV_WATCH: "1" },
-  );
+  run("API", root, [join(root, "scripts", "api-dev.js")]);
   try {
     await pause(350);
     activeSpinner.update("Connecting to AttendX API health check…");

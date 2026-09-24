@@ -1,31 +1,19 @@
-import fs from "node:fs/promises";
-import { fileURLToPath } from "node:url";
-
-const restartTriggerPath = fileURLToPath(new URL("../index.js", import.meta.url));
+export const RESTORE_RESTART_EXIT_CODE = 75;
 
 export function restartStrategy(environment = process.env) {
   if (environment.NODE_ENV === "test") return "disabled";
-  return environment.ATTENDX_DEV_WATCH === "1" ? "watch-trigger" : "exit";
+  return environment.ATTENDX_DEV_SUPERVISED === "1"
+    ? "supervisor-exit"
+    : "exit";
 }
 
 export async function restartApiProcess(exitCode = 0) {
   const strategy = restartStrategy();
   if (strategy === "disabled") return;
 
-  if (strategy === "watch-trigger") {
-    try {
-      const now = new Date();
-      await fs.utimes(restartTriggerPath, now, now);
-      console.log("AttendX API restart requested after database restore.");
-      return;
-    } catch (error) {
-      console.error(
-        `Could not signal the development watcher; exiting instead: ${error.message}`,
-      );
-    }
-  }
-
-  process.exit(exitCode);
+  process.exit(
+    strategy === "supervisor-exit" ? RESTORE_RESTART_EXIT_CODE : exitCode,
+  );
 }
 
 export function scheduleApiRestart(exitCode = 0, delayMs = 750) {

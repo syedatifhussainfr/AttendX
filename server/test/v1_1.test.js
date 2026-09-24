@@ -28,8 +28,8 @@ const apiRestart = await import("../src/services/apiRestartService.js");
 test("database restore chooses a safe restart strategy for each runtime", () => {
   assert.equal(apiRestart.restartStrategy({ NODE_ENV: "test" }), "disabled");
   assert.equal(
-    apiRestart.restartStrategy({ ATTENDX_DEV_WATCH: "1" }),
-    "watch-trigger",
+    apiRestart.restartStrategy({ ATTENDX_DEV_SUPERVISED: "1" }),
+    "supervisor-exit",
   );
   assert.equal(apiRestart.restartStrategy({ NODE_ENV: "production" }), "exit");
 });
