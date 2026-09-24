@@ -23,6 +23,16 @@ const sessions = await import("../src/services/sessionService.js");
 const attendance = await import("../src/services/attendanceService.js");
 const authSessions = await import("../src/services/authSessionService.js");
 const policyService = await import("../src/policy/policyService.js");
+const apiRestart = await import("../src/services/apiRestartService.js");
+
+test("database restore chooses a safe restart strategy for each runtime", () => {
+  assert.equal(apiRestart.restartStrategy({ NODE_ENV: "test" }), "disabled");
+  assert.equal(
+    apiRestart.restartStrategy({ ATTENDX_DEV_WATCH: "1" }),
+    "watch-trigger",
+  );
+  assert.equal(apiRestart.restartStrategy({ NODE_ENV: "production" }), "exit");
+});
 
 let admin;
 let normalAdmin;

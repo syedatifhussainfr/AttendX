@@ -81,10 +81,10 @@ function pipeWithLabel(stream, label, target) {
   });
 }
 
-function run(label, cwd, args) {
+function run(label, cwd, args, environment = {}) {
   const child = spawn(process.execPath, args, {
     cwd,
-    env: process.env,
+    env: { ...process.env, ...environment },
     shell: false,
     stdio: ["inherit", "pipe", "pipe"],
     windowsHide: true,
@@ -207,7 +207,12 @@ async function startDevelopment() {
   let activeSpinner = startSpinner(
     "Initialising secure configuration and database…",
   );
-  run("API", join(root, "server"), ["--watch-path=src", "src/index.js"]);
+  run(
+    "API",
+    join(root, "server"),
+    ["--watch-path=src", "src/index.js"],
+    { ATTENDX_DEV_WATCH: "1" },
+  );
   try {
     await pause(350);
     activeSpinner.update("Connecting to AttendX API health check…");

@@ -23,6 +23,24 @@ const sizeOf = (bytes) =>
       ? `${Math.max(1, Math.round(bytes / 1024))} KB`
       : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
+const pause = (milliseconds) =>
+  new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+
+async function waitForApiRestart(timeoutMs = 30_000) {
+  const deadline = Date.now() + timeoutMs;
+  await pause(900);
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch("/api/health", { cache: "no-store" });
+      if (response.ok) return true;
+    } catch {
+      // The short connection gap is expected while SQLite is reopened.
+    }
+    await pause(400);
+  }
+  return false;
+}
+
 export function BackupsPage() {
   const [rows, setRows] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -30,6 +48,7 @@ export function BackupsPage() {
   const [restoreFile, setRestoreFile] = useState(null);
   const [deleteRow, setDeleteRow] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [restoreStatus, setRestoreStatus] = useState("");
   const toast = useToast();
   const { can } = useAuth();
   const load = async () => {
@@ -46,6 +65,7 @@ export function BackupsPage() {
     if (busy) return;
     setRestoreOpen(false);
     setRestoreFile(null);
+    setRestoreStatus("");
   };
   const create = async () => {
     setBusy(true);
@@ -82,8 +102,18 @@ export function BackupsPage() {
     try {
       const { data } = await api.post("/admin/backups/restore", form);
       toast(data.message);
-      setRestoreOpen(false);
-      setRestoreFile(null);
+      setRestoreStatus("Database restored. Restarting the AttendX API…");
+      const restarted = await waitForApiRestart();
+      if (!restarted) {
+        setRestoreStatus(
+          "The database is restored, but the API is taking longer than expected. Restart npm run dev if it does not return.",
+        );
+        setBusy(false);
+        return;
+      }
+      setRestoreStatus("API ready. Reloading your restored workspace…");
+      await pause(350);
+      window.location.assign("/login");
     } catch (error) {
       toast(messageOf(error), "error");
       setBusy(false);
@@ -264,8 +294,8 @@ export function BackupsPage() {
             <div>
               <strong>Current data will be replaced</strong>
               <p>
-                AttendX validates the file and creates a safety backup before
-                restoration. The API then stops for a clean restart.
+                AttendX validates the file, creates a safety backup, replaces
+                the database, and relaunches the API automatically.
               </p>
             </div>
           </div>
@@ -321,6 +351,12 @@ export function BackupsPage() {
               required
             />
           </label>
+          {restoreStatus && (
+            <div className="restore-restart-status" role="status" aria-live="polite">
+              <span aria-hidden="true" />
+              {restoreStatus}
+            </div>
+          )}
           <div className="dialog-actions">
             <button
               type="button"
@@ -332,7 +368,7 @@ export function BackupsPage() {
             </button>
             <button className="danger" disabled={busy}>
               <ArchiveRestore />{" "}
-              {busy ? "Validating and restoring…" : "Restore and stop API"}
+              {busy ? "Restoring and restarting…" : "Restore database"}
             </button>
           </div>
         </form>

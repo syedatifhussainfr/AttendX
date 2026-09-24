@@ -22,6 +22,7 @@ import {
   restoreStagedBackup,
   stageUploadedBackupFile,
 } from "../services/backupService.js";
+import { scheduleApiRestart } from "../services/apiRestartService.js";
 
 const router = Router();
 const restoreLimiter = rateLimit({
@@ -141,17 +142,15 @@ router.post(
       });
       res.json({
         message:
-          "Database restored. The API will stop so it can be restarted safely.",
+          "Database restored. AttendX is restarting the API safely.",
         validation: staged.validation,
         ...result,
       });
-      if (process.env.NODE_ENV !== "test")
-        setTimeout(() => process.exit(0), 750);
+      scheduleApiRestart(0);
     } catch (error) {
       if (req.file?.path)
         await fs.promises.rm(req.file.path, { force: true }).catch(() => {});
-      if (error.restartRequired && process.env.NODE_ENV !== "test")
-        setTimeout(() => process.exit(1), 750);
+      if (error.restartRequired) scheduleApiRestart(1);
       next(error);
     }
   },

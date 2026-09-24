@@ -7106,6 +7106,36 @@ body.sidebar-resizing * {
     inset 0 1px rgba(255, 255, 255, 0.96),
     inset 0 -1px rgba(91, 125, 145, 0.08);
 }
+
+.restore-restart-status {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid rgba(31, 91, 127, 0.18);
+  border-radius: 12px;
+  background: rgba(232, 244, 250, 0.62);
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.restore-restart-status > span {
+  width: 0.65rem;
+  height: 0.65rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #2c789f;
+  box-shadow: 0 0 0 0 rgba(44, 120, 159, 0.35);
+  animation: restore-api-pulse 1.2s ease-out infinite;
+}
+
+@keyframes restore-api-pulse {
+  70%,
+  100% {
+    box-shadow: 0 0 0 0.55rem rgba(44, 120, 159, 0);
+  }
+}
 .app-shell .topbar::before {
   content: "";
   position: absolute;
