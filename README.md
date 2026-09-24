@@ -7,7 +7,7 @@
 Timetable-aware sessions · rapid marking · accountable corrections · student intelligence · protected administration
 
 [![Latest release](https://img.shields.io/github/v/release/syedatifhussainfr/AttendX?style=for-the-badge&label=release&color=0b4a71)](https://github.com/syedatifhussainfr/AttendX/releases/latest)
-[![Tests](https://img.shields.io/badge/tests-45%20passing-247253?style=for-the-badge)](#verification)
+[![Tests](https://img.shields.io/badge/tests-46%20passing-247253?style=for-the-badge)](#verification)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-43853d?style=for-the-badge&logo=node.js&logoColor=white)](#requirements)
 [![Database](https://img.shields.io/badge/SQLite%20%7C%20PostgreSQL-315b7d?style=for-the-badge&logo=postgresql&logoColor=white)](#technology)
 
@@ -61,7 +61,7 @@ The published [`v1.1.9.1` release](https://github.com/syedatifhussainfr/AttendX/
 | Password managers | Browser behavior varied across protected forms | Credential autofill remains intentional on Login and is blocked from protected manual-entry controls |
 | Class settings | Legacy global class labels could remain | Obsolete global settings are migrated away; `academic_classes` is the single class identity source |
 | Interface | Class workspace glass UI | Cleaner sticky glass layering and live institution identity across application surfaces |
-| Verification | 42 automated tests | 45 automated tests plus production build and live-data integrity checks |
+| Verification | 42 automated tests | 46 automated tests plus production build, live-data integrity checks, and a real database replacement test |
 
 ## V1.1.8 compared with V1.1.9
 
@@ -554,7 +554,7 @@ Credited attendance percentage is `sum of attendance credit values / classes con
 
 ## Verification
 
-- 45 automated tests cover attendance rules and recovery queues, weighted Late credit, student profiles and privacy, imports, exports, refresh races, authorization gates, backup retention and automatic restore restart, audit export, Admin++, faculty/class isolation, relationship-aware database inspection, password-confirmed staff removal, protected empty-class deletion, per-class roll numbers, role changes, timetable validation, destructive history controls, archive migration, filter validation, settings fallback, and self-healing configuration.
+- 46 automated tests cover attendance rules and recovery queues, weighted Late credit, student profiles and privacy, imports, exports, refresh races, authorization gates, backup retention, verified live-database replacement and automatic restore restart, audit export, Admin++, faculty/class isolation, relationship-aware database inspection, password-confirmed staff removal, protected empty-class deletion, per-class roll numbers, role changes, timetable validation, destructive history controls, archive migration, filter validation, settings fallback, and self-healing configuration.
 - Production frontend compilation succeeds with Vite.
 - `npm run config-check` validates YAML parsing, structural repair, permission dependencies, and protected privilege ceilings.
 - `npm run verify-data` checks SQLite integrity, foreign keys, attendance ownership, duplicate rolls, administrator availability, and record totals without modifying data.

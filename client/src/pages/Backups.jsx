@@ -174,8 +174,17 @@ export function BackupsPage() {
         return;
       }
       setRestoreStatus("API ready. Reloading your restored workspace…");
+      window.sessionStorage.setItem(
+        "attendx:restore-complete",
+        JSON.stringify({
+          sourceName: data.restored?.sourceName || restoreFile?.name,
+          students: data.restored?.students,
+          administrators: data.restored?.administrators,
+          safetyBackup: data.safetyBackup,
+        }),
+      );
       await pause(350);
-      window.location.assign("/login");
+      window.location.assign("/login?restored=1");
     } catch (error) {
       window.clearInterval(ticker);
       if (error.name === "CanceledError" || error.name === "AbortError") {

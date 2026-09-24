@@ -261,6 +261,10 @@ export async function restoreStagedBackup({ stagedPath, userId, sourceName }) {
     await fs.rm(oldPath, { force: true });
     await fs.rename(livePath, oldPath);
     await fs.copyFile(stagedPath, livePath);
+    // The source upload is no longer needed after the live copy exists. Remove
+    // it before reopening SQLite so an interruption cannot leave a stale
+    // hidden upload that looks like a pending restore.
+    await fs.rm(stagedPath, { force: true });
     await fs.rm(`${livePath}-wal`, { force: true });
     await fs.rm(`${livePath}-shm`, { force: true });
     const db = await openSqlite(livePath, sqlite3.OPEN_READWRITE);
@@ -297,9 +301,13 @@ export async function restoreStagedBackup({ stagedPath, userId, sourceName }) {
     } finally {
       await close(db);
     }
+    const restoredValidation = await validateBackup(livePath);
     await fs.rm(oldPath, { force: true });
-    await fs.rm(stagedPath, { force: true });
-    return { safetyBackup: safetyBackup.filename, restartRequired: true };
+    return {
+      safetyBackup: safetyBackup.filename,
+      restartRequired: true,
+      restored: { sourceName, ...restoredValidation },
+    };
   } catch (error) {
     const liveExists = await fs.access(livePath).then(
       () => true,

@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import bcrypt from "bcryptjs";
 import request from "supertest";
+import sqlite3 from "sqlite3";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "attendx-v11-"));
 process.env.DB_DIALECT = "sqlite";
@@ -136,7 +137,8 @@ before(async () => {
 });
 
 after(async () => {
-  if (db.sequelize.connectionManager.pool) await db.sequelize.close();
+  if (db.sequelize.connectionManager.pool)
+    await db.sequelize.close().catch(() => {});
   await fs.rm(tempDir, { recursive: true, force: true });
 });
 
@@ -1604,4 +1606,46 @@ test("password change revokes the old token and replaces the password", async ()
     .send({ email: cr.email, password: "NewCRPass@456" })
     .expect(200);
   assert.equal(login.body.user.mustChangePassword, false);
+});
+
+test("database restore replaces live mutations and verifies the copied file", async () => {
+  const snapshot = await backup.createBackup({ label: "restore-proof" });
+  await db.Setting.upsert({ key: "restoreProofMutation", value: "remove-me" });
+  assert.ok(await db.Setting.findByPk("restoreProofMutation"));
+
+  const stagedPath = path.join(tempDir, "backups", ".restore-proof.sqlite");
+  await fs.copyFile(backup.backupPath(snapshot.filename), stagedPath);
+  const result = await backup.restoreStagedBackup({
+    stagedPath,
+    userId: admin.id,
+    sourceName: snapshot.filename,
+  });
+
+  assert.equal(result.restored.valid, true);
+  assert.equal(result.restored.sourceName, snapshot.filename);
+  await assert.rejects(fs.access(stagedPath));
+
+  const raw = new sqlite3.Database(
+    process.env.SQLITE_PATH,
+    sqlite3.OPEN_READONLY,
+  );
+  const get = (sql, parameters = []) =>
+    new Promise((resolve, reject) =>
+      raw.get(sql, parameters, (error, row) =>
+        error ? reject(error) : resolve(row),
+      ),
+    );
+  try {
+    const mutation = await get(
+      "SELECT COUNT(*) AS count FROM settings WHERE key = ?",
+      ["restoreProofMutation"],
+    );
+    assert.equal(mutation.count, 0);
+    const audit = await get(
+      "SELECT new_value AS newValue FROM audit_logs WHERE action = 'DATABASE_RESTORED' ORDER BY id DESC LIMIT 1",
+    );
+    assert.equal(JSON.parse(audit.newValue).sourceName, snapshot.filename);
+  } finally {
+    await new Promise((resolve) => raw.close(() => resolve()));
+  }
 });

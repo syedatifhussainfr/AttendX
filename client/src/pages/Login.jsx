@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { useAuth } from "../state/AuthContext.jsx";
 import { messageOf } from "../api.js";
@@ -8,7 +8,19 @@ export function Login() {
     { branding } = useBranding(),
     [show, setShow] = useState(false),
     [loading, setLoading] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [restoreResult, setRestoreResult] = useState(null);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("restored") !== "1")
+      return;
+    try {
+      const saved = window.sessionStorage.getItem("attendx:restore-complete");
+      if (saved) setRestoreResult(JSON.parse(saved));
+    } finally {
+      window.sessionStorage.removeItem("attendx:restore-complete");
+      window.history.replaceState({}, "", "/login");
+    }
+  }, []);
   const submit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -60,6 +72,18 @@ export function Login() {
               <p>Sign in with your institution access</p>
             </div>
           </div>
+          {restoreResult && (
+            <div className="restore-login-success" role="status">
+              <strong>Database restored successfully</strong>
+              <span>{restoreResult.sourceName}</span>
+              <small>
+                {Number.isFinite(restoreResult.students)
+                  ? `${restoreResult.students} students verified · `
+                  : ""}
+                Safety copy: {restoreResult.safetyBackup}
+              </small>
+            </div>
+          )}
           {error && <div className="form-error">{error}</div>}
           <label>
             Email address

@@ -7235,6 +7235,31 @@ body.sidebar-resizing * {
   font-style: normal;
   font-weight: 800;
 }
+
+.restore-login-success {
+  display: grid;
+  gap: 0.22rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid rgba(37, 124, 91, 0.24);
+  border-radius: 12px;
+  background: rgba(227, 246, 238, 0.72);
+  color: #245c49;
+}
+
+.restore-login-success span,
+.restore-login-success small {
+  overflow-wrap: anywhere;
+}
+
+.restore-login-success span {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.restore-login-success small {
+  color: #58776c;
+  font-size: 0.68rem;
+}
 .app-shell .topbar::before {
   content: "";
   position: absolute;
