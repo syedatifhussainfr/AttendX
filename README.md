@@ -462,7 +462,7 @@ Production requirements:
 | `npm run demo-attendance -- 12` | Create deterministic closed sessions for existing students after a backup. |
 | `npm run normalize-rolls` | Normalize numeric rolls imported by older builds. |
 | `npm run seed` | Populate local development accounts and academic configuration; never students. |
-| `npm start` | Start only the backend without watch mode. |
+| `npm start` | Start the complete local AttendX stack: supervised API and web interface. |
 
 ## Operational workflows
 

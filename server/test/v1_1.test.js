@@ -1623,7 +1623,10 @@ test("database restore replaces live mutations and verifies the copied file", as
 
   assert.equal(result.restored.valid, true);
   assert.equal(result.restored.sourceName, snapshot.filename);
+  assert.equal(result.restartRequired, false);
   await assert.rejects(fs.access(stagedPath));
+
+  assert.equal(await db.Setting.findByPk("restoreProofMutation"), null);
 
   const raw = new sqlite3.Database(
     process.env.SQLITE_PATH,

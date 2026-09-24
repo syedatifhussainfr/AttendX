@@ -8,6 +8,10 @@ import adminRoutes from "./routes/admin.js";
 import backupRoutes from "./routes/backups.js";
 import brandingRoutes from "./routes/branding.js";
 import { errorHandler, notFound } from "./middleware/error.js";
+import {
+  databaseMaintenanceGuard,
+  isDatabaseMaintenanceActive,
+} from "./services/databaseMaintenanceService.js";
 
 export const app = express();
 app.set("trust proxy", process.env.TRUST_PROXY === "true" ? 1 : false);
@@ -15,8 +19,13 @@ app.use(helmet());
 app.use(cors({ origin: config.clientUrl, credentials: true }));
 app.use(express.json({ limit: "2mb" }));
 app.get("/api/health", (req, res) =>
-  res.json({ ok: true, serverTime: new Date().toISOString() }),
+  res.json({
+    ok: true,
+    maintenance: isDatabaseMaintenanceActive(),
+    serverTime: new Date().toISOString(),
+  }),
 );
+app.use("/api", databaseMaintenanceGuard);
 app.use("/api/branding", brandingRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/attendance", attendanceRoutes);

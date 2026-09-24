@@ -23,6 +23,10 @@ import {
   stageUploadedBackupFile,
 } from "../services/backupService.js";
 import { scheduleApiRestart } from "../services/apiRestartService.js";
+import {
+  beginDatabaseMaintenance,
+  endDatabaseMaintenance,
+} from "../services/databaseMaintenanceService.js";
 
 const router = Router();
 const SECURE_RESTORE_WINDOW_MS = 10_000;
@@ -168,18 +172,24 @@ router.post(
           .json({ message: "Administrator password is incorrect." });
       const staged = await stageUploadedBackupFile(req.file.path);
       await waitForSecureRestoreCommit(res, req.restoreUploadStartedAt);
-      const result = await restoreStagedBackup({
-        stagedPath: staged.stagedPath,
-        userId: user.id,
-        sourceName: req.file.originalname,
-      });
+      beginDatabaseMaintenance();
+      let result;
+      try {
+        result = await restoreStagedBackup({
+          stagedPath: staged.stagedPath,
+          userId: user.id,
+          sourceName: req.file.originalname,
+        });
+      } finally {
+        endDatabaseMaintenance();
+      }
       res.json({
         message:
-          "Database restored. AttendX is restarting the API safely.",
+          "Database restored and reopened safely. Sign in again to use the restored workspace.",
         validation: staged.validation,
         ...result,
       });
-      scheduleApiRestart(0);
+      if (result.restartRequired) scheduleApiRestart(0);
     } catch (error) {
       if (req.file?.path)
         await fs.promises.rm(req.file.path, { force: true }).catch(() => {});

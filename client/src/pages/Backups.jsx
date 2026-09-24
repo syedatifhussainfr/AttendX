@@ -30,13 +30,16 @@ const SECURE_RESTORE_MILLISECONDS = 10_000;
 const pause = (milliseconds) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
-async function waitForApiRestart(timeoutMs = 30_000) {
+async function waitForApiReady(timeoutMs = 30_000) {
   const deadline = Date.now() + timeoutMs;
   await pause(900);
   while (Date.now() < deadline) {
     try {
       const response = await fetch("/api/health", { cache: "no-store" });
-      if (response.ok) return true;
+      if (response.ok) {
+        const health = await response.json();
+        if (!health.maintenance) return true;
+      }
     } catch {
       // The short connection gap is expected while SQLite is reopened.
     }
@@ -164,16 +167,16 @@ export function BackupsPage() {
         eta: 0,
       });
       toast(data.message);
-      setRestoreStatus("Database restored. Restarting the AttendX API…");
-      const restarted = await waitForApiRestart();
-      if (!restarted) {
+      setRestoreStatus("Database restored. Reconnecting to the restored workspace…");
+      const ready = await waitForApiReady();
+      if (!ready) {
         setRestoreStatus(
-          "The database is restored, but the API is taking longer than expected. Restart npm run dev if it does not return.",
+          "The database is restored, but the API reconnect is taking longer than expected. Restart AttendX only if it does not return.",
         );
         setBusy(false);
         return;
       }
-      setRestoreStatus("API ready. Reloading your restored workspace…");
+      setRestoreStatus("Restored workspace ready. Returning to Login…");
       window.sessionStorage.setItem(
         "attendx:restore-complete",
         JSON.stringify({

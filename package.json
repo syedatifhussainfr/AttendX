@@ -22,7 +22,7 @@
     "backup:list": "npm run backup-list -w server",
     "doctor": "node scripts/doctor.js",
     "test": "npm test -w server",
-    "start": "npm start -w server"
+    "start": "node scripts/dev.js"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

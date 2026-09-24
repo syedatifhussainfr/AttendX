@@ -409,3 +409,15 @@ export async function initDatabase({ force = false } = {}) {
   await sequelize.sync({ force });
   await runMigrations(sequelize);
 }
+
+export async function reopenDatabase() {
+  const manager = sequelize.connectionManager;
+  // Sequelize marks a closed manager by installing an own getConnection
+  // function that always throws. Restore the prototype implementation and a
+  // fresh pool before reconnecting to the newly swapped SQLite file.
+  if (Object.prototype.hasOwnProperty.call(manager, "getConnection"))
+    delete manager.getConnection;
+  if (config.dialect === "sqlite") manager.connections = {};
+  manager.initPools();
+  await initDatabase();
+}

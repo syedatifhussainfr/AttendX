@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import sqlite3 from "sqlite3";
 import { config } from "../config.js";
-import { sequelize } from "../db/index.js";
+import { reopenDatabase, sequelize } from "../db/index.js";
 
 const requiredTables = [
   "users",
@@ -302,10 +302,16 @@ export async function restoreStagedBackup({ stagedPath, userId, sourceName }) {
       await close(db);
     }
     const restoredValidation = await validateBackup(livePath);
-    await fs.rm(oldPath, { force: true });
+    await reopenDatabase();
+    databaseClosed = false;
+    await fs.rm(oldPath, { force: true }).catch((cleanupError) =>
+      console.warn(
+        `Restored database is active, but its temporary old copy could not be removed: ${cleanupError.message}`,
+      ),
+    );
     return {
       safetyBackup: safetyBackup.filename,
-      restartRequired: true,
+      restartRequired: false,
       restored: { sourceName, ...restoredValidation },
     };
   } catch (error) {
@@ -317,12 +323,20 @@ export async function restoreStagedBackup({ stagedPath, userId, sourceName }) {
       () => true,
       () => false,
     );
-    if (oldExists) {
+    if (databaseClosed && oldExists) {
       if (liveExists) await fs.rm(livePath, { force: true });
       await fs.rename(oldPath, livePath);
     }
     await fs.rm(stagedPath, { force: true });
-    if (databaseClosed) error.restartRequired = true;
+    if (databaseClosed) {
+      try {
+        await reopenDatabase();
+        databaseClosed = false;
+      } catch (reopenError) {
+        error.restartRequired = true;
+        error.reopenError = reopenError.message;
+      }
+    }
     throw error;
   }
 }
