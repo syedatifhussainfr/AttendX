@@ -1,13 +1,35 @@
+<div align="center">
+
 # AttendX
 
-> A service-operated attendance platform for educational institutions.
+### Secure, class-aware attendance operations for educational institutions
 
-AttendX replaces slow roll calls with a controlled attendance workflow for class representatives, administrators, and service operators. It combines timetable-aware session creation, server-authoritative attendance rules, accountable corrections, human-readable reports, backup tooling, and tiered administration in one responsive application.
+Timetable-aware sessions · rapid marking · accountable corrections · student intelligence · protected administration
 
-![Version](https://img.shields.io/badge/version-1.1.9.1--dev-0a4a7f)
-![Status](https://img.shields.io/badge/status-local%20development-687b86)
-![Runtime](https://img.shields.io/badge/node-20%2B-43853d)
-![Database](https://img.shields.io/badge/database-SQLite%20%7C%20PostgreSQL-315b7d)
+[![Latest release](https://img.shields.io/github/v/release/syedatifhussainfr/AttendX?style=for-the-badge&label=release&color=0b4a71)](https://github.com/syedatifhussainfr/AttendX/releases/latest)
+[![Tests](https://img.shields.io/badge/tests-44%20passing-247253?style=for-the-badge)](#verification)
+[![Node.js](https://img.shields.io/badge/Node.js-20%2B-43853d?style=for-the-badge&logo=node.js&logoColor=white)](#requirements)
+[![Database](https://img.shields.io/badge/SQLite%20%7C%20PostgreSQL-315b7d?style=for-the-badge&logo=postgresql&logoColor=white)](#technology)
+
+[![Stars](https://img.shields.io/github/stars/syedatifhussainfr/AttendX?style=flat-square)](https://github.com/syedatifhussainfr/AttendX/stargazers)
+[![Forks](https://img.shields.io/github/forks/syedatifhussainfr/AttendX?style=flat-square)](https://github.com/syedatifhussainfr/AttendX/forks)
+[![Issues](https://img.shields.io/github/issues/syedatifhussainfr/AttendX?style=flat-square)](https://github.com/syedatifhussainfr/AttendX/issues)
+[![Last commit](https://img.shields.io/github/last-commit/syedatifhussainfr/AttendX?style=flat-square)](https://github.com/syedatifhussainfr/AttendX/commits/main)
+
+</div>
+
+AttendX replaces slow roll calls with a controlled attendance workflow for class representatives, faculty, administrators, and service operators. It combines timetable-aware session creation, server-authoritative attendance rules, accountable corrections, human-readable reports, backup tooling, and tiered administration in one responsive application.
+
+## Why AttendX
+
+| Operate | Understand | Protect |
+| --- | --- | --- |
+| Run multiple database-backed class workspaces, timetables, live sessions, and rapid attendance tools. | Review class and student performance through subject analytics, histories, and structured Excel reports. | Enforce scoped roles, password-confirmed privileged actions, audit trails, validated backups, and hardened sessions. |
+
+```text
+Class workspace → Timetable → Live attendance → Review & close → Analytics & reports
+                              ↘ crash-safe recovery ↗
+```
 
 ## Product position
 
@@ -23,11 +45,23 @@ Operational records, credentials, local policy, institution settings, subjects, 
 | `v1.1.6` | Previous release | Secure sessions, Admin++ controls, database visibility, self-healing permissions, reporting, and responsive operations. |
 | `v1.1.7` | Previous release | Recoverable live attendance, stronger privilege boundaries, safer token rotation, configurable permissions, validated timetables, and refined operational UX. |
 | `v1.1.8` | Previous release | Student intelligence workspace, profiles, subject analytics, weighted Late credit, privacy-safe administration, and additional recovery hardening. |
-| `v1.1.9` | Current release | Database-backed class workspaces, faculty and mentor assignments, class-scoped rosters, subjects, timetables, attendance, and reports. |
-| `v1.1.9.1` | Local development | Protected institution branding, dynamic logos/favicon, stricter upload verification, and hardened SQLite restore selection. |
+| `v1.1.9` | Previous release | Database-backed class workspaces, faculty and mentor assignments, class-scoped rosters, subjects, timetables, attendance, and reports. |
+| `v1.1.9.1` | Current release | Protected institution identity, secure media and restore uploads, relationship-aware database inspection, tighter password-manager boundaries, and refined glass UI. |
 | `v1.2.0` | Planned | Academic calendar, alerting, programme templates, and service-management foundations. |
 
-The published [`v1.1.9` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.1.9) is the current stable release. [`v1.1.8`](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.1.8) is its direct upgrade baseline, and [`v1.0.0`](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.0.0) remains the original stable baseline.
+The published [`v1.1.9.1` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.1.9.1) is the current stable release. [`v1.1.9`](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.1.9) is its direct upgrade baseline, and [`v1.0.0`](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.0.0) remains the original stable baseline.
+
+## V1.1.9 compared with V1.1.9.1
+
+| Area | V1.1.9 | V1.1.9.1 |
+| --- | --- | --- |
+| Institution identity | Bundled deployment branding | Admin++ managed institution name, campus, primary logo, optional secondary logo, and optional favicon override |
+| Upload handling | General protected restore workflow | Signature, MIME, extension, dimension, size, rate-limit, cancellation, progress, and staged-write checks |
+| Database inspection | Safe table browsing with redacted secrets | Human-readable class, student, subject, timetable, attendance, user, assignment, audit, and session relationships |
+| Password managers | Browser behavior varied across protected forms | Credential autofill remains intentional on Login and is blocked from protected manual-entry controls |
+| Class settings | Legacy global class labels could remain | Obsolete global settings are migrated away; `academic_classes` is the single class identity source |
+| Interface | Class workspace glass UI | Cleaner sticky glass layering and live institution identity across application surfaces |
+| Verification | 42 automated tests | 44 automated tests plus production build and live-data integrity checks |
 
 ## V1.1.8 compared with V1.1.9
 
@@ -518,9 +552,9 @@ Credited attendance percentage is `sum of attendance credit values / classes con
 - Audit logs can be downloaded as a human-readable `.txt` record from the Audit page.
 - Self-disable, self-delete, and last-active-Admin++ protections prevent avoidable lockout.
 
-## V1.1.9 verification
+## Verification
 
-- 43 automated tests cover attendance rules and recovery queues, weighted Late credit, student profiles and privacy, imports, exports, refresh races, authorization gates, backup retention, audit export, Admin++, faculty/class isolation, password-confirmed staff removal, protected empty-class deletion, per-class roll numbers, role changes, timetable validation, destructive history controls, archive migration, filter validation, settings fallback, and self-healing configuration.
+- 44 automated tests cover attendance rules and recovery queues, weighted Late credit, student profiles and privacy, imports, exports, refresh races, authorization gates, backup retention, audit export, Admin++, faculty/class isolation, relationship-aware database inspection, password-confirmed staff removal, protected empty-class deletion, per-class roll numbers, role changes, timetable validation, destructive history controls, archive migration, filter validation, settings fallback, and self-healing configuration.
 - Production frontend compilation succeeds with Vite.
 - `npm run config-check` validates YAML parsing, structural repair, permission dependencies, and protected privilege ceilings.
 - `npm run verify-data` checks SQLite integrity, foreign keys, attendance ownership, duplicate rolls, administrator availability, and record totals without modifying data.
@@ -549,4 +583,4 @@ Planned product work includes:
 
 ## Important scope statement
 
-V1.1.9 is a stable, service-operated release suitable for controlled pilot evaluation after deployment-specific backup, restore, role, browser, and export checks. It is not a self-service multi-tenant SaaS platform; each institution should receive an isolated deployment and database until tenant isolation, provisioning, billing, and operator tooling are deliberately implemented and independently reviewed.
+V1.1.9.1 is a stable, service-operated release suitable for controlled pilot evaluation after deployment-specific backup, restore, role, browser, and export checks. It is not a self-service multi-tenant SaaS platform; each institution should receive an isolated deployment and database until tenant isolation, provisioning, billing, and operator tooling are deliberately implemented and independently reviewed.
