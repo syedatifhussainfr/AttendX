@@ -13,8 +13,17 @@ for (const repair of policyStartupReport.repairs)
 if (config.dialect === "sqlite")
   await mkdir(dirname(config.sqlitePath), { recursive: true });
 await initDatabase();
-app.listen(config.port, () =>
+const server = app.listen(config.port, () =>
   console.log(
     `AttendX API ready at http://localhost:${config.port} · permission policy v${policyStartupReport.policy.version}`,
   ),
 );
+
+// Keep an explicit module-level reference to the HTTP server. This prevents
+// newer Node runtimes from treating an otherwise unreferenced listener as
+// collectible while the development supervisor is managing the process.
+server.ref();
+server.on("error", (error) => {
+  console.error(`AttendX API listener failed: ${error.message}`);
+  process.exitCode = 1;
+});
