@@ -25,6 +25,7 @@ import {
 import { scheduleApiRestart } from "../services/apiRestartService.js";
 
 const router = Router();
+const SECURE_RESTORE_WINDOW_MS = 10_000;
 const restoreLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 3,
@@ -60,6 +61,33 @@ const upload = multer({
     callback(null, true);
   },
 });
+
+function waitForSecureRestoreCommit(res, startedAt) {
+  if (process.env.NODE_ENV === "test") return Promise.resolve();
+  const remaining = Math.max(
+    0,
+    SECURE_RESTORE_WINDOW_MS - (Date.now() - startedAt),
+  );
+  return new Promise((resolve, reject) => {
+    let complete = false;
+    const onClose = () => {
+      if (complete || res.writableEnded) return;
+      clearTimeout(timer);
+      reject(
+        Object.assign(
+          new Error("Backup verification was cancelled before database replacement."),
+          { status: 499, code: "UPLOAD_CANCELLED" },
+        ),
+      );
+    };
+    const timer = setTimeout(() => {
+      complete = true;
+      res.off("close", onClose);
+      resolve();
+    }, remaining);
+    res.once("close", onClose);
+  });
+}
 router.use(requireAuth);
 router.use(requireAdminPlus, requireAdminElevation);
 
@@ -116,6 +144,10 @@ router.post(
   "/restore",
   requirePermission("backups.restore"),
   restoreLimiter,
+  (req, res, next) => {
+    req.restoreUploadStartedAt = Date.now();
+    next();
+  },
   upload.single("backup"),
   async (req, res, next) => {
     try {
@@ -135,6 +167,7 @@ router.post(
           .status(400)
           .json({ message: "Administrator password is incorrect." });
       const staged = await stageUploadedBackupFile(req.file.path);
+      await waitForSecureRestoreCommit(res, req.restoreUploadStartedAt);
       const result = await restoreStagedBackup({
         stagedPath: staged.stagedPath,
         userId: user.id,

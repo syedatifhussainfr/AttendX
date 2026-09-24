@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArchiveRestore,
   DatabaseBackup,
@@ -6,9 +6,11 @@ import {
   FileCheck2,
   FileUp,
   HardDrive,
+  LoaderCircle,
   Plus,
   ShieldAlert,
   Trash2,
+  X,
 } from "lucide-react";
 import { api, messageOf, setAdminElevation } from "../api.js";
 import { Dialog } from "../components/Dialog.jsx";
@@ -22,6 +24,8 @@ const sizeOf = (bytes) =>
     : bytes < 1024 * 1024
       ? `${Math.max(1, Math.round(bytes / 1024))} KB`
       : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+
+const SECURE_RESTORE_MILLISECONDS = 10_000;
 
 const pause = (milliseconds) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds));
@@ -49,6 +53,12 @@ export function BackupsPage() {
   const [deleteRow, setDeleteRow] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [restoreStatus, setRestoreStatus] = useState("");
+  const [restoreProgress, setRestoreProgress] = useState({
+    percent: 0,
+    label: "",
+    eta: 0,
+  });
+  const restoreControllerRef = useRef(null);
   const toast = useToast();
   const { can } = useAuth();
   const load = async () => {
@@ -66,6 +76,7 @@ export function BackupsPage() {
     setRestoreOpen(false);
     setRestoreFile(null);
     setRestoreStatus("");
+    setRestoreProgress({ percent: 0, label: "", eta: 0 });
   };
   const create = async () => {
     setBusy(true);
@@ -97,10 +108,61 @@ export function BackupsPage() {
   };
   const restore = async (event) => {
     event.preventDefault();
+    const controller = new AbortController();
+    restoreControllerRef.current = controller;
     setBusy(true);
     const form = new FormData(event.currentTarget);
+    const startedAt = Date.now();
+    let uploadedRatio = 0;
+    const stageFor = (elapsed) =>
+      elapsed < 2_000
+        ? "Uploading protected SQLite data"
+        : elapsed < 4_000
+          ? "Checking file signature and format"
+          : elapsed < 6_500
+            ? "Scanning database integrity and relationships"
+            : elapsed < 8_500
+              ? "Verifying schema and administrator recovery"
+              : "Preparing atomic database replacement";
+    setRestoreProgress({
+      percent: 3,
+      label: "Starting secure restore verification",
+      eta: 10,
+    });
+    const ticker = window.setInterval(() => {
+      const elapsed = Math.min(
+        Date.now() - startedAt,
+        SECURE_RESTORE_MILLISECONDS,
+      );
+      const timeRatio = elapsed / SECURE_RESTORE_MILLISECONDS;
+      setRestoreProgress({
+        percent: Math.min(
+          94,
+          Math.max(
+            8 + Math.round(timeRatio * 84),
+            Math.round(uploadedRatio * 42),
+          ),
+        ),
+        label: stageFor(elapsed),
+        eta: Math.max(
+          0,
+          Math.ceil((SECURE_RESTORE_MILLISECONDS - elapsed) / 1000),
+        ),
+      });
+    }, 150);
     try {
-      const { data } = await api.post("/admin/backups/restore", form);
+      const { data } = await api.post("/admin/backups/restore", form, {
+        signal: controller.signal,
+        onUploadProgress: (upload) => {
+          if (upload.total) uploadedRatio = upload.loaded / upload.total;
+        },
+      });
+      window.clearInterval(ticker);
+      setRestoreProgress({
+        percent: 96,
+        label: "Verified backup applied safely",
+        eta: 0,
+      });
       toast(data.message);
       setRestoreStatus("Database restored. Restarting the AttendX API…");
       const restarted = await waitForApiRestart();
@@ -115,10 +177,18 @@ export function BackupsPage() {
       await pause(350);
       window.location.assign("/login");
     } catch (error) {
-      toast(messageOf(error), "error");
+      window.clearInterval(ticker);
+      if (error.name === "CanceledError" || error.name === "AbortError") {
+        toast("Backup restore cancelled before database replacement.");
+        setRestoreStatus("");
+      } else toast(messageOf(error), "error");
       setBusy(false);
+      setRestoreProgress({ percent: 0, label: "", eta: 0 });
+    } finally {
+      restoreControllerRef.current = null;
     }
   };
+  const cancelRestore = () => restoreControllerRef.current?.abort();
   const chooseRestoreFile = async (event) => {
     const file = event.target.files?.[0] || null;
     if (!file) return setRestoreFile(null);
@@ -357,14 +427,55 @@ export function BackupsPage() {
               {restoreStatus}
             </div>
           )}
+          {busy && !restoreStatus && (
+            <div className="restore-verification-progress" aria-live="polite">
+              <span className="restore-verification-spinner">
+                <LoaderCircle />
+              </span>
+              <div>
+                <strong>{restoreProgress.label}</strong>
+                <small>
+                  {restoreProgress.eta
+                    ? `Safety verification in about ${restoreProgress.eta}s`
+                    : "Final database verification"}
+                </small>
+                <div className="restore-verification-stages">
+                  <b className={restoreProgress.percent >= 8 ? "done" : "active"}>
+                    Upload
+                  </b>
+                  <b className={restoreProgress.percent >= 28 ? "done" : ""}>
+                    Signature
+                  </b>
+                  <b className={restoreProgress.percent >= 50 ? "done" : ""}>
+                    Integrity
+                  </b>
+                  <b className={restoreProgress.percent >= 72 ? "done" : ""}>
+                    Schema
+                  </b>
+                  <b className={restoreProgress.percent >= 90 ? "done" : ""}>
+                    Apply
+                  </b>
+                </div>
+                <i>
+                  <b style={{ width: `${restoreProgress.percent}%` }} />
+                </i>
+                <em>{restoreProgress.percent}%</em>
+              </div>
+            </div>
+          )}
           <div className="dialog-actions">
             <button
               type="button"
               className="secondary"
-              disabled={busy}
-              onClick={closeRestore}
+              onClick={busy ? cancelRestore : closeRestore}
             >
-              Cancel
+              {busy ? (
+                <>
+                  <X /> Cancel verification
+                </>
+              ) : (
+                "Cancel"
+              )}
             </button>
             <button className="danger" disabled={busy}>
               <ArchiveRestore />{" "}
