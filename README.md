@@ -4,8 +4,8 @@
 
 AttendX replaces slow roll calls with a controlled attendance workflow for class representatives, administrators, and service operators. It combines timetable-aware session creation, server-authoritative attendance rules, accountable corrections, human-readable reports, backup tooling, and tiered administration in one responsive application.
 
-![Version](https://img.shields.io/badge/version-1.1.9-0a4a7f)
-![Status](https://img.shields.io/badge/status-stable-287a5b)
+![Version](https://img.shields.io/badge/version-1.1.9.1--dev-0a4a7f)
+![Status](https://img.shields.io/badge/status-local%20development-687b86)
 ![Runtime](https://img.shields.io/badge/node-20%2B-43853d)
 ![Database](https://img.shields.io/badge/database-SQLite%20%7C%20PostgreSQL-315b7d)
 
@@ -24,6 +24,7 @@ Operational records, credentials, local policy, institution settings, subjects, 
 | `v1.1.7` | Previous release | Recoverable live attendance, stronger privilege boundaries, safer token rotation, configurable permissions, validated timetables, and refined operational UX. |
 | `v1.1.8` | Previous release | Student intelligence workspace, profiles, subject analytics, weighted Late credit, privacy-safe administration, and additional recovery hardening. |
 | `v1.1.9` | Current release | Database-backed class workspaces, faculty and mentor assignments, class-scoped rosters, subjects, timetables, attendance, and reports. |
+| `v1.1.9.1` | Local development | Protected institution branding, dynamic logos/favicon, stricter upload verification, and hardened SQLite restore selection. |
 | `v1.2.0` | Planned | Academic calendar, alerting, programme templates, and service-management foundations. |
 
 The published [`v1.1.9` release](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.1.9) is the current stable release. [`v1.1.8`](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.1.8) is its direct upgrade baseline, and [`v1.0.0`](https://github.com/syedatifhussainfr/AttendX/releases/tag/v1.0.0) remains the original stable baseline.
@@ -232,6 +233,20 @@ The additive `006-student-profile` and `007-late-attendance-credit` migrations r
 - The centered glass class switcher keeps the selected workspace and academic metadata balanced across desktop and responsive layouts.
 - Password-manager autofill is limited to Login. Protected password and destructive-confirmation fields require manual typing, reject clipboard paste/drop, and confirmation phrases show live match progress.
 - Development startup waits for API health before launching the browser interface, preventing initial login requests from racing API initialization.
+
+### V1.1.9.1 — protected institution identity (local development)
+
+- Admin++-only institution identity editor with session-bound password elevation and manual `UPDATE BRANDING` confirmation.
+- Database-backed primary and optional secondary logos, preserved by normal SQLite backups.
+- Primary logo drives navigation, login, security pages, dashboard watermark, live preview, and the favicon by default.
+- An optional dedicated favicon can override the browser icon without changing either visible institution logo; removing it falls back to the primary logo.
+- Secondary branding renders only when configured and disappears cleanly when removed.
+- Institution name, short code, and campus update immediately throughout the active browser and in generated workbook metadata.
+- PNG/JPEG extension, MIME, signature, structure, dimensions, megapixel, size, file-count, and rate-limit enforcement.
+- Server-enforced, cancellable ten-second upload/verification window with Upload, Signature, Dimensions, and Apply stages plus live progress and ETA before any branding change is committed.
+- Atomic profile/logo writes and an audit record without storing passwords or image bytes in audit history.
+- Backup restore now accepts `.sqlite` files only, validates the SQLite signature before opening the database, streams uploads to staged storage instead of holding 100 MB in memory, and rate-limits restore attempts.
+- 44 automated tests include Admin++ branding authorization, persistence, public delivery, optional-logo behavior, and audit coverage.
 
 ## Permission model
 

@@ -31,7 +31,7 @@ let exitCode = 0;
 
 try {
   await sequelize.authenticate();
-  console.log(`\n${info("AttendX V1.1.9 · Data verification")}`);
+  console.log(`\n${info("AttendX V1.1.9.1 · Data verification")}`);
   console.log("─".repeat(48));
   row("Database engine", config.dialect.toUpperCase());
 
