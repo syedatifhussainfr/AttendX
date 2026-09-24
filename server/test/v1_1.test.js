@@ -957,6 +957,22 @@ test("ADMIN manages accounts while Admin++ elevation protects destructive action
       assert.equal("phoneNumber" in response.body.rows[0], false);
     });
   await request(app)
+    .get("/api/admin/database/tables/students")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .set("X-Admin-Elevation", adminElevationToken)
+    .expect(200)
+    .expect((response) => {
+      const student = response.body.rows.find(
+        (row) => row.rollNumber === "01",
+      );
+      assert.ok(student.id);
+      assert.ok(student.name);
+      assert.equal(student.className, defaultClass.displayName);
+      assert.equal(student.classCode, defaultClass.code);
+      assert.equal(student.AcademicClassId, defaultClass.id);
+      assert.equal("AcademicClass" in student, false);
+    });
+  await request(app)
     .post("/api/auth/elevate")
     .set("Authorization", `Bearer ${adminToken}`)
     .send({ password: "wrong-password" })

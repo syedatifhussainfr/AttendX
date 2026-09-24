@@ -32,6 +32,31 @@ const labels = {
   app_migrations: "Schema migrations",
 };
 
+const columnLabels = {
+  id: "Database ID",
+  rollNumber: "Roll number",
+  name: "Student name",
+  className: "Class",
+  classCode: "Class code",
+  AcademicClassId: "Class ID",
+};
+
+const studentColumnOrder = [
+  "id",
+  "rollNumber",
+  "name",
+  "className",
+  "classCode",
+  "AcademicClassId",
+];
+
+const readableColumn = (column) =>
+  columnLabels[column] ||
+  column
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replaceAll("_", " ")
+    .replace(/^./, (character) => character.toUpperCase());
+
 const managementAreas = [
   {
     tables: ["users"],
@@ -138,8 +163,12 @@ export function DatabasePage() {
     const names = new Set();
     for (const row of result?.rows || [])
       Object.keys(row).forEach((key) => names.add(key));
-    return [...names];
-  }, [result]);
+    if (selected !== "students") return [...names];
+    return [
+      ...studentColumnOrder.filter((column) => names.delete(column)),
+      ...names,
+    ];
+  }, [result, selected]);
   const visibleManagementAreas = can("users.manageSessions")
     ? managementAreas
     : managementAreas.filter((area) => !area.tables.includes("auth_sessions"));
@@ -243,6 +272,12 @@ export function DatabasePage() {
             <span className="eyebrow">TABLE</span>
             <h2>{labels[selected]}</h2>
             <p>{result?.total ?? 0} stored records</p>
+            {selected === "students" && (
+              <small className="database-context-note">
+                Database ID is internal. Use class and roll number to identify a
+                student across workspaces.
+              </small>
+            )}
           </div>
           <div className="button-row">
             {selectedManagement && (
@@ -282,7 +317,7 @@ export function DatabasePage() {
               <thead>
                 <tr>
                   {columns.map((column) => (
-                    <th key={column}>{column}</th>
+                    <th key={column}>{readableColumn(column)}</th>
                   ))}
                 </tr>
               </thead>

@@ -3834,6 +3834,15 @@ tr.clickable:hover td {
   font-size: 11px;
 }
 
+.database-context-note {
+  display: block;
+  max-width: 540px;
+  margin-top: 7px;
+  color: #5e7487;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
 .database-toolbar select {
   min-width: 185px;
 }

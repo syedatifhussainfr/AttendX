@@ -1407,7 +1407,32 @@ const databaseTables = {
     attributes: { exclude: ["passwordHash", "phoneNumber"] },
     order: [["id", "ASC"]],
   },
-  students: { model: Student, order: [["id", "ASC"]] },
+  students: {
+    model: Student,
+    include: [
+      {
+        model: AcademicClass,
+        attributes: ["displayName", "code"],
+        required: false,
+      },
+    ],
+    order: [["id", "ASC"]],
+    serialize: (row) => {
+      const { AcademicClass: academicClass, ...student } = row.toJSON();
+      return {
+        id: student.id,
+        rollNumber: student.rollNumber,
+        name: student.name,
+        className: academicClass?.displayName || "Unassigned class",
+        classCode: academicClass?.code || null,
+        ...Object.fromEntries(
+          Object.entries(student).filter(
+            ([key]) => !["id", "rollNumber", "name"].includes(key),
+          ),
+        ),
+      };
+    },
+  },
   subjects: { model: Subject, order: [["id", "ASC"]] },
   timetable: { model: Timetable, order: [["id", "ASC"]] },
   attendance_sessions: {
@@ -1524,13 +1549,16 @@ router.get(
       .parse(req.query);
     const result = await definition.model.findAndCountAll({
       attributes: definition.attributes,
+      include: definition.include,
       order: definition.order,
       limit: pageSize,
       offset: (page - 1) * pageSize,
     });
     res.json({
       table: req.params.table,
-      rows: result.rows,
+      rows: definition.serialize
+        ? result.rows.map(definition.serialize)
+        : result.rows,
       total: result.count,
       page,
       pageSize,
