@@ -7096,8 +7096,8 @@ body.sidebar-resizing * {
   isolation: isolate;
   background: linear-gradient(
     135deg,
-    rgba(249, 252, 253, 0.62),
-    rgba(239, 246, 249, 0.56)
+    rgba(249, 252, 253, 0.42),
+    rgba(239, 246, 249, 0.36)
   );
   backdrop-filter: blur(42px) saturate(118%);
   -webkit-backdrop-filter: blur(42px) saturate(118%);
@@ -7114,9 +7114,9 @@ body.sidebar-resizing * {
   border-radius: inherit;
   background: linear-gradient(
     112deg,
-    rgba(255, 255, 255, 0.12),
-    rgba(247, 251, 253, 0.05) 56%,
-    rgba(229, 240, 246, 0.1)
+    rgba(255, 255, 255, 0.06),
+    rgba(247, 251, 253, 0.02) 56%,
+    rgba(229, 240, 246, 0.05)
   );
   pointer-events: none;
 }
