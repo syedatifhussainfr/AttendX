@@ -19,6 +19,7 @@ export function ManualEntryInput({
   onFocus,
   onBlur,
   onKeyDown,
+  onBeforeInput,
   ...props
 }) {
   const [armed, setArmed] = useState(false);
@@ -52,13 +53,17 @@ export function ManualEntryInput({
         {...props}
         ref={inputRef}
         id={domId}
-        type={type}
+        type="text"
         name={undefined}
         value={renderedValue}
-        className={["manual-entry-input", props.className]
+        className={[
+          "manual-entry-input",
+          passwordField && "manual-entry-secret",
+          props.className,
+        ]
           .filter(Boolean)
           .join(" ")}
-        autoComplete={passwordField ? "one-time-code" : "off"}
+        autoComplete="off"
         autoCapitalize="none"
         autoCorrect="off"
         spellCheck="false"
@@ -73,6 +78,13 @@ export function ManualEntryInput({
         aria-describedby={expected ? statusId : props["aria-describedby"]}
         onKeyDown={(event) => {
           onKeyDown?.(event);
+        }}
+        onBeforeInput={(event) => {
+          if (event.nativeEvent?.inputType === "insertReplacementText") {
+            event.preventDefault();
+            return;
+          }
+          onBeforeInput?.(event);
         }}
         onChange={(event) => {
           setTyped(event.target.value);

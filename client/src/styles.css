@@ -8188,6 +8188,9 @@ body.class-switcher-open .topbar {
 .manual-entry-input {
   background-image: none !important;
 }
+.manual-entry-secret {
+  -webkit-text-security: disc;
+}
 .manual-entry-input:read-only {
   cursor: text;
 }
